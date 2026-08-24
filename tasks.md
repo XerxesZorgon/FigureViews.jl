@@ -15,7 +15,7 @@ Task IDs are a global monotonic counter. `Milestone` is metadata.
 ---
 
 ## Task 001: Author Project.toml with pinned deps
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, folded into initial commit e304a61
 **Milestone:** M1
 **Depends on:** —
 
@@ -35,7 +35,7 @@ Report the full `Pkg` error output verbatim, including the resolver's explanatio
 ---
 
 ## Task 002: Add LICENSE (MIT)
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, folded into initial commit e304a61
 **Milestone:** M1
 **Depends on:** —
 
@@ -54,40 +54,41 @@ Report the exact Julia error (`AssertionError` line and the missing string), or 
 ---
 
 ## Task 003: Add .gitignore for Julia
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit 45485cf
 **Milestone:** M1
 **Depends on:** —
 
 ### What to do
-Create `.gitignore` at the project root with Julia-standard entries: `Manifest.toml`, `/deps/build.log`, `/deps/deps.jl`, `/docs/build/`, `/docs/site/`, `*.jl.cov`, `*.jl.*.cov`, `*.jl.mem`, `.DS_Store`. `Manifest.toml` is excluded per ADR-008 (library distribution — let downstream resolvers pick versions).
+Create `.gitignore` at the project root with Julia-standard entries: `Manifest.toml`, `Project.toml.local`, `test/Manifest.toml`, `/deps/build.log`, `/deps/deps.jl`, `/docs/build/`, `/docs/site/`, `*.jl.cov`, `*.jl.*.cov`, `*.jl.mem`, `.DS_Store`, `.vscode/`, `Thumbs.db`. `Manifest.toml` is excluded per ADR-008 (library distribution — let downstream resolvers pick versions). `Project.toml.local` and `test/Manifest.toml` are Julia-specific artifacts that should never be committed.
 
 ### Files touched
 - `.gitignore` — new file
 
 ### Acceptance Criterion
-File exists. `grep -qE "^Manifest\.toml$" .gitignore` exits 0. `grep -qE "^/docs/build/$" .gitignore` exits 0. `grep -qE "^\.DS_Store$" .gitignore` exits 0.
+`julia -e 'lines = readlines(".gitignore"); required = ["Manifest.toml", "Project.toml.local", "test/Manifest.toml", "/docs/build/", ".DS_Store", ".vscode/"]; missing_entries = filter(r -> !(r in lines), required); @assert isempty(missing_entries) "missing: $missing_entries"; println(".gitignore OK")'` exits 0 and prints `.gitignore OK`.
+
 
 ### On Failure
-Report which grep failed.
+Report the exact Julia error, including the list of missing entries from the `AssertionError` message, or the SystemError if the file doesn't exist.
 
 ---
 
 ## Task 004: Create src/MakieViews.jl module stub
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit d08d1e2
 **Milestone:** M1
 **Depends on:** 001
 
 ### What to do
-Create `src/MakieViews.jl` containing a minimal module that imports `Gtk4`, `Gtk4Makie`, `GLMakie`, exports `makieviews`, and defines `makieviews()` as a placeholder returning `nothing`. No behavior yet — this task exists to make the package loadable.
+Create `src/MakieViews.jl` containing a minimal module. The module must: (1) `using Gtk4, Gtk4Makie, GLMakie` at the top, (2) `export makieviews`, (3) define `makieviews()` as a placeholder function returning `nothing`, and (4) close with `end # module MakieViews`. No other behavior — this task exists only to make the package loadable and to establish the module skeleton.
 
 ### Files touched
 - `src/MakieViews.jl` — new file
 
 ### Acceptance Criterion
-`julia --project=. -e 'using MakieViews; @assert isdefined(MakieViews, :makieviews); @assert makieviews() === nothing'` exits 0 with no errors or warnings.
+`julia --project=. -e 'using MakieViews; @assert :makieviews in names(MakieViews) "makieviews not exported"; @assert makieviews() === nothing "makieviews() did not return nothing"; println("module OK")'` exits 0 and prints `module OK`. Precompile output on first run is expected and not a failure.
 
 ### On Failure
-Report the exact error, including any precompilation output.
+Report the exact `AssertionError` or `UndefVarError`, plus any precompile output that preceded it.
 
 ---
 
