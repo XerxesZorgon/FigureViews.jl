@@ -21,3 +21,16 @@ end
     @test (w.default_width, w.default_height) == (1024, 768)
     Gtk4.destroy(w)
 end
+
+@testset "M1 shell — Figure attached" begin
+    w = makieviews()
+    sleep(0.3)  # let GLMakie initialize the GL context
+    
+    child_widget = w[]
+    @test child_widget !== nothing
+    
+    # Stronger assertions
+    @test occursin(r"Makie|GL", string(typeof(child_widget)))
+    
+    Gtk4.destroy(w)
+end

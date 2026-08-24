@@ -159,7 +159,7 @@ Originally split "code change" (Task 006) from "test change" (Task 007). Merged 
 ---
 
 ## Task 008: Implement Gtk4 window creation in makieviews() + window-property test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit 189d382
 **Milestone:** M1
 **Depends on:** 006 (007 is a merged placeholder)
 
@@ -200,48 +200,53 @@ Same merge pattern as Task 007 into Task 006: the atomic unit for the window-cre
 
 ---
 
-## Task 010: Embed an empty GLMakie Figure via Gtk4Makie
+## Task 010: Embed an empty GLMakie Figure via Gtk4Makie + Figure-attachment test
 **Status:** [ ] Pending
 **Milestone:** M1
 **Depends on:** 008 (009 is a merged placeholder)
 
 ### What to do
-Modify `src/MakieViews.jl` so `makieviews()`, after creating the window, embeds a Gtk4Makie GLMakie widget as the window's child, containing an empty `Figure()` with a single empty `Axis`. Use whatever function Gtk4Makie.jl v0.3.9 currently exposes for this — check the package's README and `examples/` directory for the correct name (likely `GtkGLMakie` or similar; do not guess). The window should display a blank Cartesian axis with visible tick labels and axis lines. Return the window handle as before.
+Two changes in one commit — code + its test, atomic (same merge pattern as Tasks 006 and 008):
+
+1. **Modify `src/MakieViews.jl`** so `makieviews()`, after creating the Gtk4 window (Task 008's code), embeds a Gtk4Makie GLMakie viewport as the window's child, displaying an empty `Figure()` with a single empty `Axis`. The function still returns the window handle — not the Figure, not a tuple. Callers introspect through the widget tree if they need the Figure.
+
+   Look up the actual Gtk4Makie.jl v0.3.9 API from its README and `examples/` directory — do not guess widget names. Likely candidates (verify one, don't assume): a widget type like `GtkGLMakie` or `GtkMakieCanvas` that takes a `Figure` and behaves as a Gtk4 widget; or a screen constructor like `GLMakie.Screen(figure; parent=window)`; or a helper that wraps both steps.
+
+   Overhaul the docstring — the current "Placeholder entry point... Behavior added in later tasks" wording is stale (the function now creates a real window with a real viewport). Rewrite it to accurately describe: creates a MakieViews main window, embeds an empty Figure with one Axis via Gtk4Makie, returns the window handle, warns per ADR-011 when non-REPL.
+
+2. **Extend `test/runtests.jl`** with a fourth testset `M1 shell — Figure attached`. Minimum assertion the test must make: after `makieviews()`, the window has at least one child widget (before Task 010, it has none). Stronger assertions to add if the Gtk4Makie API exposes them cleanly — report what you were able to check:
+
+   - The child widget's type name contains `"Makie"` or `"GL"` (guards against accidentally adding a plain GTK widget).
+   - The Figure embedded in the widget can be retrieved, and `length(fig.content) == 1` (one Axis, no more).
+   - The single Axis is a Makie `Axis` (not `Axis3` — v0.1 M1 exit criterion is 2D).
+
+   Destroy the window at the end of the testset (leak prevention).
 
 ### Files touched
-- `src/MakieViews.jl` — modified: add Figure/Axis embedding
-
-### Acceptance Criterion
-`julia --project=. -e 'using MakieViews, Gtk4; w = makieviews(); sleep(1.0); Gtk4.destroy(w)' 2>&1` exits 0 with no errors. Manual visual inspection: window shows a blank axis (verified during development; CI cannot verify this without image diffing, which is M11's concern).
-
-### On Failure
-Report the exact error, including any Gtk4Makie or GLMakie context initialization messages.
-
----
-
-## Task 011: Extend test/runtests.jl to verify Figure is attached to window
-**Status:** [ ] Pending
-**Milestone:** M1
-**Depends on:** 010
-
-### What to do
-Extend `test/runtests.jl` with a fourth `@testset "M1 shell — Figure attached" begin ... end` block that calls `makieviews()`, asserts the window has at least one child widget (the Gtk4Makie viewport), and — if Gtk4Makie exposes a way to retrieve the Makie Figure from its widget — asserts a Figure with one Axis is present. If the API doesn't expose this cleanly, restrict the assertion to child-widget presence and document why in an inline comment.
-
-### Files touched
+- `src/MakieViews.jl` — modified: add Figure/Axis embedding + docstring overhaul
 - `test/runtests.jl` — modified: append fourth testset
 
 ### Acceptance Criterion
-`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0. Total test count is at least 6, all passing. On Linux this may need `xvfb-run -a`.
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0. The output includes four testset names — `M1 shell — module loads`, `M1 shell — non-REPL warning fires`, `M1 shell — window properties`, `M1 shell — Figure attached` — and the final `Test Summary:` block shows `Pass` ≥ 6 and `Fail` = 0. Additionally, `git log --oneline -1` shows the commit subject `feat: embed empty GLMakie Figure in window via Gtk4Makie`, and `git show --stat HEAD` reports exactly 3 files changed.
 
 ### On Failure
-Report the full `Pkg.test` output.
+Report the full `Pkg.test()` output. If the failure is on the Gtk4Makie API (widget type name doesn't exist, or the parent/child relationship isn't what I described), quote the exact `UndefVarError` or `MethodError` and name which Gtk4Makie construct you tried — that's the signal to look up a different construct rather than a code bug. If GLMakie fails to initialize a GL context (common on some Windows drivers), quote the exact error — that's an environment issue, not a task-code bug.
+
+---
+
+## Task 011: (MERGED into Task 010)
+**Status:** [x] Done — merged into Task 010 during authoring; empty by design
+**Milestone:** M1
+**Depends on:** —
+
+Same merge pattern as Task 007 into 006 and Task 009 into 008: the atomic unit for the Figure-embedding change is code + its attachment test in one commit, verified by `Pkg.test()` green. Splitting would create a transient commit with new behavior and no test coverage. Numbering downstream (Task 012) unchanged.
 
 ---
 
 ## Task 012: Create .github/workflows/ci.yml with 6-cell matrix
 **Status:** [ ] Pending
 **Milestone:** M1
-**Depends on:** 011
+**Depends on:** 010 (011 is a merged placeholder)
 
 ### What to do
 Create `.github/workflows/ci.yml` for GitHub Actions with a matrix over `julia-version: ["1.10", "1.12"]` and `os: [ubuntu-latest, windows-latest, macos-latest]`, per `docs/TEST_PLAN.md`. On each cell: check out the repo (`actions/checkout@v4`), set up Julia (`julia-actions/setup-julia@v2`), cache the depot (`julia-actions/cache@v2`), buildpkg (`julia-actions/julia-buildpkg@v1`), and run tests. On Ubuntu, prefix the test step with `xvfb-run -a` (install via `sudo apt-get install -y xvfb` in a prior step). On Windows and macOS, run tests directly. Trigger on `push` to any branch and `pull_request` to `main`.
