@@ -7,7 +7,7 @@ using GLMakie
 export makieviews
 
 """
-    makieviews() -> Nothing
+    makieviews() -> Gtk4.GtkWindow
 
 Placeholder entry point for MakieViews v0.1. Behavior added in later tasks.
 """
@@ -15,7 +15,9 @@ function makieviews()
     if !(isinteractive() && isdefined(Base, :active_repl))
         @warn "MakieViews v0.1 reads variables from REPL Main. You appear to be running outside a REPL. Variables defined in this script/context so far are visible; variables you define later will not appear. File loading (CSV / HDF5) works normally."
     end
-    return nothing
+    w = GtkWindow("MakieViews", 1024, 768)
+    show(w)
+    return w
 end
 
 end # module MakieViews

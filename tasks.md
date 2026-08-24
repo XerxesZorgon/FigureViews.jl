@@ -112,7 +112,7 @@ Report the full `Pkg.test` output including which assertion failed.
 ---
 
 ## Task 006: Add ADR-011 non-REPL launch detection warning to makieviews() + test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit 8087b91
 **Milestone:** M1
 **Depends on:** 005
 
@@ -158,48 +158,52 @@ Originally split "code change" (Task 006) from "test change" (Task 007). Merged 
 
 ---
 
-## Task 008: Implement Gtk4 window creation in makieviews()
+## Task 008: Implement Gtk4 window creation in makieviews() + window-property test
 **Status:** [ ] Pending
 **Milestone:** M1
 **Depends on:** 006 (007 is a merged placeholder)
 
 ### What to do
-Modify `src/MakieViews.jl` so `makieviews()` creates a Gtk4 window titled `"MakieViews"` with default size `1024 × 768`, shows it, and returns the window handle so the caller (including tests) can inspect and destroy it. Do not run a nested blocking event loop — return the handle. Consult Gtk4.jl's current README and examples for the exact constructor and show functions; adjust to whatever the pinned Gtk4 v0.7.12 API provides. Preserve the ADR-011 warning from Task 006 at the top of the function.
+Two changes in one commit — code + its test, atomic (same merge pattern as Task 006):
+
+1. **Modify `src/MakieViews.jl`** so `makieviews()`, after the ADR-011 warning block, creates a Gtk4 window titled `"MakieViews"` with default size `1024 × 768`, shows it, and **returns the window handle**. Do not run a nested blocking event loop — return the handle so the caller (REPL user, test) can inspect and destroy it.
+
+   Look up the exact Gtk4.jl v0.7.12 API (constructor, size setter, title accessor, size accessor) from Gtk4.jl's current documentation — do not guess. Standard v0.7 pattern is likely `GtkWindow("MakieViews", 1024, 768)`, but property/size accessors vary; the ADR/design docs do not pin these because they are library API details.
+
+   Update the function's docstring to reflect the new return type (was `Nothing`, now the window type).
+
+2. **Modify `test/runtests.jl`.** Add `using Gtk4` alongside the existing `using Test, MakieViews`. Update all existing testsets that call `makieviews()` to capture the returned window and destroy it before the testset ends (otherwise windows leak between testsets and CI gets flaky). Concretely:
+
+   - **`M1 shell — module loads`**: change `@test makieviews() === nothing` to something like `w = makieviews(); @test !isnothing(w); Gtk4.destroy(w)`.
+   - **`M1 shell — non-REPL warning fires`**: capture the value: `w = @test_logs (:warn, r"MakieViews v0.1 reads variables from REPL Main") match_mode=:any makieviews(); Gtk4.destroy(w)`.
+
+   Add a new third testset `M1 shell — window properties` that creates the window via `makieviews()`, sleeps briefly (~0.2s) to let GTK settle, asserts (a) the title equals `"MakieViews"` and (b) the default size is `(1024, 768)` (or the equivalent tuple/pair form the Gtk4.jl API returns), then destroys the window. Use whatever title/size accessors Gtk4.jl v0.7.12 exposes — report which ones you used.
 
 ### Files touched
-- `src/MakieViews.jl` — modified: replace placeholder body with window construction
+- `src/MakieViews.jl` — modified: add window-creation body, update docstring
+- `test/runtests.jl` — modified: `using Gtk4`, destroy calls in existing testsets, new window-properties testset
 
 ### Acceptance Criterion
-`julia --project=. -e 'using MakieViews, Gtk4; w = makieviews(); sleep(0.2); @assert w !== nothing; Gtk4.destroy(w)' 2>&1` exits 0. On Linux, this may need `xvfb-run -a` prefix.
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 and its output includes three testset names — `M1 shell — module loads`, `M1 shell — non-REPL warning fires`, `M1 shell — window properties` — with total `Pass` ≥ 5 and `Fail` = 0 in the final `Test Summary:` block. Additionally, `git log --oneline -1` shows the commit subject `feat: create Gtk4 window in makieviews() with title and default size`, and `git show --stat HEAD` reports exactly 3 files changed (src/MakieViews.jl, test/runtests.jl, tasks.md).
 
 ### On Failure
-Report the exact error, including any Gtk4 initialization messages.
+Report the full `Pkg.test()` output including which testset or assertion failed. If the failure is because the Gtk4.jl API name I guessed doesn't exist (e.g. `Gtk4.title` returns nothing, or `default_size` is not a symbol), quote the exact `UndefVarError` or `MethodError` and name which accessor you tried — that's the signal to look up a different accessor rather than a code bug.
 
 ---
 
-## Task 009: Extend test/runtests.jl to verify window title and size
-**Status:** [ ] Pending
+## Task 009: (MERGED into Task 008)
+**Status:** [x] Done — merged into Task 008 during authoring; empty by design
 **Milestone:** M1
-**Depends on:** 008
+**Depends on:** —
 
-### What to do
-Extend `test/runtests.jl` with a third `@testset "M1 shell — window properties" begin ... end` block that calls `makieviews()`, asserts the window's title equals `"MakieViews"`, asserts its default size is `(1024, 768)`, then destroys it. Use the Gtk4.jl accessor names that match the pinned v0.7.12 API — if `Gtk4.title(w)` and `Gtk4.default_size(w)` don't work, look up the current accessor names in Gtk4.jl's docs and use those.
-
-### Files touched
-- `test/runtests.jl` — modified: append third testset
-
-### Acceptance Criterion
-`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0. Total test count is at least 5, all passing. On Linux this may need `xvfb-run -a`.
-
-### On Failure
-Report the full `Pkg.test` output.
+Same merge pattern as Task 007 into Task 006: the atomic unit for the window-creation change is code + its property test in one commit, verified by `Pkg.test()` green. Splitting would create a transient commit with new behavior and no test coverage. Numbering downstream (Tasks 010–012) unchanged.
 
 ---
 
 ## Task 010: Embed an empty GLMakie Figure via Gtk4Makie
 **Status:** [ ] Pending
 **Milestone:** M1
-**Depends on:** 009
+**Depends on:** 008 (009 is a merged placeholder)
 
 ### What to do
 Modify `src/MakieViews.jl` so `makieviews()`, after creating the window, embeds a Gtk4Makie GLMakie widget as the window's child, containing an empty `Figure()` with a single empty `Axis`. Use whatever function Gtk4Makie.jl v0.3.9 currently exposes for this — check the package's README and `examples/` directory for the correct name (likely `GtkGLMakie` or similar; do not guess). The window should display a blank Cartesian axis with visible tick labels and axis lines. Return the window handle as before.
