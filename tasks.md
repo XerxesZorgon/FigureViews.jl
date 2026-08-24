@@ -93,7 +93,7 @@ Report the exact `AssertionError` or `UndefVarError`, plus any precompile output
 ---
 
 ## Task 005: Create test/runtests.jl with import-and-export test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit 016608e
 **Milestone:** M1
 **Depends on:** 004
 
@@ -111,48 +111,57 @@ Report the full `Pkg.test` output including which assertion failed.
 
 ---
 
-## Task 006: Add ADR-011 non-REPL launch detection warning to makieviews()
+## Task 006: Add ADR-011 non-REPL launch detection warning to makieviews() + test
 **Status:** [ ] Pending
 **Milestone:** M1
 **Depends on:** 005
 
 ### What to do
-Modify `src/MakieViews.jl` so `makieviews()` begins with a check: `if !(isinteractive() && isdefined(Base, :active_repl))`, then emit the exact ADR-011 warning line via `@warn`: `"MakieViews v0.1 reads variables from REPL Main. Script-launched: variables defined so far are visible; new REPL definitions won't be. File loading works normally."`. The function still returns `nothing` at this point.
+Two changes in one commit — code + its test, atomic:
+
+1. **Modify `src/MakieViews.jl`** so `makieviews()` begins with a non-REPL detection block. If `!(isinteractive() && isdefined(Base, :active_repl))`, emit `@warn` with the **exact** ADR-011 warning text (source of truth: `docs/adr/ADR-011-non-repl-launch-semantics.md`, verbatim, no paraphrasing):
+
+   ```
+   MakieViews v0.1 reads variables from REPL Main. You appear to be running outside a REPL. Variables defined in this script/context so far are visible; variables you define later will not appear. File loading (CSV / HDF5) works normally.
+   ```
+
+   Preserve the function's existing `return nothing` at the end.
+
+2. **Extend `test/runtests.jl`** with a second `@testset` block that verifies the warning fires under the test runner (which is non-interactive by definition):
+
+   ```julia
+   @testset "M1 shell — non-REPL warning fires" begin
+       @test_logs (:warn, r"MakieViews v0.1 reads variables from REPL Main") match_mode=:any makieviews()
+   end
+   ```
+
+   `match_mode=:any` tolerates additional log lines (GLMakie precompile chatter, Gtk4 init messages).
 
 ### Files touched
-- `src/MakieViews.jl` — modified: add REPL detection block at start of `makieviews()`
-
-### Acceptance Criterion
-`julia --project=. -e 'using MakieViews; makieviews()' 2>&1 | grep -c "MakieViews v0.1 reads variables from REPL Main"` returns 1.
-
-### On Failure
-Report the exact stderr output of the julia invocation.
-
----
-
-## Task 007: Add test/runtests.jl assertion for REPL warning behavior
-**Status:** [ ] Pending
-**Milestone:** M1
-**Depends on:** 006
-
-### What to do
-Extend `test/runtests.jl` with a second `@testset "M1 shell — non-REPL warning" begin ... end` block using `@test_logs (:warn, r"MakieViews v0.1 reads variables from REPL Main") makieviews()` to verify the warning fires when the test runner is not an interactive REPL. Use `match_mode=:any` if needed to tolerate additional log messages.
-
-### Files touched
+- `src/MakieViews.jl` — modified: prepend warning block to `makieviews()` body
 - `test/runtests.jl` — modified: append second testset
 
 ### Acceptance Criterion
-`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0. Total test count is at least 3, all passing.
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 and reports at least 3 tests passing, 0 failing, across two testsets named `M1 shell — module loads` and `M1 shell — non-REPL warning fires`. Additionally, `git log --oneline -1` shows the commit subject `feat: add ADR-011 non-REPL launch warning with test`.
 
 ### On Failure
-Report the full `Pkg.test` output.
+Report the full `Pkg.test()` output including which testset or assertion failed, and quote the actual warning text emitted (or absence thereof) verbatim.
+
+---
+
+## Task 007: (MERGED into Task 006)
+**Status:** [x] Done — merged into Task 006 during authoring; empty by design
+**Milestone:** M1
+**Depends on:** —
+
+Originally split "code change" (Task 006) from "test change" (Task 007). Merged into Task 006 because the natural atomic unit for a code-plus-warning-plus-test change is one commit, verified by `Pkg.test()` green — splitting them would create a transient commit with behavior but no test coverage. Numbering downstream (Tasks 008–012) unchanged to preserve external references.
 
 ---
 
 ## Task 008: Implement Gtk4 window creation in makieviews()
 **Status:** [ ] Pending
 **Milestone:** M1
-**Depends on:** 007
+**Depends on:** 006 (007 is a merged placeholder)
 
 ### What to do
 Modify `src/MakieViews.jl` so `makieviews()` creates a Gtk4 window titled `"MakieViews"` with default size `1024 × 768`, shows it, and returns the window handle so the caller (including tests) can inspect and destroy it. Do not run a nested blocking event loop — return the handle. Consult Gtk4.jl's current README and examples for the exact constructor and show functions; adjust to whatever the pinned Gtk4 v0.7.12 API provides. Preserve the ADR-011 warning from Task 006 at the top of the function.
