@@ -92,3 +92,16 @@ function add_bar_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, plot_id::
     ax.plots[] = [ax.plots[]..., plot]
     return plot
 end
+
+function add_heatmap_plot!(ax::Axis; matrix::AbstractMatrix, plot_id::String = string(uuid4()))::Plot
+    plot = Plot(
+        plot_id,
+        :heatmap,
+        Observable(DataRef[]),
+        _init_attrs(:heatmap),
+        Observable{Union{Nothing,AnimBinding}}(nothing)
+    )
+    _DEMO_DATA[plot_id] = (x=nothing, y=nothing, z=nothing, matrix=matrix)
+    ax.plots[] = [ax.plots[]..., plot]
+    return plot
+end

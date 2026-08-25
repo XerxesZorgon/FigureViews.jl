@@ -2,7 +2,7 @@ using Test
 using MakieViews
 using Gtk4
 using Makie
-using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, add_scatter_plot!, add_bar_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, _current_session, _current_renderer, ValidationError
+using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, add_scatter_plot!, add_bar_plot!, add_heatmap_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, _current_session, _current_renderer, ValidationError
 
 include("unit/nodes.jl")
 include("unit/schema.jl")
@@ -106,6 +106,19 @@ end
     plot_node = add_bar_plot!(ax_node; x = x, y = y)
     @test plot_node.type == :bar
     @test plot_node.attrs[:direction][] == :vertical
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test haskey(renderer.plot_handles, plot_node.id)
+end
+
+@testset "M3 heatmap — renders without error" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis2d)
+    mat = [sin(i/5) * cos(j/5) for i in 1:20, j in 1:20]
+    plot_node = add_heatmap_plot!(ax_node; matrix = mat)
+    @test plot_node.type == :heatmap
+    @test plot_node.attrs[:colormap][] == :viridis
     makie_fig = Makie.Figure()
     renderer = Renderer(s, makie_fig)
     @test haskey(renderer.plot_handles, plot_node.id)

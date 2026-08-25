@@ -102,6 +102,15 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
         end
         renderer.plot_handles[plot.id] = handle
         _register_plot_observer!(renderer, plot)
+    elseif plot.type == :heatmap
+        mat = _DEMO_DATA[plot.id].matrix
+        handle = Makie.heatmap!(makie_ax, mat;
+            colormap   = plot.attrs[:colormap][],
+            colorrange = plot.attrs[:colorrange][],
+            label      = plot.attrs[:label][],
+            visible    = plot.attrs[:visible][])
+        renderer.plot_handles[plot.id] = handle
+        _register_plot_observer!(renderer, plot)
     end
 end
 

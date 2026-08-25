@@ -1171,7 +1171,7 @@ On fail: `TASK 022 FAILED — [criterion] — [Pkg.test output tail; if Makie.sc
 ---
 
 ## Task 023: add_bar_plot! + bar renderer branch + Layer 3 test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit 7762fea
 **Milestone:** M3
 **Depends on:** 022
 
