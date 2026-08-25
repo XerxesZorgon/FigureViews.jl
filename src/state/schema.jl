@@ -18,3 +18,34 @@ PLOT_SCHEMAS[:line] = [
     AttrSpec(:label,     :string, "",                  nothing,          "Label",     "Legend label (empty = no legend entry)"),
     AttrSpec(:visible,   :bool,   true,                nothing,          "Visible",   "Show/hide this plot"),
 ]
+
+PLOT_SCHEMAS[:scatter] = [
+    AttrSpec(:color,      :color,  RGB(0.8, 0.2, 0.2), nothing,           "Color",      "Marker fill color"),
+    AttrSpec(:markersize, :number, 8.0,                 (1.0, 40.0),       "Marker size", "Marker diameter in points"),
+    AttrSpec(:marker,     :enum,   :circle,             [:circle, :rect, :diamond, :cross, :xcross, :utriangle, :dtriangle], "Marker", "Marker shape"),
+    AttrSpec(:label,      :string, "",                  nothing,           "Label",      "Legend label"),
+    AttrSpec(:visible,    :bool,   true,                nothing,           "Visible",    "Show/hide this plot"),
+]
+
+PLOT_SCHEMAS[:bar] = [
+    AttrSpec(:color,     :color,  RGB(0.2, 0.6, 0.2), nothing,           "Color",     "Bar fill color"),
+    AttrSpec(:width,     :number, 0.8,                 (0.1, 1.0),        "Width",     "Bar width as fraction of spacing"),
+    AttrSpec(:direction, :enum,   :vertical,           [:vertical, :horizontal], "Direction", "Bar orientation"),
+    AttrSpec(:label,     :string, "",                  nothing,           "Label",     "Legend label"),
+    AttrSpec(:visible,   :bool,   true,                nothing,           "Visible",   "Show/hide this plot"),
+]
+
+PLOT_SCHEMAS[:heatmap] = [
+    AttrSpec(:colormap,   :enum,   :viridis,   [:viridis, :plasma, :inferno, :magma, :cividis, :grays, :blues, :reds], "Colormap",   "Color mapping"),
+    AttrSpec(:colorrange, :vec2,   (0.0, 1.0), nothing,    "Color range", "(min, max) data range for colormap"),
+    AttrSpec(:label,      :string, "",         nothing,    "Label",       "Legend label"),
+    AttrSpec(:visible,    :bool,   true,        nothing,    "Visible",     "Show/hide this plot"),
+]
+
+PLOT_SCHEMAS[:contour] = [
+    AttrSpec(:color,     :color,  RGB(0.3, 0.3, 0.7), nothing,       "Color",     "Contour line color"),
+    AttrSpec(:levels,    :int,    10,                  (2, 50),       "Levels",    "Number of contour levels"),
+    AttrSpec(:linewidth, :number, 1.0,                 (0.1, 10.0),   "Linewidth", "Contour line width"),
+    AttrSpec(:label,     :string, "",                  nothing,       "Label",     "Legend label"),
+    AttrSpec(:visible,   :bool,   true,                nothing,       "Visible",   "Show/hide this plot"),
+]

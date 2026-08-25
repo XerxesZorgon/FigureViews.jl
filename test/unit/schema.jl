@@ -32,3 +32,43 @@ end
         @test spec.kind in (:color, :number, :int, :enum, :bool, :string, :vec2, :vec3)
     end
 end
+
+@testset "M3 schema — PLOT_SCHEMAS[:scatter] populated" begin
+    @test haskey(PLOT_SCHEMAS, :scatter)
+    specs = PLOT_SCHEMAS[:scatter]
+    names = [s.name for s in specs]
+    @test :color in names
+    @test :markersize in names
+    @test :marker in names
+    @test specs[1].kind == :color
+end
+
+@testset "M3 schema — PLOT_SCHEMAS[:bar] populated" begin
+    @test haskey(PLOT_SCHEMAS, :bar)
+    specs = PLOT_SCHEMAS[:bar]
+    names = [s.name for s in specs]
+    @test :color in names
+    @test :width in names
+    @test :direction in names
+    @test specs[1].kind == :color
+end
+
+@testset "M3 schema — PLOT_SCHEMAS[:heatmap] populated" begin
+    @test haskey(PLOT_SCHEMAS, :heatmap)
+    specs = PLOT_SCHEMAS[:heatmap]
+    names = [s.name for s in specs]
+    @test :colormap in names
+    @test :colorrange in names
+    @test :label in names
+    @test specs[1].kind == :enum
+end
+
+@testset "M3 schema — PLOT_SCHEMAS[:contour] populated" begin
+    @test haskey(PLOT_SCHEMAS, :contour)
+    specs = PLOT_SCHEMAS[:contour]
+    names = [s.name for s in specs]
+    @test :color in names
+    @test :levels in names
+    @test :linewidth in names
+    @test specs[1].kind == :color
+end
