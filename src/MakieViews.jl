@@ -4,6 +4,7 @@ using Gtk4, Gtk4Makie, GLMakie, Observables, Colors
 
 include("state/types.jl")
 include("state/nodes.jl")
+include("state/schema.jl")
 
 export makieviews
 

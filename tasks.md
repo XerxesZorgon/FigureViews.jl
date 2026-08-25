@@ -391,7 +391,7 @@ On fail: `TASK 013 FAILED — [criterion] — [observed] — [Pkg output]`
 ---
 
 ## Task 014: Define node types (Session/Figure/Axis/Plot/UnknownNode + support types) + Layer 1 tests
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit 9296b16
 **Milestone:** M2
 **Depends on:** 013
 
