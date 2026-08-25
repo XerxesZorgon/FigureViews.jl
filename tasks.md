@@ -504,7 +504,7 @@ On fail: `TASK 014 FAILED — [criterion] — [Pkg.test output tail]`
 ---
 
 ## Task 015: Define AttrSpec + PLOT_SCHEMAS[:line] + iteration tests
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit c160273
 **Milestone:** M2
 **Depends on:** 014
 

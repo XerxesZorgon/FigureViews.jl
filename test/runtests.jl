@@ -4,6 +4,7 @@ using Gtk4
 
 include("unit/nodes.jl")
 include("unit/schema.jl")
+include("unit/session.jl")
 
 @testset "M1 shell — module loads" begin
     @test :makieviews in names(MakieViews)
