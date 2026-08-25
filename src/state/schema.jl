@@ -49,3 +49,18 @@ PLOT_SCHEMAS[:contour] = [
     AttrSpec(:label,     :string, "",                  nothing,       "Label",     "Legend label"),
     AttrSpec(:visible,   :bool,   true,                nothing,       "Visible",   "Show/hide this plot"),
 ]
+
+PLOT_SCHEMAS[:surface] = [
+    AttrSpec(:colormap, :enum,   :viridis, [:viridis, :plasma, :inferno, :magma, :cividis, :grays, :blues, :reds], "Colormap", "Surface color mapping"),
+    AttrSpec(:shading,  :enum,   :smooth,  [:none, :fast, :smooth], "Shading",  "Surface shading mode"),
+    AttrSpec(:label,    :string, "",       nothing, "Label",   "Legend label"),
+    AttrSpec(:visible,  :bool,   true,     nothing, "Visible", "Show/hide this plot"),
+]
+
+PLOT_SCHEMAS[:volume] = [
+    AttrSpec(:colormap,   :enum,   :viridis,   [:viridis, :plasma, :inferno, :magma, :cividis, :grays, :blues, :reds], "Colormap",   "Volume color mapping"),
+    AttrSpec(:algorithm,  :enum,   :mip,       [:mip, :iso, :absorption, :additive], "Algorithm",  "Volume rendering algorithm"),
+    AttrSpec(:colorrange, :vec2,   (0.0, 1.0), nothing, "Color range", "(min, max) data range for colormap"),
+    AttrSpec(:absorption, :number, 1.0,        (0.0, 10.0), "Absorption", "Absorption coefficient (:absorption algorithm)"),
+    AttrSpec(:visible,    :bool,   true,       nothing, "Visible", "Show/hide this plot"),
+]

@@ -72,3 +72,29 @@ end
     @test :linewidth in names
     @test specs[1].kind == :color
 end
+
+@testset "M4 schema — PLOT_SCHEMAS[:surface] populated" begin
+    @test haskey(PLOT_SCHEMAS, :surface)
+    specs = PLOT_SCHEMAS[:surface]
+    names = [s.name for s in specs]
+    @test :colormap in names
+    @test :shading in names
+    @test :visible in names
+    @test specs[1].kind == :enum
+end
+
+@testset "M4 schema — PLOT_SCHEMAS[:volume] populated" begin
+    @test haskey(PLOT_SCHEMAS, :volume)
+    specs = PLOT_SCHEMAS[:volume]
+    names = [s.name for s in specs]
+    @test :colormap in names
+    @test :algorithm in names
+    @test :colorrange in names
+    @test :absorption in names
+    @test :visible in names
+    @test specs[1].kind == :enum
+end
+
+@testset "M4 schema — registry size" begin
+    @test length(PLOT_SCHEMAS) == 7
+end
