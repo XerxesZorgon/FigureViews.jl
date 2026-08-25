@@ -1316,7 +1316,7 @@ On fail: `TASK 024 FAILED — [criterion] — [Pkg.test tail; if Makie.heatmap! 
 ---
 
 ## Task 025: add_contour_plot! + contour renderer branch + Layer 3 test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit 57e5ce7; M3 CI 2/2 green
 **Milestone:** M3
 **Depends on:** 024
 

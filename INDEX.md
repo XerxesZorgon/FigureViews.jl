@@ -1,6 +1,6 @@
 # MakieViews — project index
 
-**Purpose**: A Veusz-style desktop GUI over Makie for Julia scientific plotting. **Status**: v0.1 **M2 (Tree + one plot type) COMPLETE 2026-08-24** — 73 tests green locally + CI 2/2 green on Ubuntu (v0.1 matrix per ADR-018). macOS QA deferred per maintainer decision (hard gate at M11). **Docs location on device**: `C:\Users\johnx\Documents\WildPeaches\Projects\MakieViews\` *(WildPeaches path is authoritative)*
+**Purpose**: A Veusz-style desktop GUI over Makie for Julia scientific plotting. **Status**: v0.1 **M3 (remaining 2D plot types) COMPLETE 2026-08-24** — all five 2D plot types (line, scatter, bar, heatmap, contour) schema-registered, renderer-handled, CI 2/2 green. macOS QA deferred (hard gate at M11). **Docs location on device**: `C:\Users\johnx\Documents\WildPeaches\Projects\MakieViews\` *(WildPeaches path is authoritative)*
 
 ## Planning documents
 
@@ -35,4 +35,4 @@ Julia 1.12.6 primary, 1.10.11 LTS validated. Makie 0.24.13, GLMakie 0.13.13, Cai
 
 ## What's next
 
-M2 shipped and CI green. Three-pane `makieviews()` with schema-driven property panel, Observables reactive state (ADR-019), and end-to-end attribute propagation. 73 tests. Begin M3: scatter, bar, heatmap, contour plot types — pure `PLOT_SCHEMAS` additions using M2's established pattern, the easiest milestone so far.
+M3 shipped: all five 2D plot types schema-driven and renderer-handled; `makieviews()` demo shows line + scatter; CI 2/2 green. M4 next: 3D plot types (surface, volume) and camera controls in the property panel.
