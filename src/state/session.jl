@@ -118,3 +118,17 @@ function add_contour_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, z::Ab
     ax.plots[] = [ax.plots[]..., plot]
     return plot
 end
+
+# M2-only demo scaffolding, remove at M5
+function add_surface_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, z::AbstractMatrix, plot_id::String = string(uuid4()))::Plot
+    plot = Plot(
+        plot_id,
+        :surface,
+        Observable(DataRef[]),
+        _init_attrs(:surface),
+        Observable{Union{Nothing,AnimBinding}}(nothing)
+    )
+    _DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=z)   # z-surface stored in matrix field, same as contour
+    ax.plots[] = [ax.plots[]..., plot]
+    return plot
+end

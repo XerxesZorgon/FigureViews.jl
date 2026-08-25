@@ -2,7 +2,7 @@ using Test
 using MakieViews
 using Gtk4
 using Makie
-using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, add_scatter_plot!, add_bar_plot!, add_heatmap_plot!, add_contour_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, _current_session, _current_renderer, ValidationError
+using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, add_scatter_plot!, add_bar_plot!, add_heatmap_plot!, add_contour_plot!, add_surface_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, _current_session, _current_renderer, ValidationError
 
 include("unit/nodes.jl")
 include("unit/schema.jl")
@@ -225,4 +225,23 @@ end
     makie_fig = Makie.Figure()
     renderer = Renderer(s, makie_fig)
     @test renderer.axis_handles[ax_node.id] isa Makie.Axis
+end
+
+@testset "M4 surface — renders on Axis3 without error" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis3d)
+    xs = collect(LinRange(-3.0, 3.0, 25))
+    ys = collect(LinRange(-3.0, 3.0, 25))
+    zs = [exp(-(x^2 + y^2)) for x in xs, y in ys]
+    plot_node = add_surface_plot!(ax_node; x = xs, y = ys, z = zs)
+    @test plot_node.type == :surface
+    @test plot_node.attrs[:colormap][] == :viridis
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test haskey(renderer.plot_handles, plot_node.id)
+    @test renderer.axis_handles[ax_node.id] isa Makie.Axis3
+    plot_node.attrs[:colormap][] = :plasma
+    sleep(0.05)
+    @test renderer.plot_handles[plot_node.id].colormap[] == :plasma
 end

@@ -127,6 +127,17 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
             visible   = plot.attrs[:visible][])
         renderer.plot_handles[plot.id] = handle
         _register_plot_observer!(renderer, plot)
+    elseif plot.type == :surface
+        x   = _DEMO_DATA[plot.id].x
+        y   = _DEMO_DATA[plot.id].y
+        mat = _DEMO_DATA[plot.id].matrix
+        shading_map = Dict(:none => Makie.NoShading, :fast => Makie.FastShading, :smooth => Makie.MultiLightShading)
+        handle = Makie.surface!(makie_ax, x, y, mat;
+            colormap = plot.attrs[:colormap][],
+            shading  = shading_map[plot.attrs[:shading][]],
+            visible  = plot.attrs[:visible][])
+        renderer.plot_handles[plot.id] = handle
+        _register_plot_observer!(renderer, plot)
     end
 end
 
@@ -147,6 +158,10 @@ end
 
 function _register_plot_observer!(renderer::Renderer, plot::Plot)
     for (name, obs) in plot.attrs
+        # :shading live-mutation needs shading_map translation; deferred to M5
+        if name == :shading
+            continue
+        end
         h = on(obs) do val
             handle = renderer.plot_handles[plot.id]
             handle[name] = val
