@@ -691,7 +691,7 @@ On fail: `TASK 016 FAILED — [criterion] — [Pkg.test output tail]`
 ---
 
 ## Task 017: Add Renderer + observer registration + programmatic-path Layer 3 test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit 8fed731
 **Milestone:** M2
 **Depends on:** 016
 

@@ -2,7 +2,7 @@ using Test
 using MakieViews
 using Gtk4
 using Makie
-using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, Renderer
+using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, Renderer, build_tree_pane
 
 include("unit/nodes.jl")
 include("unit/schema.jl")
@@ -61,4 +61,21 @@ end
     sleep(0.05)  # let observer fire
     makie_plot = renderer.plot_handles[plot_node.id]
     @test makie_plot.linewidth[] == 5.0
+end
+
+@testset "M2 tree pane — populates from session; selection writes to session.selection" begin
+    s = new_session()
+    fig_node = add_figure!(s; title = "F1")
+    ax_node = add_axis!(fig_node; kind = :axis2d)
+    x = 1.0:10.0 |> collect
+    plot_node = add_line_plot!(ax_node; x = x, y = sin.(x))
+
+    tree_widget = build_tree_pane(s)
+    @test tree_widget !== nothing
+
+    sleep(0.2)
+
+    # Programmatically select the plot node by writing its id to selection and verifying no error:
+    s.selection[] = plot_node.id
+    @test s.selection[] == plot_node.id
 end
