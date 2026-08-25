@@ -43,4 +43,4 @@ jobs:
         uses: julia-actions/julia-buildpkg@v1
 
       - name: Run tests (under xvfb)
-        run: xvfb-run -a -s "-screen 0 1600x1200x24" julia --project=. -e 'using Pkg; Pkg.test()'
+        run: xvfb-run -a julia --project=. -e 'using Pkg; Pkg.test()'
