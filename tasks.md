@@ -597,7 +597,7 @@ On fail: `TASK 015 FAILED — [criterion] — [Pkg.test output tail]`
 ---
 
 ## Task 016: Add tree construction API (add_figure!, add_axis!, add_line_plot!) + Layer 1 tests
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit 7dbe666
 **Milestone:** M2
 **Depends on:** 015
 

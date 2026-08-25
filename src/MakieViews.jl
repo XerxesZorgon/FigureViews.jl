@@ -6,6 +6,7 @@ include("state/types.jl")
 include("state/nodes.jl")
 include("state/schema.jl")
 include("state/session.jl")
+include("render/renderer.jl")
 
 export makieviews
 
