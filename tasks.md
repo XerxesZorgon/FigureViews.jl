@@ -1010,3 +1010,385 @@ After Task 020's local Pkg.test() is green: `git push`. Then open https://github
 ## M2 exit gate
 
 When Tasks 013–020 are all `[x] Done`, all local Pkg.test() tests pass, and CI is 2/2 green on the v0.1 matrix, M2 is complete. Return to Claude Chat with "M2 complete" to extend `tasks.md` with M3 (remaining 2D plot types: scatter, bar, heatmap, contour — leverages the schema-driven pattern from M2 for near-linear extension effort).
+
+---
+
+## Milestone M3 — Remaining 2D plot types
+
+**Exit criterion:** `PLOT_SCHEMAS` contains entries for `:scatter`, `:bar`, `:heatmap`, and `:contour`. The Renderer can render all four from synthetic demo data. `add_scatter_plot!`, `add_bar_plot!`, `add_heatmap_plot!`, `add_contour_plot!` exist in the session API. All Layer 1 schema tests and Layer 3 render tests for each type pass locally and CI is 2/2 green.
+
+**Design notes:**
+- All four plot types use the existing `PLOT_SCHEMAS` + `_init_attrs` + `_register_plot_observer!` pattern from M2. No new UI code required — the property panel picks up each new type automatically by iterating its schema.
+- `_DEMO_DATA` is extended with optional `z`, `matrix` fields (Option A per pre-M3 design decision): `(x=..., y=..., z=..., matrix=...)`. Fields not needed by a given plot type are `nothing`. This scaffolding is removed at M5 when proper DataRef ingestion lands.
+- The one place `plot.type` drives branching is `_render_plot!` in `renderer.jl` — that is legitimate and expected. The property panel and tree pane remain branchless.
+- Makie function mapping: `:scatter` → `Makie.scatter!`, `:bar` → `Makie.barplot!`, `:heatmap` → `Makie.heatmap!`, `:contour` → `Makie.contour!`.
+- Data shape requirements: scatter needs 1D x+y; bar needs 1D x+y (categories + heights); heatmap needs a 2D matrix (or x, y, matrix); contour needs 1D x, 1D y, 2D z matrix.
+
+---
+
+## Task 021: Add PLOT_SCHEMAS for scatter/bar/heatmap/contour + Layer 1 schema tests
+**Status:** [ ] Pending
+**Milestone:** M3
+**Depends on:** 020 (M2 complete)
+
+### What to do
+Two changes in one commit.
+
+**1. Extend `src/state/schema.jl`** by appending four new schema entries after `PLOT_SCHEMAS[:line]`:
+
+```julia
+PLOT_SCHEMAS[:scatter] = [
+    AttrSpec(:color,      :color,  RGB(0.8, 0.2, 0.2), nothing,           "Color",      "Marker fill color"),
+    AttrSpec(:markersize, :number, 8.0,                 (1.0, 40.0),       "Marker size", "Marker diameter in points"),
+    AttrSpec(:marker,     :enum,   :circle,             [:circle, :rect, :diamond, :cross, :xcross, :utriangle, :dtriangle], "Marker", "Marker shape"),
+    AttrSpec(:label,      :string, "",                  nothing,           "Label",      "Legend label"),
+    AttrSpec(:visible,    :bool,   true,                nothing,           "Visible",    "Show/hide this plot"),
+]
+
+PLOT_SCHEMAS[:bar] = [
+    AttrSpec(:color,     :color,  RGB(0.2, 0.6, 0.2), nothing,           "Color",     "Bar fill color"),
+    AttrSpec(:width,     :number, 0.8,                 (0.1, 1.0),        "Width",     "Bar width as fraction of spacing"),
+    AttrSpec(:direction, :enum,   :vertical,           [:vertical, :horizontal], "Direction", "Bar orientation"),
+    AttrSpec(:label,     :string, "",                  nothing,           "Label",     "Legend label"),
+    AttrSpec(:visible,   :bool,   true,                nothing,           "Visible",   "Show/hide this plot"),
+]
+
+PLOT_SCHEMAS[:heatmap] = [
+    AttrSpec(:colormap,   :enum,   :viridis,   [:viridis, :plasma, :inferno, :magma, :cividis, :grays, :blues, :reds], "Colormap",   "Color mapping"),
+    AttrSpec(:colorrange, :vec2,   (0.0, 1.0), nothing,    "Color range", "(min, max) data range for colormap"),
+    AttrSpec(:label,      :string, "",         nothing,    "Label",       "Legend label"),
+    AttrSpec(:visible,    :bool,   true,        nothing,    "Visible",     "Show/hide this plot"),
+]
+
+PLOT_SCHEMAS[:contour] = [
+    AttrSpec(:color,     :color,  RGB(0.3, 0.3, 0.7), nothing,       "Color",     "Contour line color"),
+    AttrSpec(:levels,    :int,    10,                  (2, 50),       "Levels",    "Number of contour levels"),
+    AttrSpec(:linewidth, :number, 1.0,                 (0.1, 10.0),   "Linewidth", "Contour line width"),
+    AttrSpec(:label,     :string, "",                  nothing,       "Label",     "Legend label"),
+    AttrSpec(:visible,   :bool,   true,                nothing,       "Visible",   "Show/hide this plot"),
+]
+```
+
+Note: `colorrange` uses `:vec2` kind (two spin buttons per the property panel widget map in DESIGN.md §5). Default `(0.0, 1.0)` is a `Tuple{Float64,Float64}` which matches the `AttrSpec.default` field type `Any`.
+
+**2. Extend `test/unit/schema.jl`** by appending four new testsets (one per type), each checking: key present in `PLOT_SCHEMAS`, required attribute names present, first attr has correct kind. Pattern mirrors the existing `:line` tests.
+
+### Files touched
+- `src/state/schema.jl` — modified: append 4 schema entries
+- `test/unit/schema.jl` — modified: append 4 testsets
+
+### Acceptance Criterion
+`Pkg.test()` exits 0. All prior tests pass. Four new schema testsets pass (one per type). `PLOT_SCHEMAS` has exactly 5 keys: `:line`, `:scatter`, `:bar`, `:heatmap`, `:contour`.
+
+### Commit
+Subject: `feat: add PLOT_SCHEMAS for scatter, bar, heatmap, contour (M3)`
+Body: `Closes Task 021. Four new schema entries using the AttrSpec pattern established in M2. Property panel picks them up automatically (no UI code changes). Layer 1 tests verify schema contents per type.`
+
+### Report back
+On pass: `TASK 021 PASSED — 5 plot schemas registered, N tests green, committed as <SHA>`
+On fail: `TASK 021 FAILED — [criterion] — [Pkg.test output tail]`
+
+---
+
+## Task 022: add_scatter_plot! + scatter renderer branch + Layer 3 test
+**Status:** [ ] Pending
+**Milestone:** M3
+**Depends on:** 021
+
+### What to do
+Three changes in one commit.
+
+**1. Extend `src/state/session.jl`** with:
+```julia
+# M2-only demo scaffolding, remove at M5
+function add_scatter_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, plot_id::String = string(uuid4()))::Plot
+    plot = Plot(plot_id, :scatter, Observable(DataRef[]), _init_attrs(:scatter), Observable{Union{Nothing,AnimBinding}}(nothing))
+    _DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=nothing)
+    ax.plots[] = [ax.plots[]..., plot]
+    return plot
+end
+```
+
+Also update `add_line_plot!`'s `_DEMO_DATA` entry to match the extended format:
+```julia
+_DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=nothing)
+```
+(was `(x=x, y=y)` — the extra fields let `_render_plot!` use a uniform access pattern)
+
+**2. Extend `_render_plot!` in `src/render/renderer.jl`** with a scatter branch:
+```julia
+elseif plot.type == :scatter
+    x = _DEMO_DATA[plot.id].x
+    y = _DEMO_DATA[plot.id].y
+    handle = Makie.scatter!(makie_ax, x, y;
+        color      = plot.attrs[:color][],
+        markersize = plot.attrs[:markersize][],
+        marker     = plot.attrs[:marker][],
+        label      = plot.attrs[:label][],
+        visible    = plot.attrs[:visible][]
+    )
+    renderer.plot_handles[plot.id] = handle
+    _register_plot_observer!(renderer, plot)
+```
+
+**3. Extend `test/runtests.jl`** with:
+```julia
+@testset "M3 scatter — renders without error" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis2d)
+    x = collect(1.0:20.0)
+    y = sin.(x ./ 3)
+    plot_node = add_scatter_plot!(ax_node; x = x, y = y)
+    @test plot_node.type == :scatter
+    @test plot_node.attrs[:markersize][] == 8.0   # schema default
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test haskey(renderer.plot_handles, plot_node.id)
+    plot_node.attrs[:markersize][] = 15.0
+    sleep(0.05)
+    @test renderer.plot_handles[plot_node.id].markersize[] == 15.0
+end
+```
+
+### Files touched
+- `src/state/session.jl` — modified: add `add_scatter_plot!`, update `add_line_plot!` demo data format
+- `src/render/renderer.jl` — modified: add `:scatter` branch in `_render_plot!`
+- `test/runtests.jl` — modified: append scatter testset
+- `tasks.md` — modified (staged as always)
+
+### Acceptance Criterion
+`Pkg.test()` exits 0. All prior tests pass plus the new scatter testset (Pass ≥ 4 in it).
+
+### Commit
+Subject: `feat: add scatter plot type (session API, renderer, schema, test)`
+Body: `Closes Task 022. add_scatter_plot! + _render_plot!(:scatter) using Makie.scatter!. _DEMO_DATA format extended to (x, y, z, matrix) tuple for uniform access across all M3 types. Observer propagation tested (markersize mutation fires through to Makie handle).`
+
+### Report back
+On pass: `TASK 022 PASSED — scatter renders, observer propagates, committed as <SHA>`
+On fail: `TASK 022 FAILED — [criterion] — [Pkg.test output tail; if Makie.scatter! attr name differs, quote the MethodError]`
+
+---
+
+## Task 023: add_bar_plot! + bar renderer branch + Layer 3 test
+**Status:** [ ] Pending
+**Milestone:** M3
+**Depends on:** 022
+
+### What to do
+Same shape as Task 022 for bar plots.
+
+**1. Extend `src/state/session.jl`**:
+```julia
+# M2-only demo scaffolding, remove at M5
+function add_bar_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, plot_id::String = string(uuid4()))::Plot
+    plot = Plot(plot_id, :bar, Observable(DataRef[]), _init_attrs(:bar), Observable{Union{Nothing,AnimBinding}}(nothing))
+    _DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=nothing)
+    ax.plots[] = [ax.plots[]..., plot]
+    return plot
+end
+```
+
+**2. Extend `_render_plot!` in `src/render/renderer.jl`**:
+```julia
+elseif plot.type == :bar
+    x = _DEMO_DATA[plot.id].x
+    y = _DEMO_DATA[plot.id].y
+    direction = plot.attrs[:direction][]
+    handle = if direction == :vertical
+        Makie.barplot!(makie_ax, x, y;
+            color   = plot.attrs[:color][],
+            width   = plot.attrs[:width][],
+            label   = plot.attrs[:label][],
+            visible = plot.attrs[:visible][])
+    else
+        Makie.barplot!(makie_ax, y, x;   # horizontal: swap x/y
+            color       = plot.attrs[:color][],
+            width       = plot.attrs[:width][],
+            direction   = :x,
+            label       = plot.attrs[:label][],
+            visible     = plot.attrs[:visible][])
+    end
+    renderer.plot_handles[plot.id] = handle
+    _register_plot_observer!(renderer, plot)
+```
+
+Note: verify the exact Makie.barplot! keyword for horizontal bars — it may be `direction = :x` or a `flip = true` kwarg. Check Makie 0.24.13 docs if the above fails.
+
+**3. Extend `test/runtests.jl`**:
+```julia
+@testset "M3 bar — renders without error" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis2d)
+    x = collect(1.0:5.0)
+    y = [3.0, 1.0, 4.0, 1.0, 5.0]
+    plot_node = add_bar_plot!(ax_node; x = x, y = y)
+    @test plot_node.type == :bar
+    @test plot_node.attrs[:direction][] == :vertical
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test haskey(renderer.plot_handles, plot_node.id)
+end
+```
+
+### Files touched
+- `src/state/session.jl` — modified
+- `src/render/renderer.jl` — modified
+- `test/runtests.jl` — modified
+- `tasks.md` — modified
+
+### Acceptance Criterion
+`Pkg.test()` exits 0. All prior tests pass plus bar testset.
+
+### Commit
+Subject: `feat: add bar plot type (session API, renderer, schema, test)`
+Body: `Closes Task 023. add_bar_plot! + _render_plot!(:bar) using Makie.barplot!. Direction attr drives vertical/horizontal switch.`
+
+### Report back
+On pass: `TASK 023 PASSED — bar renders, committed as <SHA>`
+On fail: `TASK 023 FAILED — [criterion] — [Pkg.test tail; if Makie.barplot! horizontal kwarg differs, quote MethodError]`
+
+---
+
+## Task 024: add_heatmap_plot! + heatmap renderer branch + Layer 3 test
+**Status:** [ ] Pending
+**Milestone:** M3
+**Depends on:** 023
+
+### What to do
+Heatmap uses a 2D matrix — the first M3 type that uses `_DEMO_DATA.matrix`.
+
+**1. Extend `src/state/session.jl`**:
+```julia
+# M2-only demo scaffolding, remove at M5
+function add_heatmap_plot!(ax::Axis; matrix::AbstractMatrix, plot_id::String = string(uuid4()))::Plot
+    plot = Plot(plot_id, :heatmap, Observable(DataRef[]), _init_attrs(:heatmap), Observable{Union{Nothing,AnimBinding}}(nothing))
+    _DEMO_DATA[plot_id] = (x=nothing, y=nothing, z=nothing, matrix=matrix)
+    ax.plots[] = [ax.plots[]..., plot]
+    return plot
+end
+```
+
+**2. Extend `_render_plot!`**:
+```julia
+elseif plot.type == :heatmap
+    mat = _DEMO_DATA[plot.id].matrix
+    handle = Makie.heatmap!(makie_ax, mat;
+        colormap   = plot.attrs[:colormap][],
+        colorrange = plot.attrs[:colorrange][],
+        label      = plot.attrs[:label][],
+        visible    = plot.attrs[:visible][])
+    renderer.plot_handles[plot.id] = handle
+    _register_plot_observer!(renderer, plot)
+```
+
+**3. Extend `test/runtests.jl`**:
+```julia
+@testset "M3 heatmap — renders without error" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis2d)
+    mat = [sin(i/5) * cos(j/5) for i in 1:20, j in 1:20]
+    plot_node = add_heatmap_plot!(ax_node; matrix = mat)
+    @test plot_node.type == :heatmap
+    @test plot_node.attrs[:colormap][] == :viridis
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test haskey(renderer.plot_handles, plot_node.id)
+end
+```
+
+### Files touched
+- `src/state/session.jl`, `src/render/renderer.jl`, `test/runtests.jl`, `tasks.md`
+
+### Acceptance Criterion
+`Pkg.test()` exits 0. All prior tests pass plus heatmap testset.
+
+### Commit
+Subject: `feat: add heatmap plot type (session API, renderer, schema, test)`
+Body: `Closes Task 024. add_heatmap_plot! takes a matrix argument stored in _DEMO_DATA.matrix. _render_plot!(:heatmap) uses Makie.heatmap!.`
+
+### Report back
+On pass: `TASK 024 PASSED — heatmap renders, committed as <SHA>`
+On fail: `TASK 024 FAILED — [criterion] — [Pkg.test tail; if Makie.heatmap! colorrange kwarg differs, quote MethodError]`
+
+---
+
+## Task 025: add_contour_plot! + contour renderer branch + Layer 3 test
+**Status:** [ ] Pending
+**Milestone:** M3
+**Depends on:** 024
+
+### What to do
+Contour uses 1D x, 1D y, and 2D z matrix — uses `_DEMO_DATA.z` and `_DEMO_DATA.matrix` together (x and y are coordinate vectors, matrix is the z surface).
+
+**1. Extend `src/state/session.jl`**:
+```julia
+# M2-only demo scaffolding, remove at M5
+function add_contour_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, z::AbstractMatrix, plot_id::String = string(uuid4()))::Plot
+    plot = Plot(plot_id, :contour, Observable(DataRef[]), _init_attrs(:contour), Observable{Union{Nothing,AnimBinding}}(nothing))
+    _DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=z)   # store z surface in matrix field
+    ax.plots[] = [ax.plots[]..., plot]
+    return plot
+end
+```
+
+**2. Extend `_render_plot!`**:
+```julia
+elseif plot.type == :contour
+    x   = _DEMO_DATA[plot.id].x
+    y   = _DEMO_DATA[plot.id].y
+    mat = _DEMO_DATA[plot.id].matrix
+    handle = Makie.contour!(makie_ax, x, y, mat;
+        color     = plot.attrs[:color][],
+        levels    = plot.attrs[:levels][],
+        linewidth = plot.attrs[:linewidth][],
+        label     = plot.attrs[:label][],
+        visible   = plot.attrs[:visible][])
+    renderer.plot_handles[plot.id] = handle
+    _register_plot_observer!(renderer, plot)
+```
+
+**3. Extend `test/runtests.jl`**:
+```julia
+@testset "M3 contour — renders without error" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis2d)
+    xs = collect(LinRange(0.0, 2π, 30))
+    ys = collect(LinRange(0.0, 2π, 30))
+    zs = [sin(x) * cos(y) for x in xs, y in ys]
+    plot_node = add_contour_plot!(ax_node; x = xs, y = ys, z = zs)
+    @test plot_node.type == :contour
+    @test plot_node.attrs[:levels][] == 10
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test haskey(renderer.plot_handles, plot_node.id)
+end
+```
+
+Also: after all four types are working, update `makieviews()` in `src/MakieViews.jl` to use `add_scatter_plot!` alongside the existing `add_line_plot!` demo (just add a second plot to `ax_node` so both line and scatter appear in the viewport at launch, demonstrating multi-plot capability). This is a small addition to the same commit.
+
+### Files touched
+- `src/state/session.jl`, `src/render/renderer.jl`, `src/MakieViews.jl` (demo update), `test/runtests.jl`, `tasks.md`
+
+### Acceptance Criterion
+`Pkg.test()` exits 0. All prior tests pass plus contour testset. `git show --stat HEAD` reports 5 files changed.
+
+### Commit
+Subject: `feat: add contour plot type + multi-plot demo; closes M3`
+Body: `Closes Task 025, closes Milestone M3. add_contour_plot! + _render_plot!(:contour) using Makie.contour!. makieviews() demo now shows both line and scatter plots in the viewport. All five 2D plot types (line, scatter, bar, heatmap, contour) are schema-registered, session-constructable, renderer-handled, and observer-wired.`
+
+### Report back
+On pass: `TASK 025 PASSED — contour renders, M3 complete locally (<SHA>). M3 CI verification pending on push.`
+On fail: `TASK 025 FAILED — [criterion] — [Pkg.test tail]`
+
+### Post-task: push and verify CI
+After Task 025's local Pkg.test() is green: `git push`. Verify CI 2/2 green. Report `M3 CI RUN 2/2 GREEN` to Claude Chat.
+
+---
+
+## M3 exit gate
+
+When Tasks 021–025 are all `[x] Done` and CI is 2/2 green, M3 is complete. Return to Claude Chat with "M3 complete" to extend `tasks.md` with M4 (3D plot types: surface and volume; camera controls in the property panel).

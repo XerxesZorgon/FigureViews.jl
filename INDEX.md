@@ -1,6 +1,6 @@
 # MakieViews — project index
 
-**Purpose**: A Veusz-style desktop GUI over Makie for Julia scientific plotting. **Status**: v0.1 **M1 (Shell) COMPLETE 2026-08-24** — all 12 tasks done, 7 tests green on Windows dev machine, CI 2/2 green on Ubuntu (v0.1 matrix per ADR-018). macOS QA deferred by maintainer 2026-08-24; **required before v0.1.0 tag** (see PLAN.md M11 gate). **Docs location on device**: `C:\Users\johnx\Documents\WildPeaches\Projects\MakieViews\` *(WildPeaches path is authoritative)*
+**Purpose**: A Veusz-style desktop GUI over Makie for Julia scientific plotting. **Status**: v0.1 **M2 (Tree + one plot type) COMPLETE 2026-08-24** — 73 tests green locally + CI 2/2 green on Ubuntu (v0.1 matrix per ADR-018). macOS QA deferred per maintainer decision (hard gate at M11). **Docs location on device**: `C:\Users\johnx\Documents\WildPeaches\Projects\MakieViews\` *(WildPeaches path is authoritative)*
 
 ## Planning documents
 
@@ -35,4 +35,4 @@ Julia 1.12.6 primary, 1.10.11 LTS validated. Makie 0.24.13, GLMakie 0.13.13, Cai
 
 ## What's next
 
-M1 shipped: `makieviews()` opens a 1024×768 Gtk4 window with an embedded GLMakie viewport containing an empty `Axis`. Seven tests pass on Windows; CI 2/2 green on Ubuntu. macOS QA deferred per maintainer request — not a blocker for M2, but is a hard blocker for the v0.1.0 tag per PLAN.md M11 / ADR-018 protocol. Beginning M2 next: `SessionState` tree (Session/Figure/Axis/Plot), `PLOT_SCHEMAS[:line]`, tree pane + property pane wired, end-to-end for a hand-constructed line plot.
+M2 shipped and CI green. Three-pane `makieviews()` with schema-driven property panel, Observables reactive state (ADR-019), and end-to-end attribute propagation. 73 tests. Begin M3: scatter, bar, heatmap, contour plot types — pure `PLOT_SCHEMAS` additions using M2's established pattern, the easiest milestone so far.
