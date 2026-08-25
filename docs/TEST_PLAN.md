@@ -2,7 +2,7 @@
 
 **Status**: Draft
 **Date**: 2026-08-24
-**Companion documents**: SDD.md, DESIGN.md, ADR-009 (test strategy), PLAN.md
+**Companion documents**: SDD.md, DESIGN.md, ADR-009 (test strategy), **ADR-018 (CI matrix reduction for v0.1)**, PLAN.md
 **Template basis**: Custom (Spec Kit's checklist-template.md is too shallow for a full test plan; this document is written from first principles against SDD success criteria and ADR-009).
 
 ---
@@ -25,7 +25,7 @@ Every test in this plan traces to a Functional Requirement (FR-*), Success Crite
 
 ---
 
-## 2. Layers & CI Matrix (per ADR-009)
+## 2. Layers & CI Matrix (per ADR-009, amended by ADR-018)
 
 Four layers, four costs:
 
@@ -33,14 +33,14 @@ Four layers, four costs:
 |---|---|---|---|
 | 1. Unit | Pure Julia: tree ops, schema, TOML round-trip | Everywhere; no display | <1 min |
 | 2. Integration (headless-safe) | Programmatic figure builds, CairoMakie export, no Gtk4 window | Everywhere (no Xvfb needed) | 2–5 min |
-| 3. GUI smoke | Open Gtk4 window, close it | Linux under xvfb-run; Windows/macOS on runner display | 1–3 min |
+| 3. GUI smoke | Open Gtk4 window, close it | **v0.1: Linux only, under `xvfb-run` (per ADR-018).** Original ADR-009 intent was all three OSes; Windows/macOS runners on GitHub Actions lack accessible GL contexts and cannot even load GLMakie. | 1–3 min |
 | 4. Golden-image | CairoMakie export vs. stored PNG hashes | Same as layer 2 | 2–5 min |
 
-CI matrix: `{Julia 1.10.11, Julia 1.12.6} × {Windows-latest, macos-latest, ubuntu-latest}` = 6 cells.
+**v0.1 CI matrix (per ADR-018):** `{Julia 1.10, Julia 1.12} × {ubuntu-latest}` = **2 cells**. Windows and macOS are removed from CI for v0.1; support on those platforms is developer-machine-verified and covered by the M11 pre-release manual QA protocol.
+
+**v0.2+ restoration path (per ADR-018):** once M2 lands the tree model and M8 lands CairoMakie static export, Layers 1, 2, and 4 will exist as code that runs without GL. At that point the CI matrix will be extended to `{Julia 1.10, Julia 1.12} × {ubuntu-latest, windows-latest, macos-latest}` = 6 cells, running Layers 1, 2, and 4 on all cells and Layer 3 (GUI smoke) on Linux only. That extension is v0.2 work, not v0.1.
 
 Layer 3 on Linux is wrapped in `xvfb-run -a -s "-screen 0 1920x1080x24" julia --project=. -e '...smoke...'`.
-
-macOS runner GUI-smoke retry policy: layer 3 gets one retry on macos-latest to absorb the documented Apple CI flake in windowing. Failures on the retry are real.
 
 ---
 
@@ -95,17 +95,25 @@ Fonts pinned; Cairo version pinned via `Cairo_jll` (transitive of CairoMakie); J
 
 ## 5. Cross-OS Install Test (backing SC-001, NFR-004)
 
-Runs on each OS cell of the CI matrix, on a fresh runner (no cached Julia depot):
+**v0.1 CI (per ADR-018): Linux only.** Runs on both Julia versions in the 2-cell matrix, on a fresh runner (no cached Julia depot):
 
 ```yaml
 - run: julia -e 'using Pkg; Pkg.add("MakieViews")'
-- run: xvfb-run -a julia -e 'using MakieViews; open_and_close_blank()'   # Linux
-- run: julia -e 'using MakieViews; open_and_close_blank()'                # Windows/macOS
+- run: xvfb-run -a julia -e 'using MakieViews; open_and_close_blank()'
 ```
+
+**Windows and macOS cross-OS install (v0.1): maintainer manual QA before each release.** Same commands, without `xvfb-run`:
+
+```
+julia -e 'using Pkg; Pkg.add("MakieViews")'
+julia -e 'using MakieViews; open_and_close_blank()'
+```
+
+Maintainer records pass/fail per platform in the release-notes QA report per ADR-018 protocol.
 
 `open_and_close_blank()` is a MakieViews test helper that constructs the main window, verifies it is realized, and closes it. Exit code 0 = pass.
 
-For the pre-registered branch (before we hit the General registry), the install step is `Pkg.add(url="https://github.com/<user>/MakieViews.jl#main")`. After registration, it becomes `Pkg.add("MakieViews")` — same script, different target.
+For the pre-registered branch (before we hit the General registry), the install step is `Pkg.add(url="https://github.com/XerxesZorgon/MakieViews.jl#main")`. After registration, it becomes `Pkg.add("MakieViews")` — same script, different target.
 
 ---
 
@@ -124,7 +132,7 @@ For the pre-registered branch (before we hit the General registry), the install 
 
 ## 7. GUI Smoke Tests (layer 3)
 
-Runs on the same six cells with Xvfb on Linux:
+**v0.1: Linux only in CI (per ADR-018).** Runs on both Julia versions with Xvfb:
 
 ```julia
 using MakieViews
@@ -134,7 +142,7 @@ sleep(0.5)
 close(w)
 ```
 
-Purpose: fail fast if Gtk4 or Gtk4Makie is broken on a given OS × Julia cell. Nothing more. Detailed interaction testing is out of scope for v0.1 CI — see §11.
+Purpose: fail fast if Gtk4 or Gtk4Makie is broken on Linux under xvfb. Windows and macOS coverage of the equivalent smoke check is via maintainer pre-release manual QA per ADR-018 protocol. Detailed interaction testing is out of scope for v0.1 CI — see §11.
 
 ---
 
@@ -218,7 +226,8 @@ test/
 
 ## 13. Acceptance Criteria for Merging to `main`
 
-- All layers 1–4 green on all 6 cells (Linux with Xvfb).
+- All layers 1–4 green on the 2-cell v0.1 CI matrix (`ubuntu-latest × {Julia 1.10, 1.12}`, Linux with Xvfb, per ADR-018).
 - Golden-image hashes present and unchanged (or a regeneration PR reviewed).
 - No `set_theme!` call anywhere in `src/` (grep gate in CI).
 - No hard-coded plot-type branch in property-panel UI code (grep gate: `if.*plot\.type ==` forbidden in `src/ui/`).
+- **For M11 (release-gating) only:** maintainer pre-release manual QA on Windows and macOS complete, results in release notes per ADR-018.

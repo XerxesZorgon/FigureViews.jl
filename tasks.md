@@ -10,7 +10,7 @@ Task IDs are a global monotonic counter. `Milestone` is metadata.
 
 ## Milestone M1 — Shell
 
-**Exit criterion:** `julia --project=. -e 'using MakieViews; w = makieviews(); sleep(1); Gtk4.destroy(w)'` opens a 1024×768 window titled "MakieViews" containing an empty Makie Axis rendered via GLMakie, closes cleanly, and returns exit code 0 on all six CI matrix cells (Julia 1.10 & 1.12 × Ubuntu, Windows, macOS).
+**Exit criterion:** `julia --project=. -e 'using MakieViews; w = makieviews(); sleep(1); Gtk4.destroy(w)'` opens a 1024×768 window titled "MakieViews" containing an empty Makie Axis rendered via GLMakie, closes cleanly, and returns exit code 0. **CI verification (per ADR-018): both cells of the v0.1 CI matrix (`ubuntu-latest × {Julia 1.10, 1.12}`) green.** Windows and macOS coverage is developer-machine-verified (already confirmed on Windows during Tasks 004–010; macOS deferred to M11 pre-release manual QA).
 
 ---
 
@@ -201,7 +201,7 @@ Same merge pattern as Task 007 into Task 006: the atomic unit for the window-cre
 ---
 
 ## Task 010: Embed an empty GLMakie Figure via Gtk4Makie + Figure-attachment test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit a062cc1
 **Milestone:** M1
 **Depends on:** 008 (009 is a merged placeholder)
 
@@ -243,25 +243,101 @@ Same merge pattern as Task 007 into 006 and Task 009 into 008: the atomic unit f
 
 ---
 
-## Task 012: Create .github/workflows/ci.yml with 6-cell matrix
+## Task 012: Reduce CI matrix to Ubuntu-only per ADR-018
 **Status:** [ ] Pending
 **Milestone:** M1
 **Depends on:** 010 (011 is a merged placeholder)
 
 ### What to do
-Create `.github/workflows/ci.yml` for GitHub Actions with a matrix over `julia-version: ["1.10", "1.12"]` and `os: [ubuntu-latest, windows-latest, macos-latest]`, per `docs/TEST_PLAN.md`. On each cell: check out the repo (`actions/checkout@v4`), set up Julia (`julia-actions/setup-julia@v2`), cache the depot (`julia-actions/cache@v2`), buildpkg (`julia-actions/julia-buildpkg@v1`), and run tests. On Ubuntu, prefix the test step with `xvfb-run -a` (install via `sudo apt-get install -y xvfb` in a prior step). On Windows and macOS, run tests directly. Trigger on `push` to any branch and `pull_request` to `main`.
+Edit the existing `.github/workflows/ci.yml` (created at commit `c7a901e` with a 6-cell matrix) to reduce the OS matrix to `ubuntu-latest` only. Also drop the OS-conditional test-run steps (the `if: runner.os == 'Linux'` branch stays; the `if: runner.os != 'Linux'` branch is removed) since only Linux runs now. Preserve the Julia-version matrix (`['1.10', '1.12']`). Add a top-of-file comment naming ADR-018 as the source of the reduction and pointing readers to ADR-009 for the original 6-cell intent.
+
+The replacement file content must be exactly:
+
+```yaml
+# .github/workflows/ci.yml
+#
+# CI matrix reduced from 6 cells (Julia {1.10, 1.12} × OS {Ubuntu, Windows, macOS})
+# to 2 cells (Julia {1.10, 1.12} × Ubuntu) per ADR-018 (2026-08-24).
+# Original 6-cell intent: docs/adr/ADR-009-test-strategy.md.
+# Reduction rationale + restoration path (v0.2): docs/adr/ADR-018-ci-matrix-reduction-ubuntu-only.md.
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Julia ${{ matrix.julia-version }} - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ['1.10', '1.12']
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Julia
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+
+      - name: Cache Julia depot
+        uses: julia-actions/cache@v2
+
+      - name: Install xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+
+      - name: Build package
+        uses: julia-actions/julia-buildpkg@v1
+
+      - name: Run tests (under xvfb)
+        run: xvfb-run -a julia --project=. -e 'using Pkg; Pkg.test()'
+```
+
+Also stage the six doc files Claude edited from Chat as part of the same commit (list them explicitly — no wildcards):
+
+- `docs/adr/ADR-018-ci-matrix-reduction-ubuntu-only.md` (new)
+- `docs/adr/ADR-009-test-strategy.md` (amended)
+- `docs/PLAN.md` (amended)
+- `docs/TEST_PLAN.md` (amended)
+- `tasks.md` (this task rewritten + M1 exit criterion updated)
+- `INDEX.md` (updated to add ADR-018 to load-bearing decisions and mark M1 complete after CI green) — **Claude has not yet edited INDEX.md at instruction-write time**; check `git status` for whether it appears modified, and stage it only if it does; if not, omit.
+
+Commit with two `-m` flags:
+
+- Subject: `ci: reduce matrix to Ubuntu-only per ADR-018; document rationale`
+- Body: `Closes Task 012. GitHub Actions Windows/macOS runners lack accessible OpenGL contexts, causing GLMakie precompile to fail before tests can start (confirmed run 32780549703, 4/6 red). Matches upstream Makie GLMakie CI (Ubuntu-only). New ADR-018 documents evidence, decision, alternatives rejected, restoration path in v0.2 once Layer 1/2 tests exist. ADR-009 amended with a top-of-file supersession note and correction to its Layer-3 non-Linux runner assumption. PLAN.md M1/M8/M11 exit criteria updated; M10's originally-reserved ADR-018 slot moved to ADR-019 (the future FPS-formula ADR). TEST_PLAN.md §2/§5/§7/§13 updated. tasks.md Task 012 rewritten + M1 exit gate updated.`
+
+Push: `git push`. Do NOT wait for the CI run to complete. Report back after push succeeds.
 
 ### Files touched
-- `.github/workflows/ci.yml` — new file
+- `.github/workflows/ci.yml` — modified (matrix reduction + top-of-file comment)
+- `docs/adr/ADR-018-ci-matrix-reduction-ubuntu-only.md` — new (already written by Claude from Chat)
+- `docs/adr/ADR-009-test-strategy.md` — modified (already amended by Claude)
+- `docs/PLAN.md` — modified (already amended by Claude)
+- `docs/TEST_PLAN.md` — modified (already amended by Claude)
+- `tasks.md` — modified (this task rewrite + M1 exit criterion)
 
-### Acceptance Criterion
-Commit and push. All 6 matrix cells on the GitHub Actions run report success (green checkmark). No cells report failure or timeout.
+### Acceptance Criterion (this instruction only — Task 012 as a whole requires 2/2 green)
+`.github/workflows/ci.yml` matches the exact content above. `git log --oneline -1` shows the commit subject `ci: reduce matrix to Ubuntu-only per ADR-018; document rationale`. `git show --stat HEAD` reports at least 6 files changed (the 5 doc/config files plus ci.yml; INDEX.md optionally 7th). `git push` completes without error. `git status` reports `Your branch is up to date with 'origin/main'`.
 
-### On Failure
-Report the URL of the failed run and paste the failing job's log tail (last ~50 lines).
+### Report back (post-push)
+On pass: `INSTRUCTION PASSED — ci.yml + doc amendments committed as <7-char SHA> and pushed to origin/main. New CI run should appear at https://github.com/XerxesZorgon/MakieViews/actions within ~30 seconds. Task 012 remains [ ] Pending until 2/2 green confirmed.`
+On fail: `INSTRUCTION FAILED — [criterion] — [observed] — [error text]`
+
+### On CI-run Failure (after push, if 2/2 not green)
+Report the URL of the failed run and paste the failing job's log tail (last ~50 lines). This is real regression territory now — with Ubuntu-only, the only remaining failure modes are: xvfb setup breakage, Julia 1.10 vs 1.12 divergence in our test code, or a genuine bug we introduced. Fix instruction will target the specific failure.
 
 ---
 
 ## M1 exit gate
 
-When Tasks 001–012 are all `[x] Done` and all 6 CI cells are green, M1 is complete. Return to Claude Chat with "M1 complete" to extend `tasks.md` with M2 (Tree + first plot type).
+When Tasks 001–012 are all `[x] Done` and the v0.1 CI matrix (2 cells: `ubuntu-latest × {Julia 1.10, 1.12}`, per ADR-018) is green, M1 is complete. Return to Claude Chat with "M1 complete" to extend `tasks.md` with M2 (Tree + first plot type). Then run the macOS live-test (developer-machine QA per ADR-018) before starting M2, and log its result to Obsidian.

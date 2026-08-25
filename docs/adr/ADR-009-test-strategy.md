@@ -1,9 +1,11 @@
 # ADR-009 — Test strategy for a Gtk4 + GLMakie Julia app
 
-**Status**: Accepted
+**Status**: Accepted (amended in part by ADR-018, 2026-08-24)
 **Date**: 2026-08-24
 **Deciders**: John Peach
-**Related**: TEST_PLAN.md (concrete matrix and jobs), ADR-002 (UI stack)
+**Related**: TEST_PLAN.md (concrete matrix and jobs), ADR-002 (UI stack), **ADR-018 (CI matrix reduction to Ubuntu-only for v0.1)**
+
+> **2026-08-24 Amendment**: The Decision §layer-3 claim that GitHub Actions Windows and macOS runners provide a usable OpenGL context is factually wrong — they have desktop sessions but no accessible GL driver, so GLMakie precompilation fails on both. See ADR-018 for evidence and the resulting CI-matrix reduction. The four-layer test structure below remains authoritative; only the layer-3 non-Linux runner assumption is replaced.
 
 ## Context
 
@@ -23,10 +25,10 @@ Four test layers, gated in CI on all three OSes:
 
 1. **Unit tests** — pure-Julia logic (tree operations, schema derivation, TOML round-trip): no display required. Runs everywhere including headless without Xvfb.
 2. **Integration tests (headless-safe)** — build a `Figure` programmatically via MakieViews' internal API, exercise the tree/property/data-snapshot code paths, export via CairoMakie. **No Gtk4 window is opened.** Runs everywhere.
-3. **GUI smoke tests** — open a Gtk4 window, close it. On Linux, wrapped in `xvfb-run`. On Windows/macOS, runs against the CI runner's display (GitHub Actions provides one for both). Purpose: catch "the window doesn't open" regressions.
+3. **GUI smoke tests** — open a Gtk4 window, close it. On Linux, wrapped in `xvfb-run`. **On Windows/macOS: not run in v0.1 CI — see ADR-018.** (Original intent was to run against the CI runner's display, but GitHub Actions Windows/macOS runners lack accessible OpenGL contexts, causing GLMakie precompilation to abort before tests can start.) Purpose: catch "the window doesn't open" regressions on Linux; on Windows/macOS, this coverage is delivered by maintainer pre-release manual QA per ADR-018.
 4. **Golden-image tests** — anchored on **CairoMakie** static export (not GLMakie framebuffer capture) because driver variation makes GL output unstable across runners. See TEST_PLAN.md §4.
 
-Julia × OS matrix: Julia 1.10 (LTS) × Julia 1.12 (stable) × {Windows, macOS, Linux}. Six cells. `xvfb-run` wraps the Linux cells for layers 3 and 4.
+Julia × OS matrix: Julia 1.10 (LTS) × Julia 1.12 (stable) × {Windows, macOS, Linux}. Six cells originally intended; **reduced to 2 cells (Linux × both Julia versions) for v0.1 per ADR-018**. `xvfb-run` wraps the Linux cells for layers 3 and 4.
 
 ## Alternatives Considered
 
@@ -38,8 +40,8 @@ Julia × OS matrix: Julia 1.10 (LTS) × Julia 1.12 (stable) × {Windows, macOS, 
 
 - **Positive**: catches regressions at four distinct levels with appropriate cost per layer.
 - **Positive**: CairoMakie anchoring aligns with upstream Makie's own visual-regression discipline.
-- **Negative**: CI matrix is six cells; runtime cost is manageable but not free.
-- **Negative**: GUI smoke tests on macOS runners can be flaky (documented Apple CI behavior). TEST_PLAN.md includes a retry policy for that specific cell.
+- **Negative**: ~~CI matrix is six cells; runtime cost is manageable but not free.~~ Reduced to 2 cells per ADR-018.
+- **Negative**: ~~GUI smoke tests on macOS runners can be flaky (documented Apple CI behavior). TEST_PLAN.md includes a retry policy for that specific cell.~~ Moot per ADR-018: macOS is not in the CI matrix for v0.1.
 
 ## References
 

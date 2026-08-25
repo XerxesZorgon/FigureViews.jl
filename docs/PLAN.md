@@ -2,7 +2,7 @@
 
 **Status**: Draft
 **Date**: 2026-08-24
-**Companion documents**: SDD.md, DESIGN.md, ADR-001..010, TEST_PLAN.md
+**Companion documents**: SDD.md, DESIGN.md, ADR-001..010, ADR-011..017, **ADR-018 (CI matrix reduction)**, TEST_PLAN.md
 **Template basis**: Adapted from `.specify/templates/plan-template.md` (Spec Kit), with Summary / Technical Context / Structure retained and Milestones / Compat Pins added.
 
 ---
@@ -137,7 +137,7 @@ Resolve the seven Open Design Questions in DESIGN.md §11 into ADR-011..ADR-017.
 ### M1 — Shell
 Gtk4 top-level window with an embedded GLMakie viewport (empty). No tree, no property panel, no plots. `makieviews()` entry point.
 
-**Exit**: Layer-3 GUI smoke green on all 6 CI cells; SDD SC-002 (blank session) partially met.
+**Exit**: Layer-3 GUI smoke green on the v0.1 CI matrix (2 cells: `ubuntu-latest × {Julia 1.10, 1.12}`, per ADR-018); SDD SC-002 (blank session) partially met. Windows and macOS coverage is developer-machine-verified, not CI-verified, for v0.1 (see ADR-018 rationale).
 
 ### M2 — Tree + one plot type
 `SessionState` with Session/Figure/Axis/Plot tree; `PLOT_SCHEMAS[:line]` populated; tree pane + property pane wired; end-to-end for a hand-constructed line plot.
@@ -172,7 +172,7 @@ Time slider bound to a numeric attribute or data slice; `AnimBinding` in the Plo
 ### M8 — Static export
 PNG/SVG/PDF export via CairoMakie in the export dialog. Layer 4 golden-image hashes committed.
 
-**Exit**: All 7 golden images match on all 6 cells; PDF/SVG validity checks pass.
+**Exit**: All 7 golden images match on the 2-cell v0.1 CI matrix (per ADR-018); PDF/SVG validity checks pass. **Restoration note**: golden-image tests are Layer 4 (CairoMakie, headless-safe) — they do not require GLMakie — so once M8 lands, extending the CI matrix to run Layers 1, 2, and 4 on Windows and macOS becomes feasible in v0.2 (see ADR-018 restoration path).
 
 ### M9 — Preferences
 `Scratch.jl`-backed `preferences.toml`; seed-on-new behavior; "Reset selection to preferences" action.
@@ -182,12 +182,12 @@ PNG/SVG/PDF export via CairoMakie in the export dialog. Layer 4 golden-image has
 ### M10 — Pre-flight dataset check
 `detect_host_specs`, `estimate_footprint`, warning dialog, `UniformStride` / `MinMaxDecimation` / `LTTB`. ODQ-5 formula (from DESIGN.md §11) measured and published.
 
-**Exit**: TEST_PLAN.md §8 tests green; measurement pass documented; DESIGN.md §7 ODQ-5 marked resolved with a new ADR-018.
+**Exit**: TEST_PLAN.md §8 tests green; measurement pass documented; DESIGN.md §7 ODQ-5 marked resolved with a new ADR-019 (was originally reserved as ADR-018 in this document; ADR-018 was assigned to the CI-matrix reduction on 2026-08-24, so the pre-flight FPS ADR is now ADR-019).
 
 ### M11 — Cross-OS packaging + registration
-Registrator.jl submission dry-run; CI green on all 6 cells for the full suite; LICENSE / README / semver check.
+Registrator.jl submission dry-run; CI green on the 2-cell v0.1 matrix (per ADR-018) for the full suite; LICENSE / README / semver check. **Pre-release manual verification protocol (per ADR-018): maintainer runs the full test suite manually on a Windows 11 machine and on macOS before tagging v0.1.0. Failure on either → fix or document as known limitation in release notes.**
 
-**Exit**: SDD SC-001 met (registered as v0.1.0); tagged release.
+**Exit**: SDD SC-001 met (registered as v0.1.0); tagged release; pre-release manual QA report attached to release notes.
 
 ---
 

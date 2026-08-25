@@ -1,3 +1,10 @@
+# .github/workflows/ci.yml
+#
+# CI matrix reduced from 6 cells (Julia {1.10, 1.12} × OS {Ubuntu, Windows, macOS})
+# to 2 cells (Julia {1.10, 1.12} × Ubuntu) per ADR-018 (2026-08-24).
+# Original 6-cell intent: docs/adr/ADR-009-test-strategy.md.
+# Reduction rationale + restoration path (v0.2): docs/adr/ADR-018-ci-matrix-reduction-ubuntu-only.md.
+
 name: CI
 
 on:
@@ -14,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         julia-version: ['1.10', '1.12']
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,8 +34,7 @@ jobs:
       - name: Cache Julia depot
         uses: julia-actions/cache@v2
 
-      - name: Install xvfb (Linux only)
-        if: runner.os == 'Linux'
+      - name: Install xvfb
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb
@@ -36,10 +42,5 @@ jobs:
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
 
-      - name: Run tests (Linux, under xvfb)
-        if: runner.os == 'Linux'
+      - name: Run tests (under xvfb)
         run: xvfb-run -a julia --project=. -e 'using Pkg; Pkg.test()'
-
-      - name: Run tests (macOS and Windows, direct)
-        if: runner.os != 'Linux'
-        uses: julia-actions/julia-runtest@v1
