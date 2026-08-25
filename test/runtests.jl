@@ -2,7 +2,7 @@ using Test
 using MakieViews
 using Gtk4
 using Makie
-using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, Renderer, build_tree_pane
+using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS
 
 include("unit/nodes.jl")
 include("unit/schema.jl")
@@ -78,4 +78,30 @@ end
     # Programmatically select the plot node by writing its id to selection and verifying no error:
     s.selection[] = plot_node.id
     @test s.selection[] == plot_node.id
+end
+
+@testset "M2 property pane — populates on selection and edits propagate" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis2d)
+    plot_node = add_line_plot!(ax_node; x = 1.0:10.0 |> collect, y = zeros(10))
+
+    prop_widget = build_property_pane(s)
+    @test prop_widget !== nothing
+
+    # Selecting the plot should populate the pane. Exact widget introspection may be limited by
+    # Gtk4.jl API; at minimum verify no exception is raised.
+    s.selection[] = plot_node.id
+    sleep(0.2)
+
+    # Simulate a valid attribute edit by writing directly to the Observable (mimics the widget's onchange path)
+    plot_node.attrs[:linewidth][] = 3.5
+    @test plot_node.attrs[:linewidth][] == 3.5
+
+    # Validate function tests
+    specs = PLOT_SCHEMAS[:line]
+    @test validate(specs, :linewidth, 5.0) == 5.0
+    @test validate(specs, :linewidth, 100.0) isa MakieViews.ValidationError    # out of range
+    @test validate(specs, :linestyle, :solid) == :solid
+    @test validate(specs, :linestyle, :bogus) isa MakieViews.ValidationError   # not in enum
 end

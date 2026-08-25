@@ -767,7 +767,7 @@ On fail: `TASK 017 FAILED — [criterion] — [Pkg.test output tail; if Makie at
 ---
 
 ## Task 018: Create tree pane widget (GtkListView + GtkTreeListModel) + selection wiring + Layer 3 test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit e984f3f
 **Milestone:** M2
 **Depends on:** 017
 

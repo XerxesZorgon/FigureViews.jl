@@ -8,6 +8,7 @@ include("state/schema.jl")
 include("state/session.jl")
 include("render/renderer.jl")
 include("ui/tree_pane.jl")
+include("ui/property_pane.jl")
 
 export makieviews
 
