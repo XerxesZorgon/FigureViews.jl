@@ -896,7 +896,7 @@ On fail: `TASK 019 FAILED — [criterion] — [Pkg.test output tail]`
 ---
 
 ## Task 020: Wire tree/property/viewport panes into makieviews() + end-to-end Layer 3 test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit 2df9e6f; 73 tests local
 **Milestone:** M2
 **Depends on:** 019
 
