@@ -65,6 +65,8 @@ Two invariants:
 
 Nodes are Julia `mutable struct`s with per-field `Observable` wrapping per **[ADR-019](adr/ADR-019-reactive-state-observables.md)**. Each carries a `type` tag serialized into `.mvz` (never inferred from Julia type name on load — see §3). `id` and `type`/`kind` fields are plain (non-Observable) and immutable after node creation; everything mutable is an `Observable`.
 
+> **Note on code declaration order.** The declarations below are shown in top-down conceptual order (root → leaves) for human readability. **In `src/state/nodes.jl`, the physical order is reversed — leaf-first (Plot → Axis → Figure → Session → UnknownNode)** because Julia's parametric types (e.g. `Observable{Vector{Figure}}` in `Session.figures`) require the referenced type to be already declared at the point of use. This is a language constraint, not a design choice.
+
 ```julia
 abstract type Node end
 

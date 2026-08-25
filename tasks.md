@@ -360,7 +360,7 @@ When Tasks 001–012 are all `[x] Done` and the v0.1 CI matrix (2 cells: `ubuntu
 ---
 
 ## Task 013: Add Observables.jl and Colors.jl to Project.toml deps
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit 61c9e25; Observables v0.5.5 + Colors v0.13.1 resolved
 **Milestone:** M2
 **Depends on:** — (M1 complete)
 
@@ -398,7 +398,18 @@ On fail: `TASK 013 FAILED — [criterion] — [observed] — [Pkg output]`
 ### What to do
 Three source changes in one commit — code + its unit tests, atomic (M1 merge pattern).
 
-**1. Create `src/state/nodes.jl`** with the exact `mutable struct` declarations from DESIGN.md §2.1 (post-ADR-019 update). This includes the `abstract type Node`, then `Session`, `Figure`, `Axis`, `Plot`, `UnknownNode` — each `mutable struct` with per-field `Observable` fields as spec'd. Read `docs/DESIGN.md` §2.1 for the exact field layout; do not paraphrase from memory.
+**1. Create `src/state/nodes.jl`** with the `mutable struct` declarations for the tree nodes per DESIGN.md §2.1 (post-ADR-019 update).
+
+**Important: declaration order in the file must be LEAF-FIRST**, not the top-down conceptual order DESIGN.md shows. Julia parametric types like `Observable{Vector{Figure}}` on `Session.figures` require `Figure` to be already declared at the point of use — declaring `Session` first would fail with `UndefVarError: Figure not defined`. DESIGN.md §2.1 has a note explaining this. Order:
+
+1. `abstract type Node end`
+2. `mutable struct Plot <: Node` — no forward refs (DataRef/AnimBinding come from types.jl, already included)
+3. `mutable struct Axis <: Node` — references `Plot` and `CameraSpec` (both now defined)
+4. `mutable struct Figure <: Node` — references `Axis`
+5. `mutable struct Session <: Node` — references `Figure`
+6. `mutable struct UnknownNode <: Node` — no refs (position doesn't matter, put last for consistency)
+
+Within each struct, the fields are exactly as DESIGN.md §2.1 lists them (post-ADR-019 amendment). Read `docs/DESIGN.md` §2.1 for the field lists; do not paraphrase from memory.
 
 **2. Create `src/state/types.jl`** with the minimal support types the node fields reference. For M2, these are shells — M5/M6/M7 fill them in fully:
 

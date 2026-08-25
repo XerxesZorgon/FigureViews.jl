@@ -1,8 +1,9 @@
 module MakieViews
 
-using Gtk4
-using Gtk4Makie
-using GLMakie
+using Gtk4, Gtk4Makie, GLMakie, Observables, Colors
+
+include("state/types.jl")
+include("state/nodes.jl")
 
 export makieviews
 
@@ -19,8 +20,8 @@ function makieviews()
     end
     w = GtkWindow("MakieViews", 1024, 768)
     
-    fig = Figure()
-    ax = Axis(fig[1, 1])
+    fig = Makie.Figure()
+    ax = Makie.Axis(fig[1, 1])
     widget = Gtk4Makie.GtkMakieWidget()
     w[] = widget
     push!(widget, fig)
