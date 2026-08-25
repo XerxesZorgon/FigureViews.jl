@@ -105,3 +105,16 @@ function add_heatmap_plot!(ax::Axis; matrix::AbstractMatrix, plot_id::String = s
     ax.plots[] = [ax.plots[]..., plot]
     return plot
 end
+
+function add_contour_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, z::AbstractMatrix, plot_id::String = string(uuid4()))::Plot
+    plot = Plot(
+        plot_id,
+        :contour,
+        Observable(DataRef[]),
+        _init_attrs(:contour),
+        Observable{Union{Nothing,AnimBinding}}(nothing)
+    )
+    _DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=z)
+    ax.plots[] = [ax.plots[]..., plot]
+    return plot
+end

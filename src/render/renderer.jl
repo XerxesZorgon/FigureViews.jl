@@ -111,6 +111,18 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
             visible    = plot.attrs[:visible][])
         renderer.plot_handles[plot.id] = handle
         _register_plot_observer!(renderer, plot)
+    elseif plot.type == :contour
+        x   = _DEMO_DATA[plot.id].x
+        y   = _DEMO_DATA[plot.id].y
+        mat = _DEMO_DATA[plot.id].matrix
+        handle = Makie.contour!(makie_ax, x, y, mat;
+            color     = plot.attrs[:color][],
+            levels    = plot.attrs[:levels][],
+            linewidth = plot.attrs[:linewidth][],
+            label     = plot.attrs[:label][],
+            visible   = plot.attrs[:visible][])
+        renderer.plot_handles[plot.id] = handle
+        _register_plot_observer!(renderer, plot)
     end
 end
 

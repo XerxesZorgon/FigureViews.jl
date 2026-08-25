@@ -36,6 +36,10 @@ function makieviews()
     y = sin.(x ./ 10)
     plot_node = add_line_plot!(ax_node; x = x, y = y)
 
+    x_scatter = collect(1.0:100.0)
+    y_scatter = cos.(x_scatter ./ 8) .+ 0.3 .* randn(100)
+    add_scatter_plot!(ax_node; x = x_scatter, y = y_scatter)
+
     w = GtkWindow("MakieViews", 1400, 900)
     
     makie_fig = Makie.Figure()

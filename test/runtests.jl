@@ -2,7 +2,7 @@ using Test
 using MakieViews
 using Gtk4
 using Makie
-using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, add_scatter_plot!, add_bar_plot!, add_heatmap_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, _current_session, _current_renderer, ValidationError
+using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, add_scatter_plot!, add_bar_plot!, add_heatmap_plot!, add_contour_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, _current_session, _current_renderer, ValidationError
 
 include("unit/nodes.jl")
 include("unit/schema.jl")
@@ -119,6 +119,21 @@ end
     plot_node = add_heatmap_plot!(ax_node; matrix = mat)
     @test plot_node.type == :heatmap
     @test plot_node.attrs[:colormap][] == :viridis
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test haskey(renderer.plot_handles, plot_node.id)
+end
+
+@testset "M3 contour — renders without error" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis2d)
+    xs = collect(LinRange(0.0, 2π, 30))
+    ys = collect(LinRange(0.0, 2π, 30))
+    zs = [sin(x) * cos(y) for x in xs, y in ys]
+    plot_node = add_contour_plot!(ax_node; x = xs, y = ys, z = zs)
+    @test plot_node.type == :contour
+    @test plot_node.attrs[:levels][] == 10
     makie_fig = Makie.Figure()
     renderer = Renderer(s, makie_fig)
     @test haskey(renderer.plot_handles, plot_node.id)

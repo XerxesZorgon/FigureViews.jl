@@ -1252,7 +1252,7 @@ On fail: `TASK 023 FAILED — [criterion] — [Pkg.test tail; if Makie.barplot! 
 ---
 
 ## Task 024: add_heatmap_plot! + heatmap renderer branch + Layer 3 test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit d604b8f
 **Milestone:** M3
 **Depends on:** 023
 
