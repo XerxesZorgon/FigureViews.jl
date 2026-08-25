@@ -82,6 +82,26 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
         )
         renderer.plot_handles[plot.id] = handle
         _register_plot_observer!(renderer, plot)
+    elseif plot.type == :bar
+        x = _DEMO_DATA[plot.id].x
+        y = _DEMO_DATA[plot.id].y
+        direction = plot.attrs[:direction][]
+        handle = if direction == :vertical
+            Makie.barplot!(makie_ax, x, y;
+                color   = plot.attrs[:color][],
+                width   = plot.attrs[:width][],
+                label   = plot.attrs[:label][],
+                visible = plot.attrs[:visible][])
+        else
+            Makie.barplot!(makie_ax, y, x;   # horizontal: swap x/y
+                color       = plot.attrs[:color][],
+                width       = plot.attrs[:width][],
+                direction   = :x,
+                label       = plot.attrs[:label][],
+                visible     = plot.attrs[:visible][])
+        end
+        renderer.plot_handles[plot.id] = handle
+        _register_plot_observer!(renderer, plot)
     end
 end
 

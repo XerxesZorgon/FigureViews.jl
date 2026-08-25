@@ -79,3 +79,16 @@ function add_scatter_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, plot_
     ax.plots[] = [ax.plots[]..., plot]
     return plot
 end
+
+function add_bar_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, plot_id::String = string(uuid4()))::Plot
+    plot = Plot(
+        plot_id,
+        :bar,
+        Observable(DataRef[]),
+        _init_attrs(:bar),
+        Observable{Union{Nothing,AnimBinding}}(nothing)
+    )
+    _DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=nothing)
+    ax.plots[] = [ax.plots[]..., plot]
+    return plot
+end

@@ -2,7 +2,7 @@ using Test
 using MakieViews
 using Gtk4
 using Makie
-using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, add_scatter_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, _current_session, _current_renderer, ValidationError
+using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, add_scatter_plot!, add_bar_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, _current_session, _current_renderer, ValidationError
 
 include("unit/nodes.jl")
 include("unit/schema.jl")
@@ -95,6 +95,20 @@ end
         val = makie_plot[:markersize][]
         @test (val isa Number ? val == 15.0 : val[1] == 15.0)
     end
+end
+
+@testset "M3 bar — renders without error" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis2d)
+    x = collect(1.0:5.0)
+    y = [3.0, 1.0, 4.0, 1.0, 5.0]
+    plot_node = add_bar_plot!(ax_node; x = x, y = y)
+    @test plot_node.type == :bar
+    @test plot_node.attrs[:direction][] == :vertical
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test haskey(renderer.plot_handles, plot_node.id)
 end
 
 @testset "M2 tree pane — populates from session; selection writes to session.selection" begin

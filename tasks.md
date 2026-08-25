@@ -1091,7 +1091,7 @@ On fail: `TASK 021 FAILED — [criterion] — [Pkg.test output tail]`
 ---
 
 ## Task 022: add_scatter_plot! + scatter renderer branch + Layer 3 test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit 71be576
 **Milestone:** M3
 **Depends on:** 021
 
