@@ -1,6 +1,6 @@
 # MakieViews — project index
 
-**Purpose**: A Veusz-style desktop GUI over Makie for Julia scientific plotting. **Status**: v0.1 M1 (Shell) in progress — Tasks 001–010 complete (7 tests green on Windows dev machine); Task 012 pending CI green on the reduced 2-cell matrix (per ADR-018). **Docs location on device**: `C:\Users\johnx\Documents\WildPeaches\Projects\MakieViews\` *(WildPeaches path is authoritative)*
+**Purpose**: A Veusz-style desktop GUI over Makie for Julia scientific plotting. **Status**: v0.1 **M1 (Shell) COMPLETE 2026-08-24** — all 12 tasks done, 7 tests green on Windows dev machine, CI 2/2 green on Ubuntu (v0.1 matrix per ADR-018). macOS QA deferred by maintainer 2026-08-24; **required before v0.1.0 tag** (see PLAN.md M11 gate). **Docs location on device**: `C:\Users\johnx\Documents\WildPeaches\Projects\MakieViews\` *(WildPeaches path is authoritative)*
 
 ## Planning documents
 
@@ -8,7 +8,7 @@
 * `docs/DESIGN.md` — Architecture: tree model, schema-driven property panel, `.mvz` layout, pre-flight state machine, `Main`-namespace access, preferences-seed behavior. **§11 shows all ODQs closed with ADR cross-references.**
 * `docs/TEST_PLAN.md` — Four test layers. **v0.1 CI matrix reduced from 6 cells to 2 cells (Ubuntu × Julia 1.10, 1.12) per ADR-018** — GitHub Actions Windows/macOS runners lack accessible GL contexts; Windows and macOS support is developer-machine-verified for v0.1. Session round-trip, golden images, cross-OS install.
 * `docs/PLAN.md` — Pinned dependency versions, 11 milestones (**M0 complete**; M1 in progress; M2..M11 upcoming), repository structure.
-* `docs/adr/ADR-001..018` — Architecture Decision Records.
+* `docs/adr/ADR-001..019` — Architecture Decision Records.
 * `README.md`, `CHANGELOG.md` — user-facing.
 
 ## Load-bearing decisions
@@ -23,6 +23,7 @@
 * MP4/GIF export: fps configurable default 30 (ADR-013); modal on main thread for v0.1, background export deferred to v0.2 (ADR-014).
 * Pre-flight FPS: measurement-driven lookup populated in M10, conservative bias (ADR-015).
 * **CI matrix for v0.1: Ubuntu-only, 2 cells (Julia 1.10, 1.12) (ADR-018).** Reduction from ADR-009's original 6-cell intent after empirical CI failure (run 32780549703) confirmed GitHub Actions Windows/macOS runners cannot load GLMakie. Matches upstream Makie CI. Windows/macOS support is developer-machine-verified for v0.1; M11 pre-release manual QA required before v0.1.0 tag. Restoration path to 6 cells deferred to v0.2 once Layer 1/2 (headless-safe) tests exist.
+* **Reactive state model: `Observables.jl` + `mutable struct` with per-field `Observable` fields (ADR-019).** Mirrors Makie's own internal reactive plumbing. `Plot.attrs::Dict{Symbol, Observable{Any}}` for per-attribute observation. Debouncing via `Observables.throttle(1/60, ...)`. Applies to all M2–M10 code that mutates the SessionState tree.
 
 ## Open Design Questions
 
@@ -34,4 +35,4 @@ Julia 1.12.6 primary, 1.10.11 LTS validated. Makie 0.24.13, GLMakie 0.13.13, Cai
 
 ## What's next
 
-M1 code + tests complete on the developer machine. Task 012 (CI matrix reduction per ADR-018) is the last M1 task — pending Antigravity commit + push + 2/2 green CI verification. After M1 closes, run macOS live-test (ADR-018 pre-release QA precedent), then begin M2 (Tree + first plot type).
+M1 shipped: `makieviews()` opens a 1024×768 Gtk4 window with an embedded GLMakie viewport containing an empty `Axis`. Seven tests pass on Windows; CI 2/2 green on Ubuntu. macOS QA deferred per maintainer request — not a blocker for M2, but is a hard blocker for the v0.1.0 tag per PLAN.md M11 / ADR-018 protocol. Beginning M2 next: `SessionState` tree (Session/Figure/Axis/Plot), `PLOT_SCHEMAS[:line]`, tree pane + property pane wired, end-to-end for a hand-constructed line plot.

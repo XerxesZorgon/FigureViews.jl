@@ -2,7 +2,7 @@
 
 **Status**: Draft
 **Date**: 2026-08-24
-**Companion documents**: SDD.md, DESIGN.md, ADR-001..010, ADR-011..017, **ADR-018 (CI matrix reduction)**, TEST_PLAN.md
+**Companion documents**: SDD.md, DESIGN.md, ADR-001..010, ADR-011..017, **ADR-018 (CI matrix reduction)**, **ADR-019 (reactive state model: Observables.jl)**, TEST_PLAN.md
 **Template basis**: Adapted from `.specify/templates/plan-template.md` (Spec Kit), with Summary / Technical Context / Structure retained and Milestones / Compat Pins added.
 
 ---
@@ -182,7 +182,7 @@ PNG/SVG/PDF export via CairoMakie in the export dialog. Layer 4 golden-image has
 ### M10 — Pre-flight dataset check
 `detect_host_specs`, `estimate_footprint`, warning dialog, `UniformStride` / `MinMaxDecimation` / `LTTB`. ODQ-5 formula (from DESIGN.md §11) measured and published.
 
-**Exit**: TEST_PLAN.md §8 tests green; measurement pass documented; DESIGN.md §7 ODQ-5 marked resolved with a new ADR-019 (was originally reserved as ADR-018 in this document; ADR-018 was assigned to the CI-matrix reduction on 2026-08-24, so the pre-flight FPS ADR is now ADR-019).
+**Exit**: TEST_PLAN.md §8 tests green; measurement pass documented; DESIGN.md §7 ODQ-5 marked resolved with a new **ADR-020** (was originally reserved as ADR-018 in this document; ADR-018 was assigned to the CI-matrix reduction on 2026-08-24 and ADR-019 to the reactive state model, so the pre-flight FPS ADR is now ADR-020).
 
 ### M11 — Cross-OS packaging + registration
 Registrator.jl submission dry-run; CI green on the 2-cell v0.1 matrix (per ADR-018) for the full suite; LICENSE / README / semver check. **Pre-release manual verification protocol (per ADR-018): maintainer runs the full test suite manually on a Windows 11 machine and on macOS before tagging v0.1.0. Failure on either → fix or document as known limitation in release notes.**

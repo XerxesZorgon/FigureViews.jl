@@ -63,52 +63,59 @@ Two invariants:
 
 ### 2.1 Node schemas
 
-Nodes are Julia structs. Each carries a `type` tag serialized into `.mvz` (never inferred from Julia type name on load — see §3).
+Nodes are Julia `mutable struct`s with per-field `Observable` wrapping per **[ADR-019](adr/ADR-019-reactive-state-observables.md)**. Each carries a `type` tag serialized into `.mvz` (never inferred from Julia type name on load — see §3). `id` and `type`/`kind` fields are plain (non-Observable) and immutable after node creation; everything mutable is an `Observable`.
 
 ```julia
 abstract type Node end
 
-struct Session <: Node
-    schema_version::VersionNumber      # e.g. v"1.0.0"
-    figures::Vector{Figure}
-    preferences_snapshot::Dict{String,Any}   # copy taken at session creation
+mutable struct Session <: Node
+    schema_version::VersionNumber                    # e.g. v"1.0.0"
+    figures::Observable{Vector{Figure}}
+    preferences_snapshot::Dict{String,Any}           # copy taken at session creation
+    selection::Observable{Union{Nothing, String}}    # id of currently-selected node
 end
 
-struct Figure <: Node
-    id::String                         # UUIDv4
-    title::String
-    layout::LayoutSpec                 # rows/cols/positions per Makie
-    axes::Vector{Axis}
+mutable struct Figure <: Node
+    id::String                                       # UUIDv4, immutable
+    title::Observable{String}
+    layout::Observable{LayoutSpec}                   # rows/cols/positions per Makie
+    axes::Observable{Vector{Axis}}
 end
 
-struct Axis <: Node
-    id::String
-    kind::Symbol                       # :axis2d | :axis3d
-    title::String
-    xlabel::String; ylabel::String; zlabel::String  # zlabel unused for :axis2d
-    xlim::Union{Nothing, Tuple{Float64,Float64}}
-    ylim::Union{Nothing, Tuple{Float64,Float64}}
-    xscale::Symbol; yscale::Symbol     # :linear | :log10 | :log2 | :ln
-    gridlines::Bool; legend::Bool
-    tickformat::Union{Nothing, String}
-    camera::Union{Nothing, CameraSpec} # :axis3d only
-    plots::Vector{Plot}
+mutable struct Axis <: Node
+    id::String                                       # immutable
+    kind::Symbol                                     # :axis2d | :axis3d, immutable
+    title::Observable{String}
+    xlabel::Observable{String}
+    ylabel::Observable{String}
+    zlabel::Observable{String}                       # unused for :axis2d
+    xlim::Observable{Union{Nothing, Tuple{Float64,Float64}}}
+    ylim::Observable{Union{Nothing, Tuple{Float64,Float64}}}
+    xscale::Observable{Symbol}                       # :linear | :log10 | :log2 | :ln
+    yscale::Observable{Symbol}
+    gridlines::Observable{Bool}
+    legend::Observable{Bool}
+    tickformat::Observable{Union{Nothing, String}}
+    camera::Observable{Union{Nothing, CameraSpec}}   # :axis3d only
+    plots::Observable{Vector{Plot}}
 end
 
-struct Plot <: Node
-    id::String
-    type::Symbol                       # :line | :scatter | :bar | :heatmap | :contour | :surface | :volume
-    data_refs::Vector{DataRef}         # e.g. [DataRef(:x), DataRef(:y)]
-    attrs::Dict{Symbol, Any}           # styling — validated against Schema(type) at every set
-    animation_binding::Union{Nothing, AnimBinding}
+mutable struct Plot <: Node
+    id::String                                       # immutable
+    type::Symbol                                     # :line | :scatter | :bar | :heatmap | :contour | :surface | :volume, immutable
+    data_refs::Observable{Vector{DataRef}}           # e.g. [DataRef(:x), DataRef(:y)]
+    attrs::Dict{Symbol, Observable{Any}}             # one Observable per attribute; keys match PLOT_SCHEMAS[type]; validated at every set
+    animation_binding::Observable{Union{Nothing, AnimBinding}}
 end
 
 # Escape hatch for forward compatibility (ADR-004, §3.5):
-struct UnknownNode <: Node
+mutable struct UnknownNode <: Node
     original_type::String
-    payload::Dict{String, Any}          # verbatim TOML sub-table
+    payload::Dict{String, Any}                       # verbatim TOML sub-table
 end
 ```
+
+`Plot.attrs` is `Dict{Symbol, Observable{Any}}` — not `Observable{Dict{Symbol, Any}}` — so the property panel observes individual attributes (change linewidth → one observer fires) rather than the whole dict (change linewidth → every observer of the dict fires and diffs to find what changed). See ADR-019 for full rationale.
 
 ### 2.2 Why `type::Symbol`, not `type::Type`
 
@@ -315,7 +322,7 @@ Snapshotting takes a `deepcopy` at ingest time so later mutation of the REPL var
 
 ## 5. Property Panel — Schema-Driven
 
-The panel is one function of one input: the currently-selected `Plot` node. For each `AttrSpec` in `PLOT_SCHEMAS[plot.type]`, it creates the appropriate Gtk4 widget:
+The panel is one function of one input: the currently-selected `Plot` node (identified by `session.selection[]`). For each `AttrSpec` in `PLOT_SCHEMAS[plot.type]`, it creates the appropriate Gtk4 widget:
 
 | `kind`   | Widget                              |
 | -------- | ----------------------------------- |
@@ -330,7 +337,17 @@ The panel is one function of one input: the currently-selected `Plot` node. For 
 
 Adding a new plot type in v0.2 means registering its `PLOT_SCHEMAS[:new_type]` — the panel picks it up automatically. This satisfies the NFR-002 forward-looking constraint.
 
-Value flow: widget change → callback writes to `plot.attrs[name]` → observer re-renders the plot on the shared `Makie.Figure`. Callbacks are debounced at 60 Hz.
+**Value flow** (per **[ADR-019](adr/ADR-019-reactive-state-observables.md)**):
+
+```
+widget onchange → validate(schema, name, new_value) → plot.attrs[name][] = new_value
+                                                       └─→ Renderer's on(plot.attrs[name]) do v ... end fires;
+                                                          renderer updates the Makie plot handle.
+```
+
+Each attribute is its own `Observable{Any}` (per ADR-019 struct declaration in §2.1), so a single-attribute edit fires only that attribute's observers — not every observer of the whole plot. Validation happens synchronously at the widget-callback boundary before the `[]=` assignment; on validation failure the widget reverts to the prior valid value and the status bar shows a one-line message.
+
+Callbacks are debounced at 60 Hz via `Observables.throttle(1/60, observable)` applied at the widget-callback boundary (not at every observation site).
 
 ---
 
@@ -447,19 +464,27 @@ downsample(algo::DownsampleAlgorithm, x::AbstractVector, y::AbstractVector) -> (
 
 ## 8. Rendering
 
-`SessionState` never renders directly. A `Renderer` observes it and updates the shared `Makie.Figure`:
+`SessionState` never renders directly. A `Renderer` observes it (via **[ADR-019](adr/ADR-019-reactive-state-observables.md)**'s Observables.jl mechanism) and updates the shared `Makie.Figure`:
 
 ```julia
 mutable struct Renderer
     fig::Makie.Figure
-    axis_handles::Dict{String, Union{Axis, Axis3}}    # by Axis.id
-    plot_handles::Dict{String, Any}                   # Makie plot object by Plot.id
+    axis_handles::Dict{String, Union{Makie.Axis, Makie.Axis3}}   # by Axis.id
+    plot_handles::Dict{String, Any}                              # Makie plot object by Plot.id
+    _observer_handles::Vector{Any}                               # Observables.jl `ObserverFunction` refs, kept alive by holding refs
 end
 ```
 
-On each change:
-- Structural changes (add/remove axis or plot) → replay from the tree.
-- Attribute changes → `set!(plot_handle, attr, value)` via Makie's Observable pipeline.
+On `Renderer` construction, it walks the `SessionState` tree and registers `on(...)` handlers on:
+- Each `Figure`'s `axes` observable (structural: add/remove axis).
+- Each `Axis`'s `plots` observable (structural: add/remove plot) and per-attribute observables (title, xlabel, xlim, etc.).
+- Each `Plot`'s `attrs` per-attribute observables (styling changes) and `data_refs` observable (data changes).
+
+All handler refs are kept in `_observer_handles` so garbage collection does not silently disconnect them. When a node is removed from the tree, its handlers are explicitly `off(...)`'d.
+
+On each observed change:
+- Structural changes (add/remove axis or plot) → replay the affected subtree.
+- Attribute changes → `set!(plot_handle, attr, value)` via Makie's own Observable pipeline (Makie plot objects already carry Observables for every attribute).
 - Data changes (rare — mostly downsample toggles) → replace the plot handle.
 
 CairoMakie static export operates on the same `Renderer.fig`: `CairoMakie.activate!(); save("out.pdf", fig); GLMakie.activate!()`.
