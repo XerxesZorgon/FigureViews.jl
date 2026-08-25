@@ -70,6 +70,18 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
         )
         renderer.plot_handles[plot.id] = handle
         _register_plot_observer!(renderer, plot)
+    elseif plot.type == :scatter
+        x = _DEMO_DATA[plot.id].x
+        y = _DEMO_DATA[plot.id].y
+        handle = Makie.scatter!(makie_ax, x, y;
+            color      = plot.attrs[:color][],
+            markersize = plot.attrs[:markersize][],
+            marker     = plot.attrs[:marker][],
+            label      = plot.attrs[:label][],
+            visible    = plot.attrs[:visible][]
+        )
+        renderer.plot_handles[plot.id] = handle
+        _register_plot_observer!(renderer, plot)
     end
 end
 

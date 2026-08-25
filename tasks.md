@@ -1027,7 +1027,7 @@ When Tasks 013–020 are all `[x] Done`, all local Pkg.test() tests pass, and CI
 ---
 
 ## Task 021: Add PLOT_SCHEMAS for scatter/bar/heatmap/contour + Layer 1 schema tests
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit abfe3b2
 **Milestone:** M3
 **Depends on:** 020 (M2 complete)
 

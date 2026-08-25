@@ -62,7 +62,20 @@ function add_line_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, plot_id:
         _init_attrs(:line),
         Observable{Union{Nothing,AnimBinding}}(nothing)
     )
-    _DEMO_DATA[plot_id] = (x=x, y=y)
+    _DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=nothing)
+    ax.plots[] = [ax.plots[]..., plot]
+    return plot
+end
+
+function add_scatter_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, plot_id::String = string(uuid4()))::Plot
+    plot = Plot(
+        plot_id,
+        :scatter,
+        Observable(DataRef[]),
+        _init_attrs(:scatter),
+        Observable{Union{Nothing,AnimBinding}}(nothing)
+    )
+    _DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=nothing)
     ax.plots[] = [ax.plots[]..., plot]
     return plot
 end
