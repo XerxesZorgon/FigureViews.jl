@@ -157,7 +157,19 @@ PLOT_SCHEMAS[:line] = [
 # Similarly for :scatter, :bar, :heatmap, :contour, :surface, :volume.
 ```
 
-The property panel iterates the schema for the selected plot type. No `if plot.type == :surface ... elseif plot.type == :line ...` branches anywhere in UI code.
+Per **[ADR-021](adr/ADR-021-axis-schema-driven-property-editing.md)**, `Axis` attributes (starting with camera controls) use a parallel registry keyed by `Axis.kind`:
+
+```julia
+const AXIS_SCHEMAS = Dict{Symbol, Vector{AttrSpec}}()
+
+AXIS_SCHEMAS[:axis3d] = [
+    AttrSpec(:azimuth,   :number, 45.0, (0.0, 360.0), "Azimuth",   "Camera azimuth in degrees"),
+    AttrSpec(:elevation, :number, 30.0, (0.0, 360.0), "Elevation", "Camera elevation in degrees"),
+    AttrSpec(:zoom,      :number, 1.0,  (0.1, 10.0),  "Zoom",      "Camera zoom multiplier")
+]
+```
+
+The property panel iterates the schema for the selected plot type or axis kind. No `if plot.type == :surface ... elseif plot.type == :line ...` branches anywhere in UI code.
 
 ---
 
@@ -324,7 +336,13 @@ Snapshotting takes a `deepcopy` at ingest time so later mutation of the REPL var
 
 ## 5. Property Panel — Schema-Driven
 
-The panel is one function of one input: the currently-selected `Plot` node (identified by `session.selection[]`). For each `AttrSpec` in `PLOT_SCHEMAS[plot.type]`, it creates the appropriate Gtk4 widget:
+The panel is one function of one input: the currently-selected node (Plot *or* Axis, identified by `session.selection[]`). 
+
+Per **[ADR-021](adr/ADR-021-axis-schema-driven-property-editing.md)**, the panel dispatches on the selected node's Julia type:
+- `Plot` node → iterates `PLOT_SCHEMAS[plot.type]`
+- `Axis` node → iterates `AXIS_SCHEMAS[axis.kind]`
+
+For each `AttrSpec` in the chosen schema, it creates the appropriate Gtk4 widget:
 
 | `kind`   | Widget                              |
 | -------- | ----------------------------------- |
