@@ -1392,3 +1392,481 @@ After Task 025's local Pkg.test() is green: `git push`. Verify CI 2/2 green. Rep
 ## M3 exit gate
 
 When Tasks 021–025 are all `[x] Done` and CI is 2/2 green, M3 is complete. Return to Claude Chat with "M3 complete" to extend `tasks.md` with M4 (3D plot types: surface and volume; camera controls in the property panel).
+
+---
+
+## Milestone M4 — 3D plot types + camera controls
+
+**Exit criterion:** `PLOT_SCHEMAS` contains entries for `:surface` and `:volume`. `add_axis!(fig; kind = :axis3d)` produces an `Axis` whose renderer builds a real `Makie.Axis3` (not `Makie.Axis`). The Renderer can render both 3D types from synthetic demo data into that `Axis3`. `add_surface_plot!` and `add_volume_plot!` exist in the session API. A new `AXIS_SCHEMAS[:axis3d]` registry drives camera editing (azimuth/elevation/zoom); the property panel, on selecting an `:axis3d` Axis node, iterates `AXIS_SCHEMAS[:axis3d]` and renders camera editors whose edits propagate to the live `Makie.Axis3`. All Layer 1 schema tests and Layer 3 render tests for both types pass locally and CI is 2/2 green on the v0.1 matrix (Ubuntu × {Julia 1.10, 1.12}).
+
+**Load-bearing decisions folded in:**
+- **ADR-021 (new this milestone)**: axis attributes are schema-driven via an `AXIS_SCHEMAS::Dict{Symbol, Vector{AttrSpec}}` registry, parallel to `PLOT_SCHEMAS`. The property panel dispatches on the *type* of the selected node: a `Plot` id → iterate `PLOT_SCHEMAS[plot.type]`; an `Axis` id → iterate `AXIS_SCHEMAS[axis.kind]`. Camera (azimuth/elevation/zoom) is the first axis attribute group rendered this way. This is the first time the property panel edits a non-Plot node; it establishes the pattern that M2's hand-wired axis attributes (title, labels, limits) can migrate to later without a UI rewrite. Reuses the existing `AttrSpec` struct and `validate()` unchanged.
+- **`Makie.Axis3` construction**: `_render_axis!` branches on `ax.kind`. `:axis2d` → `Makie.Axis(position)` (unchanged M1–M3 path); `:axis3d` → `Makie.Axis3(position)`. The `axis_handles` dict already types values as `Any` (renderer.jl), so no struct change is needed. `Axis.camera::Observable{Union{Nothing,CameraSpec}}` and `add_axis!`'s `:axis3d` acceptance already exist from M2 — no state-layer change required for those.
+- **`CameraSpec` already exists** in `src/state/types.jl` with fields `azimuth::Float64`, `elevation::Float64`, `zoom::Float64`. M4 uses it as-is. Makie's `Axis3` exposes `azimuth`, `elevation` as Observables (radians) and zoom via the scene camera; the renderer maps `CameraSpec` fields onto them.
+- **`_DEMO_DATA` extension**: surface needs `(x, y, matrix)` where matrix is the z-surface (same shape as contour's storage); volume needs a 3D array. `_DEMO_DATA`'s value type is `NamedTuple` (untyped), so a `volume` field can be added ad hoc for volume plots without breaking the existing `(x, y, z, matrix)` callers. M4 scaffolding, removed at M5 with the rest of `_DEMO_DATA`.
+- **Renderer branch is the one legitimate `plot.type` switch**: adding `:surface`/`:volume` arms to `_render_plot!` follows the exact M3 precedent. The property panel and tree pane stay branchless on plot type; the axis-node dispatch in the property panel branches on *node kind* (Plot vs Axis), not on plot type, which is the schema-driven pattern, not a violation of it.
+- **Makie API caution**: `surface!` takes `colormap`, `shading`; `volume!` takes `colormap`, `colorrange`, `algorithm`, `absorption`. Several of these accept only specific enum values (`shading ∈ (NoShading, FastShading, MultiLightShading)` as Makie types; `algorithm ∈ (:mip, :iso, :absorption, :additive)` as symbols). Where a Makie kwarg name or accepted value differs from the schema, the task's On-Failure protocol requires Antigravity to quote the exact `MethodError`/`ArgumentError` rather than guess — same protocol M3 used for `barplot!` horizontal direction.
+
+---
+
+## Task 026: Write ADR-021 (axis-schema pattern) + amend DESIGN.md
+**Status:** [x] Done — 2026-08-25, commit 4f1e4fb
+**Milestone:** M4
+**Depends on:** 025 (M3 complete)
+
+### What to do
+Docs-only task — no code, no tests. Two file changes in one commit.
+
+**1. Create `docs/adr/ADR-021-axis-schema-driven-property-editing.md`** documenting the decision to introduce an `AXIS_SCHEMAS` registry so the property panel can edit axis-level attributes (starting with camera on `:axis3d`) using the same schema-driven mechanism as plots. The ADR must follow the same structure as the existing ADRs in `docs/adr/` (read `docs/adr/ADR-017-reserve-data-inline-schema-slot.md` and `docs/adr/ADR-019-reactive-state-observables.md` for the exact heading structure this project uses — Status, Context, Decision, Consequences, Alternatives Considered). Content the ADR must state:
+- **Status**: Accepted (2026-08-25).
+- **Context**: Through M3, the property panel only edited `Plot` nodes via `PLOT_SCHEMAS`. M4 introduces camera controls, which are an `Axis` property (`Axis.camera`), not a plot property. Editing them schema-driven requires a schema registry for axis attributes.
+- **Decision**: Introduce `const AXIS_SCHEMAS = Dict{Symbol, Vector{AttrSpec}}()` parallel to `PLOT_SCHEMAS`, keyed by `Axis.kind` (`:axis3d`, later `:axis2d`). The property panel dispatches on the selected node's Julia type: `Plot` → `PLOT_SCHEMAS[plot.type]`, `Axis` → `AXIS_SCHEMAS[axis.kind]`. Reuse `AttrSpec` and `validate()` unchanged. Camera azimuth/elevation/zoom are modeled as three `:number` specs.
+- **Consequences**: First non-Plot node the property panel edits. Establishes the migration path for M2's hand-wired axis attributes (title/labels/limits) to become schema-driven in a later cleanup. No `.mvz` schema-version bump (camera already serialized per DESIGN §3.1). No change to `AttrSpec` or `validate`.
+- **Alternatives Considered**: (a) A dedicated non-schema camera sub-panel — rejected because it reintroduces per-type UI branching, the exact thing NFR-002 forbids. (b) Modeling camera as a pseudo-Plot — rejected as a semantic hack that would corrupt the tree model.
+
+**2. Amend `docs/DESIGN.md`**:
+- In **§2.4 (Schema registry)**, after the `PLOT_SCHEMAS` block, add a short subsection introducing `AXIS_SCHEMAS` with a cross-reference to ADR-021, showing the `:axis3d` camera schema shape (three `:number` AttrSpecs: azimuth, elevation, zoom).
+- In **§5 (Property Panel — Schema-Driven)**, amend the opening sentence so the panel's input is "the currently-selected node" (Plot *or* Axis), and add one paragraph stating the node-type dispatch rule (Plot → PLOT_SCHEMAS, Axis → AXIS_SCHEMAS) with the ADR-021 cross-reference.
+
+Do not touch any `.jl` file in this task.
+
+### Files touched
+- `docs/adr/ADR-021-axis-schema-driven-property-editing.md` — new
+- `docs/DESIGN.md` — modified: §2.4 subsection + §5 amendment
+
+### Acceptance Criterion
+`julia -e 'txt = read("docs/adr/ADR-021-axis-schema-driven-property-editing.md", String); @assert contains(txt, "AXIS_SCHEMAS"); @assert contains(txt, "Accepted"); d = read("docs/DESIGN.md", String); @assert contains(d, "AXIS_SCHEMAS"); @assert contains(d, "ADR-021"); println("ADR-021 docs OK")'` exits 0 and prints `ADR-021 docs OK`. This is a docs task, so there is no `Pkg.test()` gate; the assertion above is the full criterion.
+
+### Commit
+Subject: `docs: add ADR-021 axis-schema-driven property editing; amend DESIGN §2.4/§5`
+Body: `Opens Milestone M4. ADR-021 records the decision to introduce AXIS_SCHEMAS (parallel to PLOT_SCHEMAS, keyed by Axis.kind) so the property panel edits axis-level attributes — camera first — via the same schema-driven mechanism, dispatching on selected-node type. DESIGN §2.4 gains an AXIS_SCHEMAS subsection; §5 gains the node-type dispatch rule. No code changes.`
+
+### Report back
+On pass: `TASK 026 PASSED — ADR-021 + DESIGN amendments committed as <SHA>`
+On fail: `TASK 026 FAILED — [criterion] — [observed] — [error text]`
+
+---
+
+## Task 027: Renderer builds Makie.Axis3 when ax.kind == :axis3d + Layer 3 test
+**Status:** [ ] Pending
+**Milestone:** M4
+**Depends on:** 026
+
+### What to do
+Two changes in one commit — code + its test. This task must land BEFORE 029/030 because surface/volume can only render into an `Axis3`. It changes only the axis-construction line; every M1–M3 test (which all use `:axis2d`) must stay green, proving the 2D path is untouched.
+
+**1. Modify `src/render/renderer.jl`**, function `_render_axis!`. Currently its first line is unconditionally:
+```julia
+makie_ax = Makie.Axis(position)
+```
+Replace with a branch on `ax.kind`:
+```julia
+makie_ax = if ax.kind == :axis3d
+    Makie.Axis3(position)
+else
+    Makie.Axis(position)
+end
+```
+The rest of `_render_axis!` is unchanged EXCEPT: `Makie.Axis3` does not accept a `title`/`xlabel`/`ylabel` assignment in exactly the same way for every attribute — verify that `makie_ax.title[] = ax.title[]`, `makie_ax.xlabel[] = ax.xlabel[]`, `makie_ax.ylabel[] = ax.ylabel[]` all work on `Axis3` in Makie 0.24.13. They should (Axis3 has title, xlabel, ylabel, zlabel), but if any assignment throws, wrap only the failing one in a `hasproperty`/try guard and report which. Do NOT add zlabel wiring in this task — that is axis-attribute scope, not this task's concern; this task only proves Axis3 is constructed and the existing three labels apply.
+
+The function's return type annotation is already `::Union{Makie.Axis, Makie.Axis3}` — no signature change needed.
+
+**2. Extend `test/runtests.jl`** with:
+```julia
+@testset "M4 axis3d — renderer builds Makie.Axis3" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis3d, title = "3D")
+    @test ax_node.kind == :axis3d
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test haskey(renderer.axis_handles, ax_node.id)
+    @test renderer.axis_handles[ax_node.id] isa Makie.Axis3
+end
+
+@testset "M4 axis2d — renderer still builds Makie.Axis (regression guard)" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis2d)
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test renderer.axis_handles[ax_node.id] isa Makie.Axis
+end
+```
+
+### Files touched
+- `src/render/renderer.jl` — modified: `_render_axis!` axis-construction branch
+- `test/runtests.jl` — modified: append two testsets
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0. All prior testsets still pass (no M1–M3 regression). Two new testsets pass: `M4 axis3d — renderer builds Makie.Axis3` and `M4 axis2d — renderer still builds Makie.Axis (regression guard)`.
+
+### Commit
+Subject: `feat: renderer builds Makie.Axis3 for :axis3d axes; 2D path unchanged`
+Body: `Closes Task 027. _render_axis! branches on ax.kind: :axis3d → Makie.Axis3, else Makie.Axis. axis_handles already typed Any, no struct change. Regression guard testset confirms :axis2d still yields Makie.Axis. Prerequisite for surface/volume plot types (Tasks 029–030) which require an Axis3 host.`
+
+### Report back
+On pass: `TASK 027 PASSED — Axis3 built for :axis3d, 2D regression guard green, committed as <SHA>`
+On fail: `TASK 027 FAILED — [criterion] — [Pkg.test tail; if an Axis3 label assignment threw, name which property and quote the error]`
+
+---
+
+## Task 028: Add PLOT_SCHEMAS for surface/volume + Layer 1 schema tests
+**Status:** [ ] Pending
+**Milestone:** M4
+**Depends on:** 027
+
+### What to do
+Two changes in one commit.
+
+**1. Extend `src/state/schema.jl`** by appending two new schema entries after the existing five (`:line`, `:scatter`, `:bar`, `:heatmap`, `:contour`):
+```julia
+PLOT_SCHEMAS[:surface] = [
+    AttrSpec(:colormap, :enum,   :viridis, [:viridis, :plasma, :inferno, :magma, :cividis, :grays, :blues, :reds], "Colormap", "Surface color mapping"),
+    AttrSpec(:shading,  :enum,   :smooth,  [:none, :fast, :smooth], "Shading",  "Surface shading mode"),
+    AttrSpec(:label,    :string, "",       nothing, "Label",   "Legend label"),
+    AttrSpec(:visible,  :bool,   true,     nothing, "Visible", "Show/hide this plot"),
+]
+
+PLOT_SCHEMAS[:volume] = [
+    AttrSpec(:colormap,   :enum,   :viridis,   [:viridis, :plasma, :inferno, :magma, :cividis, :grays, :blues, :reds], "Colormap",   "Volume color mapping"),
+    AttrSpec(:algorithm,  :enum,   :mip,       [:mip, :iso, :absorption, :additive], "Algorithm",  "Volume rendering algorithm"),
+    AttrSpec(:colorrange, :vec2,   (0.0, 1.0), nothing, "Color range", "(min, max) data range for colormap"),
+    AttrSpec(:absorption, :number, 1.0,        (0.0, 10.0), "Absorption", "Absorption coefficient (:absorption algorithm)"),
+    AttrSpec(:visible,    :bool,   true,       nothing, "Visible", "Show/hide this plot"),
+]
+```
+Note: `:shading` schema uses the abstract symbols `:none/:fast/:smooth`; the renderer (Task 029) maps them to Makie's shading types. `:algorithm` uses Makie's own symbols directly (`:mip` etc. are the literal values Makie.volume! accepts). `:colorrange` uses `:vec2`; `validate` currently has no `:vec2` branch and falls through its final `return value` — acceptable (no range constraint on the tuple), same as heatmap's `:colorrange` in M3.
+
+**2. Extend `test/unit/schema.jl`** by appending two testsets (one per type), each checking: key present, required attribute names present (surface: `:colormap`, `:shading`, `:visible`; volume: `:colormap`, `:algorithm`, `:colorrange`, `:absorption`, `:visible`), and first attr `kind` correct. Also add one assertion that `length(PLOT_SCHEMAS) == 7` (line, scatter, bar, heatmap, contour, surface, volume).
+
+### Files touched
+- `src/state/schema.jl` — modified: append 2 schema entries
+- `test/unit/schema.jl` — modified: append 2 testsets + registry-size assertion
+
+### Acceptance Criterion
+`Pkg.test()` exits 0. All prior tests pass. Two new schema testsets pass. `PLOT_SCHEMAS` has exactly 7 keys.
+
+### Commit
+Subject: `feat: add PLOT_SCHEMAS for surface and volume (M4)`
+Body: `Closes Task 028. Two 3D plot schemas using the AttrSpec pattern. Surface: colormap, shading, label, visible. Volume: colormap, algorithm, colorrange, absorption, visible. Property panel picks them up automatically. Layer 1 tests verify contents; registry now has 7 plot types.`
+
+### Report back
+On pass: `TASK 028 PASSED — 7 plot schemas registered, N tests green, committed as <SHA>`
+On fail: `TASK 028 FAILED — [criterion] — [Pkg.test output tail]`
+
+---
+
+## Task 029: add_surface_plot! + surface renderer branch + Layer 3 test
+**Status:** [ ] Pending
+**Milestone:** M4
+**Depends on:** 028
+
+### What to do
+Three changes in one commit (same two-file plot-type pattern as M3 Tasks 022–025, plus the demo-data note).
+
+**1. Extend `src/state/session.jl`** with:
+```julia
+# M2-only demo scaffolding, remove at M5
+function add_surface_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, z::AbstractMatrix, plot_id::String = string(uuid4()))::Plot
+    plot = Plot(
+        plot_id,
+        :surface,
+        Observable(DataRef[]),
+        _init_attrs(:surface),
+        Observable{Union{Nothing,AnimBinding}}(nothing)
+    )
+    _DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=z)   # z-surface stored in matrix field, same as contour
+    ax.plots[] = [ax.plots[]..., plot]
+    return plot
+end
+```
+
+**2. Extend `_render_plot!` in `src/render/renderer.jl`** with a surface branch (add as a new `elseif` arm before the closing `end`):
+```julia
+elseif plot.type == :surface
+    x   = _DEMO_DATA[plot.id].x
+    y   = _DEMO_DATA[plot.id].y
+    mat = _DEMO_DATA[plot.id].matrix
+    shading_map = Dict(:none => Makie.NoShading, :fast => Makie.FastShading, :smooth => Makie.MultiLightShading)
+    handle = Makie.surface!(makie_ax, x, y, mat;
+        colormap = plot.attrs[:colormap][],
+        shading  = shading_map[plot.attrs[:shading][]],
+        visible  = plot.attrs[:visible][])
+    renderer.plot_handles[plot.id] = handle
+    _register_plot_observer!(renderer, plot)
+```
+Note: `label` is in the surface schema but `Makie.surface!` may not accept a `label` kwarg (surfaces are not legend entries the same way lines are). Omit `label` from the `surface!` call as shown above. Verify `shading` accepts the mapped Makie type in 0.24.13; if `Makie.NoShading`/`FastShading`/`MultiLightShading` are not the exact names, quote the `UndefVarError` and report — do not guess an alternative.
+
+**Observer caution**: `_register_plot_observer!` does `handle[name] = val` for every attr in `plot.attrs`. For surface, `:shading` holds an abstract symbol (`:smooth`) but the Makie handle expects a shading *type* — a raw `handle[:shading] = :smooth` will fail or mis-set. For M4, the acceptance test only mutates `:colormap` (a clean pass-through), so this is not exercised; but add an inline comment in the surface branch noting that `:shading` live-mutation needs the same `shading_map` translation and is deferred (the observer for it is registered but will error if fired — acceptable for M4 since the property panel enum for shading is not part of M4's tested path; a follow-up hardening task can gate it). If you prefer to be safe, skip registering an observer for `:shading` specifically — document whichever choice you make in the commit body.
+
+**3. Extend `test/runtests.jl`** with:
+```julia
+@testset "M4 surface — renders on Axis3 without error" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis3d)
+    xs = collect(LinRange(-3.0, 3.0, 25))
+    ys = collect(LinRange(-3.0, 3.0, 25))
+    zs = [exp(-(x^2 + y^2)) for x in xs, y in ys]
+    plot_node = add_surface_plot!(ax_node; x = xs, y = ys, z = zs)
+    @test plot_node.type == :surface
+    @test plot_node.attrs[:colormap][] == :viridis
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test haskey(renderer.plot_handles, plot_node.id)
+    @test renderer.axis_handles[ax_node.id] isa Makie.Axis3
+    plot_node.attrs[:colormap][] = :plasma
+    sleep(0.05)
+    @test renderer.plot_handles[plot_node.id].colormap[] == :plasma
+end
+```
+
+### Files touched
+- `src/state/session.jl` — modified: add `add_surface_plot!`
+- `src/render/renderer.jl` — modified: add `:surface` branch in `_render_plot!`
+- `test/runtests.jl` — modified: append surface testset
+- `tasks.md` — modified (staged as always)
+
+### Acceptance Criterion
+`Pkg.test()` exits 0. All prior tests pass plus the new surface testset (Pass ≥ 5 in it, including the Axis3 host assertion and colormap observer propagation).
+
+### Commit
+Subject: `feat: add surface plot type (session API, renderer, schema, test)`
+Body: `Closes Task 029. add_surface_plot! stores the z-surface in _DEMO_DATA.matrix (same slot as contour). _render_plot!(:surface) uses Makie.surface! with a shading-symbol→Makie-shading-type map. Renders into the Axis3 built by Task 027. Colormap observer propagation tested; shading live-mutation deferred (see body note).`
+
+### Report back
+On pass: `TASK 029 PASSED — surface renders on Axis3, colormap observer propagates, committed as <SHA>`
+On fail: `TASK 029 FAILED — [criterion] — [Pkg.test tail; if Makie.surface! kwarg or shading type name differs, quote the exact error and name what you tried]`
+
+---
+
+## Task 030: add_volume_plot! + volume renderer branch + Layer 3 test
+**Status:** [ ] Pending
+**Milestone:** M4
+**Depends on:** 029
+
+### What to do
+Three changes in one commit. Volume is the only M4 type needing a 3D data array — extend `_DEMO_DATA` usage with a `volume` field (ad hoc, since the NamedTuple value type is untyped).
+
+**1. Extend `src/state/session.jl`** with:
+```julia
+# M2-only demo scaffolding, remove at M5
+function add_volume_plot!(ax::Axis; vol::AbstractArray{<:Real,3}, plot_id::String = string(uuid4()))::Plot
+    plot = Plot(
+        plot_id,
+        :volume,
+        Observable(DataRef[]),
+        _init_attrs(:volume),
+        Observable{Union{Nothing,AnimBinding}}(nothing)
+    )
+    _DEMO_DATA[plot_id] = (x=nothing, y=nothing, z=nothing, matrix=nothing, volume=vol)
+    ax.plots[] = [ax.plots[]..., plot]
+    return plot
+end
+```
+Note the `_DEMO_DATA` entry for volume has an extra `volume=` field the other entries lack. That is fine: entries are read by field name in `_render_plot!`, and only the volume branch reads `.volume`. Do not retrofit a `volume=nothing` field onto the other `add_*_plot!` functions — they never read it.
+
+**2. Extend `_render_plot!` in `src/render/renderer.jl`** with a volume branch:
+```julia
+elseif plot.type == :volume
+    vol = _DEMO_DATA[plot.id].volume
+    handle = Makie.volume!(makie_ax, vol;
+        colormap   = plot.attrs[:colormap][],
+        algorithm  = plot.attrs[:algorithm][],
+        colorrange = plot.attrs[:colorrange][],
+        visible    = plot.attrs[:visible][])
+    renderer.plot_handles[plot.id] = handle
+    _register_plot_observer!(renderer, plot)
+```
+Note: `:absorption` is in the volume schema but is only meaningful for `algorithm = :absorption`; omit it from the default `volume!` call (as shown) to avoid a MethodError when the algorithm is `:mip`. `algorithm` holds a raw symbol (`:mip`) which Makie.volume! accepts directly — no translation map needed (unlike surface's shading). Verify `Makie.volume!` accepts `colorrange` as a 2-tuple in 0.24.13; if it wants a different form, quote the error and report.
+
+**Observer caution**: same as surface — the acceptance test mutates only `:colormap` (clean pass-through via `handle[:colormap] = val`). `:algorithm`, `:colorrange`, `:absorption` live-mutation is not part of M4's tested path.
+
+**3. Extend `test/runtests.jl`** with:
+```julia
+@testset "M4 volume — renders on Axis3 without error" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis3d)
+    vol = [exp(-((i-15)^2 + (j-15)^2 + (k-15)^2)/50) for i in 1:30, j in 1:30, k in 1:30]
+    plot_node = add_volume_plot!(ax_node; vol = vol)
+    @test plot_node.type == :volume
+    @test plot_node.attrs[:algorithm][] == :mip
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test haskey(renderer.plot_handles, plot_node.id)
+    @test renderer.axis_handles[ax_node.id] isa Makie.Axis3
+    plot_node.attrs[:colormap][] = :inferno
+    sleep(0.05)
+    @test renderer.plot_handles[plot_node.id].colormap[] == :inferno
+end
+```
+
+### Files touched
+- `src/state/session.jl` — modified: add `add_volume_plot!`
+- `src/render/renderer.jl` — modified: add `:volume` branch in `_render_plot!`
+- `test/runtests.jl` — modified: append volume testset
+- `tasks.md` — modified
+
+### Acceptance Criterion
+`Pkg.test()` exits 0. All prior tests pass plus the volume testset (Pass ≥ 5 in it, including Axis3 host assertion and colormap observer propagation).
+
+### Commit
+Subject: `feat: add volume plot type (session API, renderer, schema, test)`
+Body: `Closes Task 030. add_volume_plot! stores a 3D array in an ad-hoc _DEMO_DATA.volume field. _render_plot!(:volume) uses Makie.volume! with algorithm as a raw symbol; absorption omitted from the default call (only meaningful for :absorption algorithm). Renders into Axis3. Colormap observer propagation tested.`
+
+### Report back
+On pass: `TASK 030 PASSED — volume renders on Axis3, colormap observer propagates, committed as <SHA>`
+On fail: `TASK 030 FAILED — [criterion] — [Pkg.test tail; if Makie.volume! kwarg differs, quote the exact error and name what you tried]`
+
+---
+
+## Task 031: AXIS_SCHEMAS[:axis3d] camera schema + property-panel node dispatch + Layer 3 test
+**Status:** [ ] Pending
+**Milestone:** M4
+**Depends on:** 030
+
+### What to do
+The M4 exit-criterion integration task. Introduces the axis-schema registry (ADR-021) and makes the property panel edit a selected `:axis3d` Axis node's camera, propagating edits to the live `Makie.Axis3`. Three source changes in one commit.
+
+**1. Extend `src/state/schema.jl`** by adding the axis-schema registry after `PLOT_SCHEMAS` and its entries:
+```julia
+const AXIS_SCHEMAS = Dict{Symbol, Vector{AttrSpec}}()
+
+AXIS_SCHEMAS[:axis3d] = [
+    AttrSpec(:azimuth,   :number, 1.275, (-2π, 2π),   "Azimuth",   "Camera azimuth angle (radians)"),
+    AttrSpec(:elevation, :number, 0.785, (-2π, 2π),   "Elevation", "Camera elevation angle (radians)"),
+    AttrSpec(:zoom,      :number, 1.0,   (0.1, 10.0), "Zoom",      "Camera zoom factor"),
+]
+```
+The defaults 1.275 and 0.785 are Makie's `Axis3` default azimuth (≈1.275 rad) and elevation (π/4 ≈ 0.785 rad); using them means a freshly-selected axis panel shows the true current camera state. Do NOT register `AXIS_SCHEMAS[:axis2d]` in this task — 2D axes have no camera; the dispatch (step 2) simply shows the placeholder for any axis kind with no schema entry.
+
+**2. Modify `src/ui/property_pane.jl`** to dispatch on selected-node type. Currently `build_property_pane`'s `on(session.selection)` handler calls only `_find_plot` and `_populate_for_plot!`. Change it to:
+- First try `_find_plot(session, id)`; if a Plot is found, populate for plot as now.
+- Else try a new `_find_axis(session, id)::Union{Nothing, Axis}` (mirror `_find_plot`, but return the Axis whose `id` matches). If an Axis is found AND `haskey(AXIS_SCHEMAS, ax.kind)`, call a new `_populate_for_axis!(box, ax)`.
+- Else show the placeholder.
+
+Add `_find_axis`:
+```julia
+function _find_axis(session::Session, id::String)::Union{Nothing, Axis}
+    for fig in session.figures[]
+        for ax in fig.axes[]
+            ax.id == id && return ax
+        end
+    end
+    return nothing
+end
+```
+
+Add `_populate_for_axis!`. It mirrors `_populate_for_plot!` but reads from `AXIS_SCHEMAS[ax.kind]` and binds each widget to a *camera-field Observable*. Camera lives as `ax.camera::Observable{Union{Nothing,CameraSpec}}` holding an immutable `CameraSpec` — not per-field Observables like `plot.attrs`. To reuse `_widget_for_spec` (which expects an `Observable{Any}` per attribute), construct a thin per-field adapter Observable for azimuth/elevation/zoom that, on change, rebuilds the `CameraSpec` and writes it back to `ax.camera`. Concretely:
+```julia
+function _populate_for_axis!(box::GtkBox, ax::Axis)
+    specs = AXIS_SCHEMAS[ax.kind]
+    # Seed a CameraSpec if the axis has none yet, so the panel has values to show.
+    if ax.camera[] === nothing
+        ax.camera[] = CameraSpec(1.275, 0.785, 1.0)
+    end
+    cam = ax.camera[]
+    # Per-field adapter Observables initialised from the current CameraSpec.
+    field_obs = Dict{Symbol, Observable{Any}}(
+        :azimuth   => Observable{Any}(cam.azimuth),
+        :elevation => Observable{Any}(cam.elevation),
+        :zoom      => Observable{Any}(cam.zoom),
+    )
+    # When any field Observable changes, rebuild the CameraSpec and write to ax.camera.
+    for (fname, obs) in field_obs
+        on(obs) do _
+            ax.camera[] = CameraSpec(field_obs[:azimuth][], field_obs[:elevation][], field_obs[:zoom][])
+        end
+    end
+    for spec in specs
+        widget = _widget_for_spec(specs, spec, field_obs[spec.name])
+        hbox = GtkBox(:h)
+        push!(hbox, GtkLabel(spec.label))
+        push!(hbox, widget)
+        push!(box, hbox)
+    end
+end
+```
+This keeps `_widget_for_spec` and `validate` unchanged — they already handle `:number` specs, which is all the camera schema uses.
+
+**3. Modify `src/render/renderer.jl`** so the renderer observes `ax.camera` on an `:axis3d` axis and applies it to the `Makie.Axis3`. In `_register_axis_observer!`, after the existing label/limit observers, add (guarded to axis3d only):
+```julia
+    if ax.kind == :axis3d && makie_ax isa Makie.Axis3
+        hc = on(ax.camera) do cam
+            if cam !== nothing
+                makie_ax.azimuth[]   = cam.azimuth
+                makie_ax.elevation[] = cam.elevation
+                # zoom: Axis3 exposes no direct scalar zoom Observable; apply via the scene if available.
+                # For M4, azimuth/elevation propagation is the tested path; zoom application is best-effort.
+            end
+        end
+        push!(renderer._observer_handles, hc)
+    end
+```
+Verify `Makie.Axis3` exposes `azimuth` and `elevation` as settable Observables in 0.24.13 (it does in the documented API). If either name differs, quote the error and report. Zoom on Axis3 has no clean scalar Observable — the criterion below tests only azimuth/elevation propagation, so zoom being best-effort is acceptable for M4; note it in the commit body.
+
+**4. Extend `test/runtests.jl`** with the M4 exit-criterion test:
+```julia
+@testset "M4 camera — selecting Axis3 populates camera editors; edit propagates to Makie.Axis3" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis3d)
+    xs = collect(LinRange(-3.0, 3.0, 20)); ys = collect(LinRange(-3.0, 3.0, 20))
+    zs = [exp(-(x^2 + y^2)) for x in xs, y in ys]
+    add_surface_plot!(ax_node; x = xs, y = ys, z = zs)
+
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    prop_widget = build_property_pane(s)
+    @test prop_widget !== nothing
+
+    # AXIS_SCHEMAS registered for :axis3d
+    @test haskey(AXIS_SCHEMAS, :axis3d)
+    @test length(AXIS_SCHEMAS[:axis3d]) == 3
+
+    # Select the axis node — property pane should populate without error
+    s.selection[] = ax_node.id
+    sleep(0.1)
+    @test ax_node.camera[] !== nothing   # seeded on populate
+
+    # Simulate a camera edit via the state layer (mimics the widget's write-back path)
+    makie_ax = renderer.axis_handles[ax_node.id]
+    @test makie_ax isa Makie.Axis3
+    ax_node.camera[] = CameraSpec(0.5, 0.3, 1.0)
+    sleep(0.05)
+    @test isapprox(makie_ax.azimuth[],   0.5; atol = 1e-6)
+    @test isapprox(makie_ax.elevation[], 0.3; atol = 1e-6)
+end
+```
+
+Also: after the camera path is working, update `makieviews()` in `src/MakieViews.jl` to add a second demo figure OR a second axis of kind `:axis3d` bearing a surface plot, so the launched app demonstrates a 3D axis alongside the existing 2D demo. Keep it to a small addition in the same commit (a few lines: one `add_axis!(...; kind=:axis3d)`, one `add_surface_plot!`), mirroring how Task 025 added a second demo plot. If adding it complicates the single-figure layout, instead add the 3D axis to the existing figure as a second axis position — whichever is the smaller change; note which you chose.
+
+### Files touched
+- `src/state/schema.jl` — modified: add `AXIS_SCHEMAS` + `[:axis3d]` entry
+- `src/ui/property_pane.jl` — modified: node-type dispatch, `_find_axis`, `_populate_for_axis!`
+- `src/render/renderer.jl` — modified: camera observer in `_register_axis_observer!`
+- `test/runtests.jl` — modified: append camera testset
+- `src/MakieViews.jl` — modified: 3D demo addition
+- `tasks.md` — modified
+
+### Acceptance Criterion
+`Pkg.test()` exits 0. All prior tests pass PLUS the new `M4 camera` testset (Pass ≥ 6 in it: AXIS_SCHEMAS registered, schema length 3, camera seeded on select, Axis3 host confirmed, azimuth propagates, elevation propagates). Also: `git show --stat HEAD` reports 6 files changed.
+
+### Commit
+Subject: `feat: add AXIS_SCHEMAS camera editing for Axis3, meeting M4 exit criterion`
+Body: `Closes Task 031, closes Milestone M4. Introduces AXIS_SCHEMAS (ADR-021) with an :axis3d camera schema (azimuth/elevation/zoom as :number specs). Property panel dispatches on selected-node type: Plot → PLOT_SCHEMAS, Axis → AXIS_SCHEMAS. Camera edits rebuild CameraSpec and write to ax.camera; renderer observes ax.camera and applies azimuth/elevation to the live Makie.Axis3 (zoom best-effort, no scalar Observable). makieviews() demo now includes a 3D surface axis. _widget_for_spec and validate reused unchanged. All seven v0.1 plot types (line, scatter, bar, heatmap, contour, surface, volume) complete.`
+
+### Report back
+On pass: `TASK 031 PASSED — camera editing wired, azimuth/elevation propagate to Axis3, M4 complete locally (<SHA>). M4 CI verification pending on push.`
+On fail: `TASK 031 FAILED — [criterion] — [Pkg.test tail + which step of the wire-up broke]`
+
+### Post-task: push and verify CI
+After Task 031's local Pkg.test() is green: `git push`. Verify CI 2/2 green on the v0.1 matrix. Report `M4 CI RUN 2/2 GREEN` to Claude Chat. Then run the macOS live-test per ADR-018 if due, and log to Obsidian.
+
+---
+
+## M4 exit gate
+
+When Tasks 026–031 are all `[x] Done` and CI is 2/2 green on the v0.1 matrix, M4 is complete. All seven v0.1 plot types render; camera controls work on `:axis3d`. Return to Claude Chat with "M4 complete" to extend `tasks.md` with M5 (data ingestion: MainSource, CsvSource, Hdf5Source — where `_DEMO_DATA` scaffolding is finally deleted).

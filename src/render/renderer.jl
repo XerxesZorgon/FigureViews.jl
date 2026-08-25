@@ -40,7 +40,11 @@ function _rebuild_from_session!(renderer::Renderer)
 end
 
 function _render_axis!(renderer::Renderer, fig::Makie.Figure, ax::Axis, position)::Union{Makie.Axis, Makie.Axis3}
-    makie_ax = Makie.Axis(position)
+    makie_ax = if ax.kind == :axis3d
+        Makie.Axis3(position)
+    else
+        Makie.Axis(position)
+    end
     renderer.axis_handles[ax.id] = makie_ax
     
     # Initialize basic attributes

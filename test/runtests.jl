@@ -206,3 +206,23 @@ end
 
     Gtk4.destroy(w)
 end
+
+@testset "M4 axis3d — renderer builds Makie.Axis3" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis3d, title = "3D")
+    @test ax_node.kind == :axis3d
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test haskey(renderer.axis_handles, ax_node.id)
+    @test renderer.axis_handles[ax_node.id] isa Makie.Axis3
+end
+
+@testset "M4 axis2d — renderer still builds Makie.Axis (regression guard)" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis2d)
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test renderer.axis_handles[ax_node.id] isa Makie.Axis
+end
