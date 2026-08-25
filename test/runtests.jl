@@ -2,7 +2,7 @@ using Test
 using MakieViews
 using Gtk4
 using Makie
-using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS
+using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, _current_session, _current_renderer, ValidationError
 
 include("unit/nodes.jl")
 include("unit/schema.jl")
@@ -24,7 +24,7 @@ end
     w = makieviews()
     sleep(0.2)  # let GTK settle before reading properties
     @test w.title == "MakieViews"
-    @test (w.default_width, w.default_height) == (1024, 768)
+    @test (w.default_width, w.default_height) == (1400, 900)
     Gtk4.destroy(w)
 end
 
@@ -32,11 +32,12 @@ end
     w = makieviews()
     sleep(0.3)  # let GLMakie initialize the GL context
     
-    child_widget = w[]
-    @test child_widget !== nothing
+    main_paned = w[]
+    @test main_paned !== nothing
     
-    # Stronger assertions
-    @test occursin(r"Makie|GL", string(typeof(child_widget)))
+    # Stronger assertions: right child is the viewport
+    viewport = main_paned[2]
+    @test occursin(r"Makie|GL", string(typeof(viewport)))
     
     Gtk4.destroy(w)
 end
@@ -104,4 +105,29 @@ end
     @test validate(specs, :linewidth, 100.0) isa MakieViews.ValidationError    # out of range
     @test validate(specs, :linestyle, :solid) == :solid
     @test validate(specs, :linestyle, :bogus) isa MakieViews.ValidationError   # not in enum
+end
+
+@testset "M2 end-to-end — makieviews() launches with demo tree and edit propagates" begin
+    w = makieviews()
+    sleep(0.5)  # let everything settle
+    @test w !== nothing
+
+    # Retrieve session + renderer from module-level refs
+    session = MakieViews._current_session[]
+    renderer = MakieViews._current_renderer[]
+    @test length(session.figures[]) == 1
+    fig_node = session.figures[][1]
+    ax_node = fig_node.axes[][1]
+    plot_node = ax_node.plots[][1]
+    @test plot_node.type == :line
+
+    # Simulate selection + attribute edit; verify Makie plot handle updated
+    session.selection[] = plot_node.id
+    sleep(0.1)
+    plot_node.attrs[:linewidth][] = 4.0
+    sleep(0.1)
+    makie_plot = renderer.plot_handles[plot_node.id]
+    @test makie_plot.linewidth[] == 4.0
+
+    Gtk4.destroy(w)
 end

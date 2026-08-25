@@ -831,7 +831,7 @@ On fail: `TASK 018 FAILED — [criterion] — [Pkg.test output tail; if Gtk4 API
 ---
 
 ## Task 019: Create property pane widget (schema-driven) + validation + attribute wiring + Layer 3 test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-24, commit b4e551f
 **Milestone:** M2
 **Depends on:** 018
 
