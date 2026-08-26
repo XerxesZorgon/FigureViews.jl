@@ -159,10 +159,10 @@ Schemas + rendering for `:surface`, `:volume`. Camera azimuth/elevation/zoom in 
 
 **Exit** (met): M5 complete 2026-08-26. Data ingestion layer: MainSource, CsvSource, Hdf5Source, DataRef, ingest!, add_plot!; _DEMO_DATA retired; 162 tests passing.
 
-### M6 — Session persistence
+### M6 — Session persistence — **COMPLETE (2026-08-26)**
 `.mvz` TOML save/load; `schema_version` handling; unknown-node preservation.
 
-**Exit**: Round-trip test (TEST_PLAN.md §3) green for every plot type + `:axis3d`; unknown-node preservation test green.
+**Exit** (met): M6 complete 2026-08-26. Session persistence: save_session/load_session, schema version check, unknown-node preservation, DataRef provenance, build_dataref. 189 tests passing.
 
 ### M7 — Animations
 Time slider bound to a numeric attribute or data slice; `AnimBinding` in the Plot schema; MP4 + GIF export.

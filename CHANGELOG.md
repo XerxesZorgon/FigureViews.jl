@@ -5,6 +5,16 @@ All notable changes to MakieViews will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### M6 — Session persistence (2026-08-26)
+- Added `save_session(session, path)` — serializes full Session tree to `.mvz` TOML (schema_version = "1.0").
+- Added `load_session(path)` — reconstructs Session from `.mvz`; major-version mismatch errors; same-major newer-minor warns; `data_inline` rejected with explicit error.
+- Unknown plot/axis type strings wrapped in `UnknownNode` and round-tripped verbatim.
+- `Axis.plots` and `Figure.axes` updated to `Union{..., UnknownNode}` vector types.
+- Color attrs serialized as hex strings; coerced back to `Colors.RGB` on load. Tuple attrs (colorrange) serialized as arrays.
+- Added `build_dataref(source, id, role, snapshot_id)` — fills provenance fields (absolute_path, relative_path, column, dataset, variable) from source type.
+- Public API exported: `save_session`, `load_session`, `add_plot!`, `ingest!`, `build_dataref`, `DataRef`, `MainSource`, `CsvSource`, `Hdf5Source`, `DataVar`.
+- Seven integration test suites: round-trip tree structure, all 7 plot types, camera state, color hex, unknown-node preservation + re-save, major-version error, data_inline rejection.
+- Pre-M6 fixes: D1 color picker (92c95f0), D3 tree selection pos vs Gtk4.selected (3a9f517).
 ### M5 — Data ingestion (2026-08-26)
 - Added CSV.jl, DataFrames.jl, HDF5.jl as direct dependencies (HDF5 compat corrected to 0.17).
 - Added `DataSource` abstract interface and `DataVar` struct (`src/data/source.jl`).
