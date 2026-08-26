@@ -40,6 +40,12 @@ function makieviews()
     y_scatter = cos.(x_scatter ./ 8) .+ 0.3 .* randn(100)
     add_scatter_plot!(ax_node; x = x_scatter, y = y_scatter)
 
+    ax3d_node = add_axis!(fig_node; kind = :axis3d, title = "3D Surface")
+    xs = collect(LinRange(-3.0, 3.0, 30))
+    ys = collect(LinRange(-3.0, 3.0, 30))
+    zs = [exp(-(i^2 + j^2)) for i in xs, j in ys]
+    add_surface_plot!(ax3d_node; x = xs, y = ys, z = zs)
+
     w = GtkWindow("MakieViews", 1400, 900)
     
     makie_fig = Makie.Figure()

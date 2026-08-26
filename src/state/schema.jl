@@ -64,3 +64,11 @@ PLOT_SCHEMAS[:volume] = [
     AttrSpec(:absorption, :number, 1.0,        (0.0, 10.0), "Absorption", "Absorption coefficient (:absorption algorithm)"),
     AttrSpec(:visible,    :bool,   true,       nothing, "Visible", "Show/hide this plot"),
 ]
+
+const AXIS_SCHEMAS = Dict{Symbol, Vector{AttrSpec}}()
+
+AXIS_SCHEMAS[:axis3d] = [
+    AttrSpec(:azimuth,   :number, 1.275, (-2π, 2π),   "Azimuth",   "Camera azimuth angle (radians)"),
+    AttrSpec(:elevation, :number, 0.785, (-2π, 2π),   "Elevation", "Camera elevation angle (radians)"),
+    AttrSpec(:zoom,      :number, 1.0,   (0.1, 10.0), "Zoom",      "Camera zoom factor"),
+]

@@ -2,7 +2,7 @@ using Test
 using MakieViews
 using Gtk4
 using Makie
-using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, add_scatter_plot!, add_bar_plot!, add_heatmap_plot!, add_contour_plot!, add_surface_plot!, add_volume_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, _current_session, _current_renderer, ValidationError
+using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, add_scatter_plot!, add_bar_plot!, add_heatmap_plot!, add_contour_plot!, add_surface_plot!, add_volume_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, AXIS_SCHEMAS, CameraSpec, _current_session, _current_renderer, ValidationError
 
 include("unit/nodes.jl")
 include("unit/schema.jl")
@@ -261,4 +261,32 @@ end
     plot_node.attrs[:colormap][] = :inferno
     sleep(0.05)
     @test renderer.plot_handles[plot_node.id].colormap[] == :inferno
+end
+
+@testset "M4 camera — selecting Axis3 populates camera editors; edit propagates to Makie.Axis3" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis3d)
+    xs = collect(LinRange(-3.0, 3.0, 20)); ys = collect(LinRange(-3.0, 3.0, 20))
+    zs = [exp(-(x^2 + y^2)) for x in xs, y in ys]
+    add_surface_plot!(ax_node; x = xs, y = ys, z = zs)
+
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    prop_widget = build_property_pane(s)
+    @test prop_widget !== nothing
+
+    @test haskey(AXIS_SCHEMAS, :axis3d)
+    @test length(AXIS_SCHEMAS[:axis3d]) == 3
+
+    s.selection[] = ax_node.id
+    sleep(0.1)
+    @test ax_node.camera[] !== nothing
+
+    makie_ax = renderer.axis_handles[ax_node.id]
+    @test makie_ax isa Makie.Axis3
+    ax_node.camera[] = CameraSpec(0.5, 0.3, 1.0)
+    sleep(0.05)
+    @test isapprox(makie_ax.azimuth[],   0.5; atol = 1e-6)
+    @test isapprox(makie_ax.elevation[], 0.3; atol = 1e-6)
 end

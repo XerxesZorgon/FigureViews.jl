@@ -155,14 +155,33 @@ function _register_axis_observer!(renderer::Renderer, ax::Axis)
     h1 = on(ax.title) do t; makie_ax.title[] = t; end
     h2 = on(ax.xlabel) do t; makie_ax.xlabel[] = t; end
     h3 = on(ax.ylabel) do t; makie_ax.ylabel[] = t; end
-    h4 = on(ax.xlim) do lim; if lim !== nothing makie_ax.limits[] = (lim[1], lim[2], makie_ax.limits[][3], makie_ax.limits[][4]) end; end
-    h5 = on(ax.ylim) do lim; if lim !== nothing makie_ax.limits[] = (makie_ax.limits[][1], makie_ax.limits[][2], lim[1], lim[2]) end; end
+    h4 = nothing
+    h5 = nothing
+    if ax.kind != :axis3d
+        h4 = on(ax.xlim) do lim; if lim !== nothing makie_ax.limits[] = (lim[1], lim[2], makie_ax.limits[][3], makie_ax.limits[][4]) end; end
+        h5 = on(ax.ylim) do lim; if lim !== nothing makie_ax.limits[] = (makie_ax.limits[][1], makie_ax.limits[][2], lim[1], lim[2]) end; end
+    end
     
     push!(renderer._observer_handles, h1)
     push!(renderer._observer_handles, h2)
     push!(renderer._observer_handles, h3)
-    push!(renderer._observer_handles, h4)
-    push!(renderer._observer_handles, h5)
+    if h4 !== nothing
+        push!(renderer._observer_handles, h4)
+    end
+    if h5 !== nothing
+        push!(renderer._observer_handles, h5)
+    end
+
+    if ax.kind == :axis3d && makie_ax isa Makie.Axis3
+        hc = on(ax.camera) do cam
+            if cam !== nothing
+                makie_ax.azimuth[]   = cam.azimuth
+                makie_ax.elevation[] = cam.elevation
+                # zoom: Axis3 has no scalar zoom Observable; azimuth/elevation are the tested path.
+            end
+        end
+        push!(renderer._observer_handles, hc)
+    end
 end
 
 function _register_plot_observer!(renderer::Renderer, plot::Plot)
