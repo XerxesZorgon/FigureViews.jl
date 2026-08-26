@@ -138,6 +138,15 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
             visible  = plot.attrs[:visible][])
         renderer.plot_handles[plot.id] = handle
         _register_plot_observer!(renderer, plot)
+    elseif plot.type == :volume
+        vol = _DEMO_DATA[plot.id].volume
+        handle = Makie.volume!(makie_ax, vol;
+            colormap   = plot.attrs[:colormap][],
+            algorithm  = plot.attrs[:algorithm][],
+            colorrange = plot.attrs[:colorrange][],
+            visible    = plot.attrs[:visible][])
+        renderer.plot_handles[plot.id] = handle
+        _register_plot_observer!(renderer, plot)
     end
 end
 

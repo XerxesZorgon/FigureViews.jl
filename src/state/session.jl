@@ -132,3 +132,17 @@ function add_surface_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, z::Ab
     ax.plots[] = [ax.plots[]..., plot]
     return plot
 end
+
+# M2-only demo scaffolding, remove at M5
+function add_volume_plot!(ax::Axis; vol::AbstractArray{<:Real,3}, plot_id::String = string(uuid4()))::Plot
+    plot = Plot(
+        plot_id,
+        :volume,
+        Observable(DataRef[]),
+        _init_attrs(:volume),
+        Observable{Union{Nothing,AnimBinding}}(nothing)
+    )
+    _DEMO_DATA[plot_id] = (x=nothing, y=nothing, z=nothing, matrix=nothing, volume=vol)
+    ax.plots[] = [ax.plots[]..., plot]
+    return plot
+end

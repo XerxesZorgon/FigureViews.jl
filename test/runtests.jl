@@ -2,7 +2,7 @@ using Test
 using MakieViews
 using Gtk4
 using Makie
-using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, add_scatter_plot!, add_bar_plot!, add_heatmap_plot!, add_contour_plot!, add_surface_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, _current_session, _current_renderer, ValidationError
+using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, add_scatter_plot!, add_bar_plot!, add_heatmap_plot!, add_contour_plot!, add_surface_plot!, add_volume_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, _current_session, _current_renderer, ValidationError
 
 include("unit/nodes.jl")
 include("unit/schema.jl")
@@ -244,4 +244,21 @@ end
     plot_node.attrs[:colormap][] = :plasma
     sleep(0.05)
     @test renderer.plot_handles[plot_node.id].colormap[] == :plasma
+end
+
+@testset "M4 volume — renders on Axis3 without error" begin
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis3d)
+    vol = [exp(-((i-15)^2 + (j-15)^2 + (k-15)^2)/50) for i in 1:30, j in 1:30, k in 1:30]
+    plot_node = add_volume_plot!(ax_node; vol = vol)
+    @test plot_node.type == :volume
+    @test plot_node.attrs[:algorithm][] == :mip
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+    @test haskey(renderer.plot_handles, plot_node.id)
+    @test renderer.axis_handles[ax_node.id] isa Makie.Axis3
+    plot_node.attrs[:colormap][] = :inferno
+    sleep(0.05)
+    @test renderer.plot_handles[plot_node.id].colormap[] == :inferno
 end
