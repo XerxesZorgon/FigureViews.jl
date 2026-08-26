@@ -5,7 +5,8 @@ All notable changes to MakieViews will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
+- 2026-08-25 — Task 032: fixed tree-pane row instantiation and string access; extracted `_build_tree_rows` with unit test.
+- 2026-08-25 — Task 033: fixed viewport layout to grant Makie canvas the majority width; added Manual GUI launch gate to TEST_PLAN.
 - 2026-08-24 — M0 (ADR closure) complete: ADR-011..ADR-017 written for the seven open design questions; DESIGN.md §11 cleared. `tasks.md` writing is unblocked.
 - 2026-08-24 — Planning documents (SDD, DESIGN, ADR-001..010, TEST_PLAN, PLAN, README, CHANGELOG) drafted.
 
