@@ -60,7 +60,7 @@ function _dict_to_figure(d::Dict)::Figure
         get(d, "id", string(uuid4())),
         Observable(get(d, "title", "Untitled")),
         Observable(LayoutSpec(get(layout_d, "rows", 1), get(layout_d, "cols", 1))),
-        Observable(Axis[])
+        Observable(Union{Axis, UnknownNode}[])
     )
     for ax_dict in get(d, "axis", [])
         ax = _dict_to_axis(ax_dict)
@@ -98,7 +98,7 @@ function _dict_to_axis(d::Dict)::Axis
         Observable(get(d, "legend", true)),
         Observable{Union{Nothing,String}}(get(d, "tickformat", nothing)),
         Observable{Union{Nothing,CameraSpec}}(cam),
-        Observable(Plot[])
+        Observable(Union{Plot, UnknownNode}[])
     )
     for plot_dict in get(d, "plot", [])
         plot = _dict_to_plot(plot_dict)
@@ -148,6 +148,10 @@ function _coerce_attr(plot_type::Symbol, name::Symbol, v)::Any
         return Float64(v)
     elseif spec.kind == :bool
         return Bool(v)
+    elseif spec.kind == :vec2
+        return (Float64(v[1]), Float64(v[2]))
+    elseif spec.kind == :vec3
+        return (Float64(v[1]), Float64(v[2]), Float64(v[3]))
     else
         return v
     end

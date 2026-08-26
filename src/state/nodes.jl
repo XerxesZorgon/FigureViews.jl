@@ -2,6 +2,12 @@
 
 abstract type Node end
 
+# Escape hatch for forward compatibility (ADR-004, §3.5):
+mutable struct UnknownNode <: Node
+    original_type::String
+    payload::Dict{String, Any}                       # verbatim TOML sub-table
+end
+
 mutable struct Plot <: Node
     id::String                                       # immutable
     type::Symbol                                     # :line | :scatter | :bar | :heatmap | :contour | :surface | :volume, immutable
@@ -25,14 +31,14 @@ mutable struct Axis <: Node
     legend::Observable{Bool}
     tickformat::Observable{Union{Nothing, String}}
     camera::Observable{Union{Nothing, CameraSpec}}   # :axis3d only
-    plots::Observable{Vector{Plot}}
+    plots::Observable{Vector{Union{Plot, UnknownNode}}}
 end
 
 mutable struct Figure <: Node
     id::String                                       # UUIDv4, immutable
     title::Observable{String}
     layout::Observable{LayoutSpec}                   # rows/cols/positions per Makie
-    axes::Observable{Vector{Axis}}
+    axes::Observable{Vector{Union{Axis, UnknownNode}}}
 end
 
 mutable struct Session <: Node
@@ -41,10 +47,4 @@ mutable struct Session <: Node
     preferences_snapshot::Dict{String,Any}           # copy taken at session creation
     data_snapshots::Dict{String, AbstractArray}   # snapshot_id => array; key is UUIDv4
     selection::Observable{Union{Nothing, String}}    # id of currently-selected node
-end
-
-# Escape hatch for forward compatibility (ADR-004, §3.5):
-mutable struct UnknownNode <: Node
-    original_type::String
-    payload::Dict{String, Any}                       # verbatim TOML sub-table
 end

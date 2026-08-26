@@ -70,6 +70,8 @@ function _plot_to_dict(plot::Plot)::Dict{String,Any}
         v = obs[]
         if v isa Colors.Colorant
             attrs[string(k)] = "#" * Colors.hex(v)
+        elseif v isa Tuple
+            attrs[string(k)] = collect(v)
         else
             attrs[string(k)] = v isa Symbol ? string(v) : v
         end
