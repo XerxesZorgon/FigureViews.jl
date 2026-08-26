@@ -1448,7 +1448,7 @@ On fail: `TASK 026 FAILED — [criterion] — [observed] — [error text]`
 ---
 
 ## Task 027: Renderer builds Makie.Axis3 when ax.kind == :axis3d + Layer 3 test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-25, commit 8b10bf4
 **Milestone:** M4
 **Depends on:** 026
 
@@ -1512,7 +1512,7 @@ On fail: `TASK 027 FAILED — [criterion] — [Pkg.test tail; if an Axis3 label 
 ---
 
 ## Task 028: Add PLOT_SCHEMAS for surface/volume + Layer 1 schema tests
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-25, commit 685192f
 **Milestone:** M4
 **Depends on:** 027
 
@@ -1558,7 +1558,7 @@ On fail: `TASK 028 FAILED — [criterion] — [Pkg.test output tail]`
 ---
 
 ## Task 029: add_surface_plot! + surface renderer branch + Layer 3 test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-25, commit 088684f
 **Milestone:** M4
 **Depends on:** 028
 
@@ -1642,7 +1642,7 @@ On fail: `TASK 029 FAILED — [criterion] — [Pkg.test tail; if Makie.surface! 
 ---
 
 ## Task 030: add_volume_plot! + volume renderer branch + Layer 3 test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-25, commit 0f865f1
 **Milestone:** M4
 **Depends on:** 029
 
@@ -1723,7 +1723,7 @@ On fail: `TASK 030 FAILED — [criterion] — [Pkg.test tail; if Makie.volume! k
 ---
 
 ## Task 031: AXIS_SCHEMAS[:axis3d] camera schema + property-panel node dispatch + Layer 3 test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-25, commit 832f566 — M4 COMPLETE, CI 2/2 green
 **Milestone:** M4
 **Depends on:** 030
 
@@ -1870,3 +1870,171 @@ After Task 031's local Pkg.test() is green: `git push`. Verify CI 2/2 green on t
 ## M4 exit gate
 
 When Tasks 026–031 are all `[x] Done` and CI is 2/2 green on the v0.1 matrix, M4 is complete. All seven v0.1 plot types render; camera controls work on `:axis3d`. Return to Claude Chat with "M4 complete" to extend `tasks.md` with M5 (data ingestion: MainSource, CsvSource, Hdf5Source — where `_DEMO_DATA` scaffolding is finally deleted).
+
+---
+
+## Patch P1 — GUI launch fixes (Tier 1)
+
+Post-M4 manual-launch findings. See `docs/CHANGE-tree-pane-viewport-fix.md`. Two independent Tier-1 fixes surfaced by the first real `makieviews()` launch, plus the manual-launch gate added to TEST_PLAN. Root causes confirmed by probe (Gtk4.jl 0.7.12): `set_child` takes no kwargs; `li[]` on a GtkStringList item returns a String directly (no `.string`); the h-paned gives all width to the left column unless the viewport gets `hexpand`/`vexpand` and the paned gets a `position`.
+
+---
+
+## Task 032: Patch — fix tree-pane rows (set_child + row-string accessor) + extract testable helper
+**Status:** [ ] Pending
+**Tier:** 1 — Patch
+**Milestone:** Patch P1
+**Depends on:** 031
+
+### What to do
+Three changes in one commit — two code edits in `src/ui/tree_pane.jl` plus a new unit test. Stage explicitly by name.
+
+**1. Extract the duplicated row-building loop into a pure helper.** The label/id construction loop currently appears TWICE in `tree_pane.jl` — once inline near the top of `build_tree_pane`, once inside `refresh!()`. Replace BOTH copies with calls to a single new top-level function (define it above `build_tree_pane`):
+```julia
+function _build_tree_rows(session::Session)
+    labels = String[]
+    ids = String[]
+    for fig in session.figures[]
+        push!(labels, "Figure: $(fig.title[])")
+        push!(ids, fig.id)
+        for ax in fig.axes[]
+            kind_str = ax.kind == :axis2d ? "2D" : "3D"
+            push!(labels, "  Axis ($kind_str): $(ax.title[])")
+            push!(ids, ax.id)
+            for plot in ax.plots[]
+                label_attr = get(plot.attrs, :label, nothing)
+                label_str = label_attr === nothing ? plot.id[1:8] : string(label_attr[])
+                push!(labels, "    $(plot.type): $label_str")
+                push!(ids, plot.id)
+            end
+        end
+    end
+    return (labels, ids)
+end
+```
+Then in `build_tree_pane`, replace the inline loop with `labels, ids = _build_tree_rows(session)`. In `refresh!()`, replace its loop body: it must refresh the CLOSURE's `labels`/`ids` (which the selection handler indexes) AND the model. Do it like this — compute fresh, then copy into the existing bound vectors so the selection closure keeps referencing the right arrays:
+```julia
+    function refresh!()
+        new_labels, new_ids = _build_tree_rows(session)
+        empty!(labels); append!(labels, new_labels)
+        empty!(ids);    append!(ids, new_ids)
+        splice!(model, 1:length(model))
+        for l in labels
+            push!(model, l)
+        end
+    end
+```
+(Keep `labels`/`ids` as the outer `local` vectors the selection handler closes over — do not shadow them.)
+
+**2. Fix the factory callbacks.** Replace the broken `setup` and `bind` bodies:
+```julia
+    signal_connect(factory, "setup") do f, li
+        lbl = GtkLabel("")
+        lbl.halign = Gtk4.Align_START
+        set_child(li, lbl)
+    end
+    signal_connect(factory, "bind") do f, li
+        lbl = get_child(li)
+        lbl.label = li[]        # li[] returns a String directly for a GtkStringList item
+    end
+```
+(No `halign` kwarg on `set_child`; no `.string` on `li[]`. Both confirmed by probe.)
+
+**3. Add `test/unit/tree_pane.jl`** (new file) with a testset that exercises `_build_tree_rows` on a known session — this is the headless-testable regression coverage for the data path (the GTK-realization fix itself is covered by the manual-launch gate, not CI):
+```julia
+@testset "tree_pane _build_tree_rows" begin
+    s = new_session()
+    fig = add_figure!(s; title = "F1")
+    ax2 = add_axis!(fig; kind = :axis2d, title = "A2D")
+    add_line_plot!(ax2; x = collect(1.0:5.0), y = collect(1.0:5.0))
+    ax3 = add_axis!(fig; kind = :axis3d, title = "A3D")
+
+    labels, ids = MakieViews._build_tree_rows(s)
+    # Row count: 1 figure + 2 axes + 1 plot = 4
+    @test length(labels) == 4
+    @test length(ids) == 4
+    @test labels[1] == "Figure: F1"
+    @test occursin("Axis (2D): A2D", labels[2])
+    @test occursin("line", labels[3])
+    @test occursin("Axis (3D): A3D", labels[4])
+    # ids align positionally with labels and are the real node ids
+    @test ids[1] == fig.id
+    @test ids[2] == ax2.id
+    @test ids[4] == ax3.id
+end
+```
+Ensure `test/unit/tree_pane.jl` is `include`d by `test/runtests.jl` if that's the project's include pattern (check how `test/unit/schema.jl` is wired and match it). If runtests.jl includes unit files explicitly, add the include line; report if the pattern differs.
+
+### Files touched
+- `src/ui/tree_pane.jl` — modified: extract `_build_tree_rows`, fix setup/bind callbacks, rewrite `refresh!`
+- `test/unit/tree_pane.jl` — new: `_build_tree_rows` testset
+- `test/runtests.jl` — modified only if unit files are explicitly included (match existing pattern)
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0. All prior tests still pass. The new `tree_pane _build_tree_rows` testset passes (7 assertions). Report Julia's `Test Summary:` tail for it.
+
+### Regression coverage
+`_build_tree_rows` testset is the added regression test (cross-tier rule). The `set_child`/`li[]` fixes are verified by the human manual-launch gate (Task 033 / TEST_PLAN), not by CI, since they require a realized display.
+
+### Commit
+Stage explicitly: `git add src/ui/tree_pane.jl test/unit/tree_pane.jl test/runtests.jl`
+Subject: `fix: tree-pane rows — correct set_child call and row-string accessor (Tier 1)`
+Body: `Patch P1 Task 032. Gtk4.jl set_child takes no halign kwarg (set it on the GtkLabel); li[] on a GtkStringList item returns a String directly, so .string threw. Extracted the duplicated label/id loop into pure _build_tree_rows(session) and added its first unit test. Bug surfaced by the first real makieviews() launch (M4 manual test); CI could not catch it because headless runners never realize GTK rows. See docs/CHANGE-tree-pane-viewport-fix.md.`
+
+### Report back
+On pass: `TASK 032 PASSED — tree-pane callbacks fixed, _build_tree_rows extracted + tested, committed as <SHA>. Test summary: [paste]`
+On fail: `TASK 032 FAILED — [criterion] — [Pkg.test tail; if a Gtk4 accessor still differs, quote the exact error]`
+
+---
+
+## Task 033: Patch — fix viewport layout (paned position + hexpand/vexpand) + TEST_PLAN manual-launch gate
+**Status:** [ ] Pending
+**Tier:** 1 — Patch
+**Milestone:** Patch P1
+**Depends on:** 032
+
+### What to do
+Two changes in one commit — a code edit in `src/MakieViews.jl` and a docs edit in `docs/TEST_PLAN.md`. Stage explicitly. There is no headless test for the layout (it's GTK geometry on a real display); the acceptance evidence is the human manual launch described in the gate this task adds. So this task's automated criterion is only "Pkg.test still green + the file contains the required assignments"; the visual confirmation is John's, post-commit.
+
+**1. Fix the layout in `src/MakieViews.jl`.** Locate the viewport/paned construction block (currently builds `viewport_widget`, `left_column = GtkPaned(:v)`, `main_paned = GtkPaned(:h)`). Add, after `viewport_widget` is created and pushed, and after `main_paned` is assembled:
+```julia
+    viewport_widget.hexpand = true
+    viewport_widget.vexpand = true
+```
+and after `main_paned[1] = left_column; main_paned[2] = viewport_widget`:
+```julia
+    main_paned.position = 300   # px: left column width; viewport takes the remainder
+```
+Keep the existing `left_column`/`main_paned` wiring otherwise unchanged. (Values confirmed by probe: default paned gives all width to child 1; hexpand+vexpand on the viewport plus a position boundary gives the viewport the majority width.)
+
+**2. Add the manual-launch gate to `docs/TEST_PLAN.md`.** Add a new subsection (after the CI-matrix section) titled "Manual GUI launch gate" stating:
+- Headless CI (Ubuntu, ADR-018) never realizes a GTK widget tree, so it cannot detect GUI-layer defects (tree-pane rows, pane layout, viewport rendering, live camera/attribute edits). This was proven at M4 when the first real launch found three such defects that CI had reported green.
+- Therefore: **every milestone that touches the UI, renderer, or entrypoint requires a human `makieviews()` launch on John's Windows dev machine as an exit gate**, in addition to CI. The launch follows a visual checklist: (a) window opens at 1400×900; (b) three panes visible — tree (top-left, populated rows), properties (bottom-left), viewport (right, majority width); (c) 2D axis shows its plots; (d) 3D axis renders and is rotatable; (e) selecting a plot node shows its property editors; selecting a 3D axis node shows camera editors; (f) a camera azimuth edit rotates the 3D view.
+- This gate sits alongside the macOS live-test gate (ADR-018) which remains a hard gate before the v0.1.0 registry tag (M11).
+- Note the gate cannot retroactively cover P1's own layout fix; the launch immediately following P1 is that fix's acceptance evidence.
+
+### Files touched
+- `src/MakieViews.jl` — modified: viewport hexpand/vexpand + paned position
+- `docs/TEST_PLAN.md` — modified: add "Manual GUI launch gate" subsection
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 (no regression). AND a source assertion:
+`julia -e 't = read("src/MakieViews.jl", String); @assert occursin("hexpand = true", t); @assert occursin("position = 300", t); p = read("docs/TEST_PLAN.md", String); @assert occursin("Manual GUI launch gate", p); println("P1 layout + gate OK")'` prints `P1 layout + gate OK`.
+Final acceptance is John's manual launch (see gate) — Antigravity does NOT need to launch the GUI.
+
+### Commit
+Stage explicitly: `git add src/MakieViews.jl docs/TEST_PLAN.md`
+Subject: `fix: viewport layout — paned position + viewport hexpand/vexpand; add manual-launch gate (Tier 1)`
+Body: `Patch P1 Task 033. main_paned gave all width to the left column; viewport now sets hexpand/vexpand and main_paned.position=300 so the GLMakie canvas takes the majority width (probe-confirmed). Adds a Manual GUI launch gate to TEST_PLAN: headless CI is blind to the GUI layer, so every UI-touching milestone now requires a human makieviews() launch with a visual checklist, alongside the ADR-018 macOS gate. See docs/CHANGE-tree-pane-viewport-fix.md.`
+
+### Report back
+On pass: `TASK 033 PASSED — layout fixed + gate documented, committed as <SHA>. Test summary: [paste]. Awaiting John's manual launch for visual confirmation.`
+On fail: `TASK 033 FAILED — [criterion] — [output]`
+
+### Post-task
+After 033 commits and Pkg.test is green: `git push`, verify CI 2/2 green. Then John runs `makieviews()` manually and reports the visual checklist result. Do NOT close Patch P1 until the manual launch confirms window + rows + viewport + 3D + camera. Also update CHANGELOG.md [Unreleased] with both Task 032 and 033 entries (fold into the 033 commit or a tiny follow-up — note which).
+
+---
+
+## Patch P1 exit gate
+
+When Tasks 032–033 are `[x] Done`, CI is 2/2 green, AND John's manual launch confirms the visual checklist (window, populated tree rows, viewport with plots, rotatable 3D axis, working camera editors), Patch P1 is complete. Then resume M5 kickoff.

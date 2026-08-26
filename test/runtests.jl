@@ -7,6 +7,7 @@ using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, add_scatt
 include("unit/nodes.jl")
 include("unit/schema.jl")
 include("unit/session.jl")
+include("unit/tree_pane.jl")
 
 @testset "M1 shell — module loads" begin
     @test :makieviews in names(MakieViews)
