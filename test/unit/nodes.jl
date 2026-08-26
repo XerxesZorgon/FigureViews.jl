@@ -2,10 +2,12 @@ using MakieViews: Session, Figure, Axis, Plot, UnknownNode, LayoutSpec, CameraSp
 using Observables: Observable, on
 
 @testset "M2 nodes — Session construction" begin
-    s = Session(v"1.0.0", Observable(Figure[]), Dict{String,Any}(), Observable{Union{Nothing,String}}(nothing))
+    s = Session(v"1.0.0", Observable(Figure[]), Dict{String,Any}(), Dict{String, AbstractArray}(), Observable{Union{Nothing,String}}(nothing))
     @test s.schema_version == v"1.0.0"
     @test isempty(s.figures[])
     @test s.selection[] === nothing
+    @test s.data_snapshots isa Dict{String, AbstractArray}
+    @test isempty(s.data_snapshots)
 end
 
 @testset "M2 nodes — Figure/Axis/Plot construction with observable fires" begin

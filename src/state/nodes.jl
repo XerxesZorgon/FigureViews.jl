@@ -39,6 +39,7 @@ mutable struct Session <: Node
     schema_version::VersionNumber                    # e.g. v"1.0.0"
     figures::Observable{Vector{Figure}}
     preferences_snapshot::Dict{String,Any}           # copy taken at session creation
+    data_snapshots::Dict{String, AbstractArray}   # snapshot_id => array; key is UUIDv4
     selection::Observable{Union{Nothing, String}}    # id of currently-selected node
 end
 

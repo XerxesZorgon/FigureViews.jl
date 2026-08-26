@@ -2,6 +2,7 @@ module MakieViews
 
 using Gtk4, Gtk4Makie, GLMakie, Observables, Colors, UUIDs
 
+include("data/source.jl")
 include("state/types.jl")
 include("state/nodes.jl")
 include("state/schema.jl")
