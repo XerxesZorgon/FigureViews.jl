@@ -135,10 +135,12 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
         x   = _DEMO_DATA[plot.id].x
         y   = _DEMO_DATA[plot.id].y
         mat = _DEMO_DATA[plot.id].matrix
-        shading_map = Dict(:none => Makie.NoShading, :fast => Makie.FastShading, :smooth => Makie.MultiLightShading)
+        # Modern Makie: shading is a Bool.
+        # :none → false (flat), :fast/:smooth → true (lit).
+        shading_on = plot.attrs[:shading][] != :none
         handle = Makie.surface!(makie_ax, x, y, mat;
             colormap = plot.attrs[:colormap][],
-            shading  = shading_map[plot.attrs[:shading][]],
+            shading  = shading_on,
             visible  = plot.attrs[:visible][])
         renderer.plot_handles[plot.id] = handle
         _register_plot_observer!(renderer, plot)
