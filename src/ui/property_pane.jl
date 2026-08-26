@@ -130,8 +130,10 @@ function _widget_for_spec(specs::Vector{AttrSpec}, spec::AttrSpec, attr_observab
         btn = GtkColorButton()
         btn.rgba = Gtk4.GdkRGBA(rgb.r, rgb.g, rgb.b, 1.0)
         signal_connect(btn, "color-set") do b
-            rgba = b.rgba
-            new_val = RGB(rgba.r, rgba.g, rgba.b)
+            # Gtk4.rgba(btn) returns a _GdkRGBA plain struct with .red/.green/.blue Float32 fields.
+            # b.rgba returns an opaque GdkRGBA handle whose .r/.g/.b fields do not exist.
+            s = Gtk4.rgba(b)
+            new_val = RGB(s.red, s.green, s.blue)
             res = validate(specs, spec.name, new_val)
             if res isa ValidationError
                 println(res.message)
