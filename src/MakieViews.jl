@@ -1,6 +1,6 @@
 module MakieViews
 
-using Gtk4, Gtk4Makie, GLMakie, Observables, Colors, UUIDs
+using Gtk4, Gtk4Makie, GLMakie, Observables, Colors, UUIDs, TOML
 
 include("data/source.jl")
 include("data/main_source.jl")
@@ -13,6 +13,7 @@ include("state/session.jl")
 include("render/renderer.jl")
 include("ui/tree_pane.jl")
 include("ui/property_pane.jl")
+include("persistence/mvz_save.jl")
 
 export makieviews
 

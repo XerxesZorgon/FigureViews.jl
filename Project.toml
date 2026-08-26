@@ -1,7 +1,7 @@
 name = "MakieViews"
 uuid = "35d93ce5-7b84-4bd4-b0dd-22cde39d27e1"
-authors = ["John Peach and contributors"]
 version = "0.1.0-DEV"
+authors = ["John Peach and contributors"]
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
@@ -13,6 +13,7 @@ Gtk4Makie = "478199e7-b407-4926-87ea-7196203a28d8"
 HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 Observables = "510215fc-4207-5dde-b226-833fc4488ee2"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 
 [compat]
@@ -25,6 +26,7 @@ Gtk4Makie = "0.3.9"
 HDF5 = "0.17"
 Makie = "=0.24.13"
 Observables = "0.5"
+TOML = "1.0.3"
 julia = "1.10"
 
 [extras]
