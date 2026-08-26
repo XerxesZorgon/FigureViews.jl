@@ -67,6 +67,25 @@ function ingest!(session::Session, source::DataSource, id::String)::String
 end
 
 """
+    animate_plot!(session, plot_node, snapshot_id, frame_count; fps=30) -> AnimBinding
+
+Bind an animation to `plot_node`. `snapshot_id` must key a 3D array in
+`session.data_snapshots` with dimensions [x, y, t] where t is the time axis.
+Sets `plot_node.animation_binding[]` and returns the AnimBinding.
+"""
+function animate_plot!(session::Session, plot_node::Plot,
+                       snapshot_id::String, frame_count::Int;
+                       fps::Int = 30)::AnimBinding
+    @assert haskey(session.data_snapshots, snapshot_id) "snapshot_id not found in data_snapshots"
+    arr = session.data_snapshots[snapshot_id]
+    @assert ndims(arr) == 3 "animate_plot! requires a 3D array A[x, y, t]"
+    @assert size(arr, 3) == frame_count "frame_count does not match size(array, 3)"
+    binding = AnimBinding(snapshot_id, frame_count, fps, 1)
+    plot_node.animation_binding[] = binding
+    return binding
+end
+
+"""
     build_dataref(source, id, role, snapshot_id) -> DataRef
 
 Construct a DataRef with provenance fields filled from the source type.

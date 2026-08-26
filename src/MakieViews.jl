@@ -17,8 +17,8 @@ include("persistence/mvz_save.jl")
 include("persistence/mvz_load.jl")
 
 export makieviews, save_session, load_session,
-       add_plot!, ingest!, build_dataref,
-       DataRef, MainSource, CsvSource, Hdf5Source, DataVar
+       add_plot!, ingest!, build_dataref, animate_plot!,
+       DataRef, MainSource, CsvSource, Hdf5Source, DataVar, AnimBinding
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)

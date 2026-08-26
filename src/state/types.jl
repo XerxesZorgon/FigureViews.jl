@@ -12,7 +12,10 @@ struct CameraSpec
 end
 
 struct AnimBinding
-    # M7 fills this in. For M2, empty struct is fine — field is Observable{Union{Nothing, AnimBinding}} so nothing is the M2 value.
+    snapshot_id::String        # key into session.data_snapshots for the 3D array A[x,y,t]
+    frame_count::Int           # size(A, 3)
+    fps::Int                   # frames per second for export (default 30)
+    current_frame::Int         # 1-based; swapped by time slider via observable replacement
 end
 
 struct DataRef

@@ -125,12 +125,23 @@ function _dict_to_plot(d::Dict)::Union{Plot, UnknownNode}
         end
     end
     refs = [_dict_to_dataref(r) for r in get(d, "data_refs", [])]
+    anim_binding = if haskey(d, "animation")
+        ad = d["animation"]
+        AnimBinding(
+            get(ad, "snapshot_id",   ""),
+            get(ad, "frame_count",   1),
+            get(ad, "fps",           30),
+            get(ad, "current_frame", 1)
+        )
+    else
+        nothing
+    end
     return Plot(
         get(d, "id", string(uuid4())),
         type_sym,
         Observable(refs),
         attrs,
-        Observable{Union{Nothing,AnimBinding}}(nothing)
+        Observable{Union{Nothing,AnimBinding}}(anim_binding)
     )
 end
 

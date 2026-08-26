@@ -77,6 +77,15 @@ function _plot_to_dict(plot::Plot)::Dict{String,Any}
         end
     end
     d["attrs"] = attrs
+    if plot.animation_binding[] !== nothing
+        b = plot.animation_binding[]
+        d["animation"] = Dict{String,Any}(
+            "snapshot_id"   => b.snapshot_id,
+            "frame_count"   => b.frame_count,
+            "fps"           => b.fps,
+            "current_frame" => b.current_frame
+        )
+    end
     return d
 end
 
