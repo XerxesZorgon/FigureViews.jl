@@ -14,8 +14,9 @@ include("render/renderer.jl")
 include("ui/tree_pane.jl")
 include("ui/property_pane.jl")
 include("persistence/mvz_save.jl")
+include("persistence/mvz_load.jl")
 
-export makieviews
+export makieviews, save_session, load_session
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)
