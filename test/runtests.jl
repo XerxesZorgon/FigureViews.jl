@@ -291,3 +291,22 @@ end
     @test isapprox(makie_ax.azimuth[],   0.5; atol = 1e-6)
     @test isapprox(makie_ax.elevation[], 0.3; atol = 1e-6)
 end
+
+@testset "P1 layout — two-axis figure renders both axes (Bug B)" begin
+    s = new_session()
+    fig_node = add_figure!(s; title = "Two axes")
+    ax2 = add_axis!(fig_node; kind = :axis2d, title = "2D")
+    add_line_plot!(ax2; x = collect(1.0:100.0), y = sin.((1.0:100.0) ./ 10))
+    ax3 = add_axis!(fig_node; kind = :axis3d, title = "3D")
+    xs = collect(LinRange(-3.0, 3.0, 20)); ys = collect(LinRange(-3.0, 3.0, 20))
+    zs = [exp(-(x^2 + y^2)) for x in xs, y in ys]
+    add_surface_plot!(ax3; x = xs, y = ys, z = zs)
+
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+
+    @test haskey(renderer.axis_handles, ax2.id)
+    @test haskey(renderer.axis_handles, ax3.id)
+    @test renderer.axis_handles[ax2.id] isa Makie.Axis
+    @test renderer.axis_handles[ax3.id] isa Makie.Axis3
+end

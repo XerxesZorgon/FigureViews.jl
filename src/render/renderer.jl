@@ -21,9 +21,13 @@ function Renderer(session::Session, fig::Makie.Figure)
 end
 
 function _rebuild_from_session!(renderer::Renderer)
+    axis_index = 0
     for fig_node in renderer.session.figures[]
         for ax_node in fig_node.axes[]
-            _render_axis!(renderer, renderer.fig, ax_node, renderer.fig[1, 1])
+            axis_index += 1
+            # v0.1 layout rule: one row per axis so 2D/3D axes never share a cell.
+            # General rows×cols LayoutSpec placement is deferred to a later milestone.
+            _render_axis!(renderer, renderer.fig, ax_node, renderer.fig[axis_index, 1])
             
             h = on(ax_node.plots) do _
                 empty!(renderer.fig)
