@@ -16,7 +16,9 @@ include("ui/property_pane.jl")
 include("persistence/mvz_save.jl")
 include("persistence/mvz_load.jl")
 
-export makieviews, save_session, load_session
+export makieviews, save_session, load_session,
+       add_plot!, ingest!, build_dataref,
+       DataRef, MainSource, CsvSource, Hdf5Source, DataVar
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)

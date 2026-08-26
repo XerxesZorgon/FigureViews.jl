@@ -14,7 +14,7 @@ function add_figure!(s::Session; title::String = "Untitled")::Figure
         string(uuid4()),
         Observable(title),
         Observable(LayoutSpec(1, 1)),
-        Observable(Axis[])
+        Observable(Union{Axis, UnknownNode}[])
     )
     s.figures[] = [s.figures[]..., fig]
     return fig
@@ -39,7 +39,7 @@ function add_axis!(fig::Figure; kind::Symbol = :axis2d, title::String = "")::Axi
         Observable(true),                                       # legend
         Observable{Union{Nothing,String}}(nothing),             # tickformat
         Observable{Union{Nothing,CameraSpec}}(nothing),         # camera
-        Observable(Plot[])                                      # plots
+        Observable(Union{Plot, UnknownNode}[])                  # plots
     )
     fig.axes[] = [fig.axes[]..., ax]
     return ax
@@ -64,6 +64,26 @@ function ingest!(session::Session, source::DataSource, id::String)::String
     snap_id = string(uuid4())
     session.data_snapshots[snap_id] = arr
     return snap_id
+end
+
+"""
+    build_dataref(source, id, role, snapshot_id) -> DataRef
+
+Construct a DataRef with provenance fields filled from the source type.
+- CsvSource: absolute_path = abspath(source.path), relative_path = source.path, column = id
+- Hdf5Source: absolute_path = abspath(source.path), relative_path = source.path, dataset = id
+- MainSource: variable = Symbol(id)
+"""
+function build_dataref(source::DataSource, id::String, role::Symbol, snapshot_id::String)::DataRef
+    if source isa CsvSource
+        abs_p = abspath(source.path)
+        DataRef(role, snapshot_id, :csv, id, abs_p, source.path, id, nothing, nothing)
+    elseif source isa Hdf5Source
+        abs_p = abspath(source.path)
+        DataRef(role, snapshot_id, :hdf5, id, abs_p, source.path, nothing, id, nothing)
+    else  # MainSource
+        DataRef(role, snapshot_id, :main, id, nothing, nothing, nothing, nothing, Symbol(id))
+    end
 end
 
 """
