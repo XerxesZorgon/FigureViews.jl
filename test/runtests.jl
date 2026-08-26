@@ -2,7 +2,7 @@ using Test
 using MakieViews
 using Gtk4
 using Makie
-using MakieViews: new_session, add_figure!, add_axis!, add_line_plot!, add_scatter_plot!, add_bar_plot!, add_heatmap_plot!, add_contour_plot!, add_surface_plot!, add_volume_plot!, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, AXIS_SCHEMAS, CameraSpec, _current_session, _current_renderer, ValidationError
+using MakieViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, DataRef, MainSource, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, AXIS_SCHEMAS, CameraSpec, _current_session, _current_renderer, ValidationError
 
 include("unit/nodes.jl")
 include("unit/schema.jl")
@@ -53,7 +53,14 @@ end
     ax_node = add_axis!(fig_node; kind = :axis2d)
     x = collect(1.0:100.0)
     y = sin.(x ./ 10)
-    plot_node = add_line_plot!(ax_node; x = x, y = y)
+    _m = Module(:_T)
+    Core.eval(_m, :(x = $x))
+    Core.eval(_m, :(y = $y))
+    _src = MakieViews.MainSource(_m)
+    snap_x = ingest!(s, _src, "x")
+    snap_y = ingest!(s, _src, "y")
+    plot_node = add_plot!(ax_node, :line,
+        [DataRef(:x, snap_x, :main, "x"), DataRef(:y, snap_y, :main, "y")])
 
     makie_fig = Makie.Figure()
     renderer = Renderer(s, makie_fig)
@@ -75,7 +82,14 @@ end
     ax_node = add_axis!(fig_node; kind = :axis2d)
     x = collect(1.0:10.0)
     y = x.^2
-    plot_node = add_scatter_plot!(ax_node; x = x, y = y)
+    _m = Module(:_T)
+    Core.eval(_m, :(x = $x))
+    Core.eval(_m, :(y = $y))
+    _src = MakieViews.MainSource(_m)
+    snap_x = ingest!(s, _src, "x")
+    snap_y = ingest!(s, _src, "y")
+    plot_node = add_plot!(ax_node, :scatter,
+        [DataRef(:x, snap_x, :main, "x"), DataRef(:y, snap_y, :main, "y")])
 
     makie_fig = Makie.Figure()
     renderer = Renderer(s, makie_fig)
@@ -104,7 +118,14 @@ end
     ax_node = add_axis!(fig_node; kind = :axis2d)
     x = collect(1.0:5.0)
     y = [3.0, 1.0, 4.0, 1.0, 5.0]
-    plot_node = add_bar_plot!(ax_node; x = x, y = y)
+    _m = Module(:_T)
+    Core.eval(_m, :(x = $x))
+    Core.eval(_m, :(y = $y))
+    _src = MakieViews.MainSource(_m)
+    snap_x = ingest!(s, _src, "x")
+    snap_y = ingest!(s, _src, "y")
+    plot_node = add_plot!(ax_node, :bar,
+        [DataRef(:x, snap_x, :main, "x"), DataRef(:y, snap_y, :main, "y")])
     @test plot_node.type == :bar
     @test plot_node.attrs[:direction][] == :vertical
     makie_fig = Makie.Figure()
@@ -117,7 +138,12 @@ end
     fig_node = add_figure!(s)
     ax_node = add_axis!(fig_node; kind = :axis2d)
     mat = [sin(i/5) * cos(j/5) for i in 1:20, j in 1:20]
-    plot_node = add_heatmap_plot!(ax_node; matrix = mat)
+    _m = Module(:_T)
+    Core.eval(_m, :(mat = $mat))
+    _src = MakieViews.MainSource(_m)
+    snap_mat = ingest!(s, _src, "mat")
+    plot_node = add_plot!(ax_node, :heatmap,
+        [DataRef(:matrix, snap_mat, :main, "mat")])
     @test plot_node.type == :heatmap
     @test plot_node.attrs[:colormap][] == :viridis
     makie_fig = Makie.Figure()
@@ -132,7 +158,16 @@ end
     xs = collect(LinRange(0.0, 2π, 30))
     ys = collect(LinRange(0.0, 2π, 30))
     zs = [sin(x) * cos(y) for x in xs, y in ys]
-    plot_node = add_contour_plot!(ax_node; x = xs, y = ys, z = zs)
+    _m = Module(:_T)
+    Core.eval(_m, :(xs = $xs))
+    Core.eval(_m, :(ys = $ys))
+    Core.eval(_m, :(zs = $zs))
+    _src = MakieViews.MainSource(_m)
+    snap_x = ingest!(s, _src, "xs")
+    snap_y = ingest!(s, _src, "ys")
+    snap_z = ingest!(s, _src, "zs")
+    plot_node = add_plot!(ax_node, :contour,
+        [DataRef(:x, snap_x, :main, "xs"), DataRef(:y, snap_y, :main, "ys"), DataRef(:matrix, snap_z, :main, "zs")])
     @test plot_node.type == :contour
     @test plot_node.attrs[:levels][] == 10
     makie_fig = Makie.Figure()
@@ -145,7 +180,14 @@ end
     fig_node = add_figure!(s; title = "F1")
     ax_node = add_axis!(fig_node; kind = :axis2d)
     x = 1.0:10.0 |> collect
-    plot_node = add_line_plot!(ax_node; x = x, y = sin.(x))
+    _m = Module(:_T)
+    Core.eval(_m, :(x = $x))
+    Core.eval(_m, :(y = sin.($x)))
+    _src = MakieViews.MainSource(_m)
+    snap_x = ingest!(s, _src, "x")
+    snap_y = ingest!(s, _src, "y")
+    plot_node = add_plot!(ax_node, :line,
+        [DataRef(:x, snap_x, :main, "x"), DataRef(:y, snap_y, :main, "y")])
 
     tree_widget = build_tree_pane(s)
     @test tree_widget !== nothing
@@ -161,7 +203,14 @@ end
     s = new_session()
     fig_node = add_figure!(s)
     ax_node = add_axis!(fig_node; kind = :axis2d)
-    plot_node = add_line_plot!(ax_node; x = 1.0:10.0 |> collect, y = zeros(10))
+    _m = Module(:_T)
+    Core.eval(_m, :(x = 1.0:10.0 |> collect))
+    Core.eval(_m, :(y = zeros(10)))
+    _src = MakieViews.MainSource(_m)
+    snap_x = ingest!(s, _src, "x")
+    snap_y = ingest!(s, _src, "y")
+    plot_node = add_plot!(ax_node, :line,
+        [DataRef(:x, snap_x, :main, "x"), DataRef(:y, snap_y, :main, "y")])
 
     prop_widget = build_property_pane(s)
     @test prop_widget !== nothing
@@ -235,7 +284,16 @@ end
     xs = collect(LinRange(-3.0, 3.0, 25))
     ys = collect(LinRange(-3.0, 3.0, 25))
     zs = [exp(-(x^2 + y^2)) for x in xs, y in ys]
-    plot_node = add_surface_plot!(ax_node; x = xs, y = ys, z = zs)
+    _m = Module(:_T)
+    Core.eval(_m, :(xs = $xs))
+    Core.eval(_m, :(ys = $ys))
+    Core.eval(_m, :(zs = $zs))
+    _src = MakieViews.MainSource(_m)
+    snap_x = ingest!(s, _src, "xs")
+    snap_y = ingest!(s, _src, "ys")
+    snap_z = ingest!(s, _src, "zs")
+    plot_node = add_plot!(ax_node, :surface,
+        [DataRef(:x, snap_x, :main, "xs"), DataRef(:y, snap_y, :main, "ys"), DataRef(:matrix, snap_z, :main, "zs")])
     @test plot_node.type == :surface
     @test plot_node.attrs[:colormap][] == :viridis
     makie_fig = Makie.Figure()
@@ -252,7 +310,12 @@ end
     fig_node = add_figure!(s)
     ax_node = add_axis!(fig_node; kind = :axis3d)
     vol = [exp(-((i-15)^2 + (j-15)^2 + (k-15)^2)/50) for i in 1:30, j in 1:30, k in 1:30]
-    plot_node = add_volume_plot!(ax_node; vol = vol)
+    _m = Module(:_T)
+    Core.eval(_m, :(vol = $vol))
+    _src = MakieViews.MainSource(_m)
+    snap_vol = ingest!(s, _src, "vol")
+    plot_node = add_plot!(ax_node, :volume,
+        [DataRef(:volume, snap_vol, :main, "vol")])
     @test plot_node.type == :volume
     @test plot_node.attrs[:algorithm][] == :mip
     makie_fig = Makie.Figure()
@@ -270,7 +333,16 @@ end
     ax_node = add_axis!(fig_node; kind = :axis3d)
     xs = collect(LinRange(-3.0, 3.0, 20)); ys = collect(LinRange(-3.0, 3.0, 20))
     zs = [exp(-(x^2 + y^2)) for x in xs, y in ys]
-    add_surface_plot!(ax_node; x = xs, y = ys, z = zs)
+    _m = Module(:_T)
+    Core.eval(_m, :(xs = $xs))
+    Core.eval(_m, :(ys = $ys))
+    Core.eval(_m, :(zs = $zs))
+    _src = MakieViews.MainSource(_m)
+    snap_x = ingest!(s, _src, "xs")
+    snap_y = ingest!(s, _src, "ys")
+    snap_z = ingest!(s, _src, "zs")
+    add_plot!(ax_node, :surface,
+        [DataRef(:x, snap_x, :main, "xs"), DataRef(:y, snap_y, :main, "ys"), DataRef(:matrix, snap_z, :main, "zs")])
 
     makie_fig = Makie.Figure()
     renderer = Renderer(s, makie_fig)
@@ -296,11 +368,24 @@ end
     s = new_session()
     fig_node = add_figure!(s; title = "Two axes")
     ax2 = add_axis!(fig_node; kind = :axis2d, title = "2D")
-    add_line_plot!(ax2; x = collect(1.0:100.0), y = sin.((1.0:100.0) ./ 10))
+    _m = Module(:_T)
+    Core.eval(_m, :(x = collect(1.0:100.0)))
+    Core.eval(_m, :(y = sin.((1.0:100.0) ./ 10)))
+    _src = MakieViews.MainSource(_m)
+    snap_x = ingest!(s, _src, "x")
+    snap_y = ingest!(s, _src, "y")
+    add_plot!(ax2, :line, [DataRef(:x, snap_x, :main, "x"), DataRef(:y, snap_y, :main, "y")])
     ax3 = add_axis!(fig_node; kind = :axis3d, title = "3D")
     xs = collect(LinRange(-3.0, 3.0, 20)); ys = collect(LinRange(-3.0, 3.0, 20))
     zs = [exp(-(x^2 + y^2)) for x in xs, y in ys]
-    add_surface_plot!(ax3; x = xs, y = ys, z = zs)
+    Core.eval(_m, :(xs = $xs))
+    Core.eval(_m, :(ys = $ys))
+    Core.eval(_m, :(zs = $zs))
+    snap_x3 = ingest!(s, _src, "xs")
+    snap_y3 = ingest!(s, _src, "ys")
+    snap_z3 = ingest!(s, _src, "zs")
+    add_plot!(ax3, :surface,
+        [DataRef(:x, snap_x3, :main, "xs"), DataRef(:y, snap_y3, :main, "ys"), DataRef(:matrix, snap_z3, :main, "zs")])
 
     makie_fig = Makie.Figure()
     renderer = Renderer(s, makie_fig)

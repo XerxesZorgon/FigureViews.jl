@@ -66,10 +66,14 @@ function _render_axis!(renderer::Renderer, fig::Makie.Figure, ax::Axis, position
 end
 
 function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
+    # Helper: look up the snapshot array for a given role
+    function arr(role::Symbol)
+        ref = only(r for r in plot.data_refs[] if r.role == role)
+        return renderer.session.data_snapshots[ref.snapshot_id]
+    end
+
     if plot.type == :line
-        x = _DEMO_DATA[plot.id].x
-        y = _DEMO_DATA[plot.id].y
-        handle = Makie.lines!(makie_ax, x, y;
+        handle = Makie.lines!(makie_ax, arr(:x), arr(:y);
             color     = plot.attrs[:color][],
             linewidth = plot.attrs[:linewidth][],
             linestyle = plot.attrs[:linestyle][],
@@ -79,9 +83,7 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
         renderer.plot_handles[plot.id] = handle
         _register_plot_observer!(renderer, plot)
     elseif plot.type == :scatter
-        x = _DEMO_DATA[plot.id].x
-        y = _DEMO_DATA[plot.id].y
-        handle = Makie.scatter!(makie_ax, x, y;
+        handle = Makie.scatter!(makie_ax, arr(:x), arr(:y);
             color      = plot.attrs[:color][],
             markersize = plot.attrs[:markersize][],
             marker     = plot.attrs[:marker][],
@@ -91,28 +93,25 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
         renderer.plot_handles[plot.id] = handle
         _register_plot_observer!(renderer, plot)
     elseif plot.type == :bar
-        x = _DEMO_DATA[plot.id].x
-        y = _DEMO_DATA[plot.id].y
         direction = plot.attrs[:direction][]
         handle = if direction == :vertical
-            Makie.barplot!(makie_ax, x, y;
+            Makie.barplot!(makie_ax, arr(:x), arr(:y);
                 color   = plot.attrs[:color][],
                 width   = plot.attrs[:width][],
                 label   = plot.attrs[:label][],
                 visible = plot.attrs[:visible][])
         else
-            Makie.barplot!(makie_ax, y, x;   # horizontal: swap x/y
-                color       = plot.attrs[:color][],
-                width       = plot.attrs[:width][],
-                direction   = :x,
-                label       = plot.attrs[:label][],
-                visible     = plot.attrs[:visible][])
+            Makie.barplot!(makie_ax, arr(:y), arr(:x);
+                color     = plot.attrs[:color][],
+                width     = plot.attrs[:width][],
+                direction = :x,
+                label     = plot.attrs[:label][],
+                visible   = plot.attrs[:visible][])
         end
         renderer.plot_handles[plot.id] = handle
         _register_plot_observer!(renderer, plot)
     elseif plot.type == :heatmap
-        mat = _DEMO_DATA[plot.id].matrix
-        handle = Makie.heatmap!(makie_ax, mat;
+        handle = Makie.heatmap!(makie_ax, arr(:matrix);
             colormap   = plot.attrs[:colormap][],
             colorrange = plot.attrs[:colorrange][],
             label      = plot.attrs[:label][],
@@ -120,10 +119,7 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
         renderer.plot_handles[plot.id] = handle
         _register_plot_observer!(renderer, plot)
     elseif plot.type == :contour
-        x   = _DEMO_DATA[plot.id].x
-        y   = _DEMO_DATA[plot.id].y
-        mat = _DEMO_DATA[plot.id].matrix
-        handle = Makie.contour!(makie_ax, x, y, mat;
+        handle = Makie.contour!(makie_ax, arr(:x), arr(:y), arr(:matrix);
             color     = plot.attrs[:color][],
             levels    = plot.attrs[:levels][],
             linewidth = plot.attrs[:linewidth][],
@@ -132,21 +128,15 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
         renderer.plot_handles[plot.id] = handle
         _register_plot_observer!(renderer, plot)
     elseif plot.type == :surface
-        x   = _DEMO_DATA[plot.id].x
-        y   = _DEMO_DATA[plot.id].y
-        mat = _DEMO_DATA[plot.id].matrix
-        # Modern Makie: shading is a Bool.
-        # :none → false (flat), :fast/:smooth → true (lit).
         shading_on = plot.attrs[:shading][] != :none
-        handle = Makie.surface!(makie_ax, x, y, mat;
+        handle = Makie.surface!(makie_ax, arr(:x), arr(:y), arr(:matrix);
             colormap = plot.attrs[:colormap][],
             shading  = shading_on,
             visible  = plot.attrs[:visible][])
         renderer.plot_handles[plot.id] = handle
         _register_plot_observer!(renderer, plot)
     elseif plot.type == :volume
-        vol = _DEMO_DATA[plot.id].volume
-        handle = Makie.volume!(makie_ax, vol;
+        handle = Makie.volume!(makie_ax, arr(:volume);
             colormap   = plot.attrs[:colormap][],
             algorithm  = plot.attrs[:algorithm][],
             colorrange = plot.attrs[:colorrange][],

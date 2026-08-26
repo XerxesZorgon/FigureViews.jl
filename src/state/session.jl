@@ -1,4 +1,3 @@
-const _DEMO_DATA = Dict{String, NamedTuple}()
 
 function new_session()::Session
     return Session(
@@ -54,96 +53,40 @@ function _init_attrs(plot_type::Symbol)::Dict{Symbol, Observable{Any}}
     return d
 end
 
-# M2-only demo scaffolding, remove at M5
-function add_line_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, plot_id::String = string(uuid4()))::Plot
-    plot = Plot(
-        plot_id,
-        :line,
-        Observable(DataRef[]),
-        _init_attrs(:line),
-        Observable{Union{Nothing,AnimBinding}}(nothing)
-    )
-    _DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=nothing)
-    ax.plots[] = [ax.plots[]..., plot]
-    return plot
+"""
+    ingest!(session, source, id) -> snapshot_id::String
+
+Snapshot one variable from `source` into `session.data_snapshots`.
+Returns a fresh UUIDv4 string usable as `DataRef.snapshot_id`.
+"""
+function ingest!(session::Session, source::DataSource, id::String)::String
+    arr = snapshot(source, id)
+    snap_id = string(uuid4())
+    session.data_snapshots[snap_id] = arr
+    return snap_id
 end
 
-function add_scatter_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, plot_id::String = string(uuid4()))::Plot
-    plot = Plot(
-        plot_id,
-        :scatter,
-        Observable(DataRef[]),
-        _init_attrs(:scatter),
-        Observable{Union{Nothing,AnimBinding}}(nothing)
-    )
-    _DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=nothing)
-    ax.plots[] = [ax.plots[]..., plot]
-    return plot
-end
+"""
+    add_plot!(ax, plot_type, data_refs; attrs...) -> Plot
 
-function add_bar_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, plot_id::String = string(uuid4()))::Plot
+Generic plot constructor. `data_refs` is a `Vector{DataRef}` built by the caller
+after calling `ingest!` for each array. Keyword `attrs` override schema defaults.
+"""
+function add_plot!(ax::Axis, plot_type::Symbol, data_refs::Vector{DataRef};
+                   plot_id::String = string(uuid4()), attrs...)::Plot
+    a = _init_attrs(plot_type)
+    for (k, v) in attrs
+        if haskey(a, k)
+            a[k][] = v
+        end
+    end
     plot = Plot(
         plot_id,
-        :bar,
-        Observable(DataRef[]),
-        _init_attrs(:bar),
+        plot_type,
+        Observable(data_refs),
+        a,
         Observable{Union{Nothing,AnimBinding}}(nothing)
     )
-    _DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=nothing)
-    ax.plots[] = [ax.plots[]..., plot]
-    return plot
-end
-
-function add_heatmap_plot!(ax::Axis; matrix::AbstractMatrix, plot_id::String = string(uuid4()))::Plot
-    plot = Plot(
-        plot_id,
-        :heatmap,
-        Observable(DataRef[]),
-        _init_attrs(:heatmap),
-        Observable{Union{Nothing,AnimBinding}}(nothing)
-    )
-    _DEMO_DATA[plot_id] = (x=nothing, y=nothing, z=nothing, matrix=matrix)
-    ax.plots[] = [ax.plots[]..., plot]
-    return plot
-end
-
-function add_contour_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, z::AbstractMatrix, plot_id::String = string(uuid4()))::Plot
-    plot = Plot(
-        plot_id,
-        :contour,
-        Observable(DataRef[]),
-        _init_attrs(:contour),
-        Observable{Union{Nothing,AnimBinding}}(nothing)
-    )
-    _DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=z)
-    ax.plots[] = [ax.plots[]..., plot]
-    return plot
-end
-
-# M2-only demo scaffolding, remove at M5
-function add_surface_plot!(ax::Axis; x::AbstractVector, y::AbstractVector, z::AbstractMatrix, plot_id::String = string(uuid4()))::Plot
-    plot = Plot(
-        plot_id,
-        :surface,
-        Observable(DataRef[]),
-        _init_attrs(:surface),
-        Observable{Union{Nothing,AnimBinding}}(nothing)
-    )
-    _DEMO_DATA[plot_id] = (x=x, y=y, z=nothing, matrix=z)   # z-surface stored in matrix field, same as contour
-    ax.plots[] = [ax.plots[]..., plot]
-    return plot
-end
-
-# M2-only demo scaffolding, remove at M5
-function add_volume_plot!(ax::Axis; vol::AbstractArray{<:Real,3}, plot_id::String = string(uuid4()))::Plot
-    plot = Plot(
-        plot_id,
-        :volume,
-        Observable(DataRef[]),
-        _init_attrs(:volume),
-        Observable{Union{Nothing,AnimBinding}}(nothing)
-    )
-    _DEMO_DATA[plot_id] = (x=nothing, y=nothing, z=nothing, matrix=nothing, volume=vol)
     ax.plots[] = [ax.plots[]..., plot]
     return plot
 end
