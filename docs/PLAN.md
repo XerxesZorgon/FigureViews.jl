@@ -154,10 +154,10 @@ Schemas + rendering for `:surface`, `:volume`. Camera azimuth/elevation/zoom in 
 
 **Exit**: Layer-2 covers both; goldens present; interactive rotate tested manually.
 
-### M5 — Data ingestion
+### M5 — Data ingestion — **COMPLETE (2026-08-26)**
 `MainSource`, `CsvSource`, `Hdf5Source`. Data variable picker in the UI. Snapshot-by-copy invariant enforced.
 
-**Exit**: Layer-2 covers all three sources including edge cases from TEST_PLAN.md §6.
+**Exit** (met): M5 complete 2026-08-26. Data ingestion layer: MainSource, CsvSource, Hdf5Source, DataRef, ingest!, add_plot!; _DEMO_DATA retired; 162 tests passing.
 
 ### M6 — Session persistence
 `.mvz` TOML save/load; `schema_version` handling; unknown-node preservation.

@@ -5,6 +5,18 @@ All notable changes to MakieViews will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### M5 — Data ingestion (2026-08-26)
+- Added CSV.jl, DataFrames.jl, HDF5.jl as direct dependencies (HDF5 compat corrected to 0.17).
+- Added `DataSource` abstract interface and `DataVar` struct (`src/data/source.jl`).
+- Added `Session.data_snapshots::Dict{String,AbstractArray}` field.
+- Implemented `MainSource`, `CsvSource`, `Hdf5Source` with `enumerate_variables`/`snapshot`.
+- Added `ingest!(session, source, id)` and `add_plot!(ax, type, data_refs)` as the stable programmatic API.
+- `DataRef` updated with `snapshot_id` and `label` fields; 4-arg convenience constructor added.
+- `_DEMO_DATA` scaffolding and all seven per-type `add_*_plot!` demo functions deleted.
+- `makieviews()` demo now uses a module-level synthetic dataset + `MainSource` + `ingest!`.
+- Layer 2 integration tests added for all three sources; all tests updated to use `add_plot!` + `DataRef`. 162 total passes.
+- Key learnings: `Core.eval` into a fresh Module inside a running function causes a world-age error — use module-level static definition instead. `convert(Vector{Float64}, col)` on a same-type DataFrame column aliases rather than copies — always `copy()` for snapshot independence.
+
 - 2026-08-25 — Task 032: fixed tree-pane row instantiation and string access; extracted `_build_tree_rows` with unit test.
 - 2026-08-25 — Task 033: fixed viewport layout to grant Makie canvas the majority width; added Manual GUI launch gate to TEST_PLAN.
 - 2026-08-24 — M0 (ADR closure) complete: ADR-011..ADR-017 written for the seven open design questions; DESIGN.md §11 cleared. `tasks.md` writing is unblocked.
