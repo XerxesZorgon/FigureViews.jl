@@ -36,7 +36,7 @@ function build_tree_pane(session::Session)
     end
     signal_connect(factory, "bind") do f, li
         lbl = get_child(li)
-        lbl.label = li[]        # li[] returns a String directly for a GtkStringList item
+        lbl.label = li[].string   # li[] is a GtkStringObject through the selection-wrapped model; .string unwraps it
     end
     
     list_view = GtkListView(GtkSelectionModel(sel), factory)
