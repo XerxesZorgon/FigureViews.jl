@@ -310,3 +310,5 @@ end
     @test renderer.axis_handles[ax2.id] isa Makie.Axis
     @test renderer.axis_handles[ax3.id] isa Makie.Axis3
 end
+
+include("integration/data_sources.jl")
