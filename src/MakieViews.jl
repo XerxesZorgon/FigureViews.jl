@@ -51,6 +51,8 @@ function makieviews()
     makie_fig = Makie.Figure()
     viewport_widget = Gtk4Makie.GtkMakieWidget()
     push!(viewport_widget, makie_fig)
+    viewport_widget.hexpand = true
+    viewport_widget.vexpand = true
 
     renderer = Renderer(session, makie_fig)
 
@@ -68,6 +70,7 @@ function makieviews()
     main_paned = GtkPaned(:h)
     main_paned[1] = left_column
     main_paned[2] = viewport_widget
+    main_paned.position = 300
 
     w[] = main_paned
     show(w)

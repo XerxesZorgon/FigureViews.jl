@@ -42,6 +42,12 @@ Four layers, four costs:
 
 Layer 3 on Linux is wrapped in `xvfb-run -a -s "-screen 0 1920x1080x24" julia --project=. -e '...smoke...'`.
 
+### Manual GUI launch gate
+- Headless CI (Ubuntu, ADR-018) never realizes a GTK widget tree, so it cannot detect GUI-layer defects — tree-pane rows, pane layout, viewport rendering, live camera/attribute edits. Proven at M4, when the first real launch found three such defects CI had reported green.
+- Therefore **every milestone that touches the UI, renderer, or entrypoint requires a human `makieviews()` launch on the Windows dev machine as an exit gate**, in addition to CI. Visual checklist: (a) window opens ~1400×900; (b) three panes — tree (top-left, populated rows), properties (bottom-left), viewport (right, majority width); (c) 2D axis shows its plots; (d) 3D axis renders and is rotatable; (e) selecting a plot node shows its property editors, selecting a 3D axis node shows camera editors; (f) a camera azimuth edit rotates the 3D view.
+- This gate sits alongside the ADR-018 macOS live-test gate (hard gate before the v0.1.0 registry tag, M11).
+- The gate cannot retroactively cover P1's own layout fix; the launch immediately following P1 is that fix's acceptance evidence.
+
 ---
 
 ## 3. Session Round-Trip Test (backing SC-004, FR-015..018)
