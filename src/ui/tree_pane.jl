@@ -42,9 +42,11 @@ function build_tree_pane(session::Session)
     list_view = GtkListView(GtkSelectionModel(sel), factory)
     
     # Wire selection -> session.selection[]
+    # Note: use `pos` directly — it is the 0-based index of the changed row.
+    # Gtk4.selected(s) can lag on Windows before the selection model commits.
     signal_connect(sel, "selection-changed") do s, pos, n_items
-        idx = Gtk4.selected(s)  # 0-based
-        if idx != -1 && idx < length(ids)
+        idx = Int(pos)
+        if idx >= 0 && idx < length(ids)
             session.selection[] = ids[idx + 1]
         end
     end
