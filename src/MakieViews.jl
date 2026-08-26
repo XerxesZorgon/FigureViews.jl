@@ -11,13 +11,14 @@ include("state/nodes.jl")
 include("state/schema.jl")
 include("state/session.jl")
 include("render/renderer.jl")
+include("render/export.jl")
 include("ui/tree_pane.jl")
 include("ui/property_pane.jl")
 include("persistence/mvz_save.jl")
 include("persistence/mvz_load.jl")
 
 export makieviews, save_session, load_session,
-       add_plot!, ingest!, build_dataref, animate_plot!,
+       add_plot!, ingest!, build_dataref, animate_plot!, render_animation,
        DataRef, MainSource, CsvSource, Hdf5Source, DataVar, AnimBinding
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
