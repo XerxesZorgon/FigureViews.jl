@@ -56,7 +56,7 @@ Gtk4             = "0.7"                 # 0.7.12 current
 Gtk4Makie        = "0.3"                 # 0.3.9 current; upstream compat: Makie = "0.24", GLMakie = "0.13.7"
 CSV              = "0.10"                # 0.10.16 current
 DataFrames       = "1.8"                 # 1.8.2 current
-HDF5             = "0.18"                # 0.18.0 current
+HDF5             = "0.17"                # 0.17.x current
 Scratch          = "1"                   # 1.3.0 current
 Colors           = "0.13"                # required by Gtk4Makie transitively
 ```
