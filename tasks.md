@@ -2137,4 +2137,141 @@ Create `src/preflight/estimate.jl`: `estimate_footprint(a) = length(a)*sizeof(el
 **Milestone:** M10
 **Depends on:** 062
 
-*(Full block written at Task 063 kickoff, per the one-at-a-time authoring gate.)*
+### What to do
+Create `src/preflight/downsample.jl` implementing the three ADR-010 / DESIGN §7.3 algorithms over 1-D `(x, y)` vectors, and wire it in. All three preserve the first and last point and preserve monotonic x (they select input indices in increasing order).
+
+```julia
+abstract type DownsampleAlgorithm end
+struct UniformStride    <: DownsampleAlgorithm; k::Int end
+struct MinMaxDecimation <: DownsampleAlgorithm; n_buckets::Int end
+struct LTTB             <: DownsampleAlgorithm; n_target::Int end
+
+# 1) Uniform stride: every k-th point, first + last always included.
+function downsample(algo::UniformStride, x::AbstractVector, y::AbstractVector)
+    k = max(algo.k, 1)
+    idx = collect(1:k:length(x))
+    if isempty(idx) || last(idx) != length(x)
+        push!(idx, length(x))
+    end
+    return (x[idx], y[idx])
+end
+
+# 2) Min/max decimation: per bucket keep the min-y and max-y points (x-order); first + last included.
+function downsample(algo::MinMaxDecimation, x::AbstractVector, y::AbstractVector)
+    n = length(x)
+    nb = max(algo.n_buckets, 1)
+    n <= 2 && return (x[1:n], y[1:n])
+    idx = Int[1]
+    bs = n / nb
+    for b in 1:nb
+        lo = floor(Int, (b - 1) * bs) + 1
+        hi = min(floor(Int, b * bs), n)
+        lo > hi && continue
+        imin = lo + argmin(@view y[lo:hi]) - 1
+        imax = lo + argmax(@view y[lo:hi]) - 1
+        a, c = minmax(imin, imax)
+        for i in (a, c)
+            i != last(idx) && push!(idx, i)
+        end
+    end
+    last(idx) != n && push!(idx, n)
+    return (x[idx], y[idx])
+end
+
+# 3) LTTB (Steinarsson 2013): largest-triangle-three-buckets; exactly n_target points.
+function downsample(algo::LTTB, x::AbstractVector, y::AbstractVector)
+    n = length(x)
+    thr = algo.n_target
+    (thr >= n || thr < 3) && return (collect(float.(x)), collect(float.(y)))
+    xout = Vector{Float64}(undef, thr); yout = Vector{Float64}(undef, thr)
+    xout[1] = x[1]; yout[1] = y[1]
+    bs = (n - 2) / (thr - 2)
+    a = 1
+    for i in 1:(thr - 2)
+        cur_lo = floor(Int, (i - 1) * bs) + 2
+        cur_hi = min(floor(Int, i * bs) + 1, n - 1)
+        next_lo = floor(Int, i * bs) + 2
+        next_hi = min(floor(Int, (i + 1) * bs) + 1, n - 1)
+        if next_lo > next_hi
+            avg_x = float(x[n]); avg_y = float(y[n])
+        else
+            avg_x = 0.0; avg_y = 0.0
+            for j in next_lo:next_hi
+                avg_x += x[j]; avg_y += y[j]
+            end
+            cnt = next_hi - next_lo + 1
+            avg_x /= cnt; avg_y /= cnt
+        end
+        ax = float(x[a]); ay = float(y[a])
+        max_area = -1.0; chosen = cur_lo
+        for j in cur_lo:cur_hi
+            area = abs((ax - avg_x) * (float(y[j]) - ay) - (ax - float(x[j])) * (avg_y - ay))
+            if area > max_area
+                max_area = area; chosen = j
+            end
+        end
+        xout[i + 1] = x[chosen]; yout[i + 1] = y[chosen]
+        a = chosen
+    end
+    xout[thr] = x[n]; yout[thr] = y[n]
+    return (xout, yout)
+end
+```
+
+No new imports (`floor`, `argmin`, `argmax`, `minmax`, `float` are Base). Add `include("preflight/downsample.jl")` to `src/MakieViews.jl` after the `include("preflight/estimate.jl")` line. No exports — tests qualify with `MakieViews.`. Create a **new** `test/unit/downsample.jl` (per TEST_PLAN §12) and include it from `test/runtests.jl`, matching how `test/unit/schema.jl` is already included:
+
+```julia
+@testset "M10 downsample — UniformStride" begin
+    x = collect(1.0:100.0); y = x .^ 2
+    x2, y2 = MakieViews.downsample(MakieViews.UniformStride(10), x, y)
+    @test x2[1] == 1.0 && x2[end] == 100.0
+    @test issorted(x2)
+    @test length(x2) == length(y2)
+    @test length(x2) <= length(x)
+    @test all(in(x), x2)
+end
+
+@testset "M10 downsample — MinMaxDecimation" begin
+    x = collect(1.0:1000.0); y = sin.(x ./ 10)
+    nb = 50
+    x2, y2 = MakieViews.downsample(MakieViews.MinMaxDecimation(nb), x, y)
+    @test x2[1] == 1.0 && x2[end] == 1000.0
+    @test issorted(x2)
+    @test length(x2) == length(y2)
+    @test length(x2) <= 2 * nb + 2
+    @test maximum(y2) ≈ maximum(y)     # envelope: global extremes retained
+    @test minimum(y2) ≈ minimum(y)
+end
+
+@testset "M10 downsample — LTTB" begin
+    x = collect(1.0:1000.0); y = sin.(x ./ 10)
+    thr = 100
+    x2, y2 = MakieViews.downsample(MakieViews.LTTB(thr), x, y)
+    @test length(x2) == thr
+    @test length(y2) == thr
+    @test x2[1] == 1.0 && x2[end] == 1000.0
+    @test issorted(x2)
+    xs = collect(1.0:10.0); ys = xs .^ 2       # n_target >= n returns original length
+    xo, yo = MakieViews.downsample(MakieViews.LTTB(50), xs, ys)
+    @test length(xo) == 10
+end
+```
+
+### Files touched
+- `src/preflight/downsample.jl` — new: `DownsampleAlgorithm` + three algorithms + `downsample` methods
+- `src/MakieViews.jl` — modified: add `include("preflight/downsample.jl")` after estimate
+- `test/unit/downsample.jl` — new: the three testsets above
+- `test/runtests.jl` — modified: include `unit/downsample.jl`, matching the existing unit-include pattern
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the three new testsets (`M10 downsample — UniformStride` = 5 assertions, `M10 downsample — MinMaxDecimation` = 6, `M10 downsample — LTTB` = 6) passing. Report the `Test Summary:` counts. AND a source assertion:
+`julia -e 't = read("src/preflight/downsample.jl", String); for s in ("UniformStride","MinMaxDecimation","LTTB","function downsample"); @assert occursin(s, t) "$s missing"; end; m = read("src/MakieViews.jl", String); @assert occursin("preflight/downsample.jl", m) "include not wired"; println("Task 063 source OK")'` exits 0 and prints `Task 063 source OK`.
+
+### Commit
+Stage explicitly: `git add src/preflight/downsample.jl src/MakieViews.jl test/unit/downsample.jl test/runtests.jl`
+Subject: `feat: preflight/downsample.jl — UniformStride, MinMaxDecimation, LTTB (M10)`
+Body: `Task 063. Three ADR-010 / DESIGN §7.3 downsampling algorithms over 1-D (x,y): UniformStride (every k-th, first+last kept); MinMaxDecimation (per-bucket min-y/max-y, envelope-preserving); LTTB (Steinarsson 2013 largest-triangle-three-buckets, exactly n_target points). All preserve first/last and monotonic x. downsample(algo, x, y) -> (x', y'). Unit tests (test/unit/downsample.jl) cover length, endpoint preservation, monotonicity, subset (stride), envelope extremes (minmax), exact target length + n_target>=n passthrough (LTTB).`
+
+### Report back
+On pass: `TASK 063 PASSED — three downsamplers green, <N> tests, committed as <SHA>. Test summary: [paste]`
+On fail: `TASK 063 FAILED — [criterion] — [Pkg.test tail; quote the failing @test line verbatim]`
