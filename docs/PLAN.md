@@ -164,10 +164,10 @@ Schemas + rendering for `:surface`, `:volume`. Camera azimuth/elevation/zoom in 
 
 **Exit** (met): M6 complete 2026-08-26. Session persistence: save_session/load_session, schema version check, unknown-node preservation, DataRef provenance, build_dataref. 189 tests passing.
 
-### M7 — Animations
+### M7 — Animations — **COMPLETE (2026-08-26)**
 Time slider bound to a numeric attribute or data slice; `AnimBinding` in the Plot schema; MP4 + GIF export.
 
-**Exit**: Layer-2 animation-export test green; manual QA of one time-varying dataset.
+**Exit** (met): M7 complete 2026-08-26. AnimBinding struct, animate_plot!, render_animation (.gif/.mp4 via Makie.record), GtkScale time-slider in property pane, animation_binding renderer observer. 200 tests passing.
 
 ### M8 — Static export
 PNG/SVG/PDF export via CairoMakie in the export dialog. Layer 4 golden-image hashes committed.

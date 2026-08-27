@@ -5,6 +5,15 @@ All notable changes to MakieViews will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### M7 — Animations (2026-08-26)
+- Added `AnimBinding` struct: snapshot_id, frame_count, fps, current_frame (immutable; time slider swaps via observable replacement).
+- Added `animate_plot!(session, plot_node, snapshot_id, frame_count; fps=30)` — validates 3D array A[x,y,t] and sets the animation binding observable.
+- Added `render_animation(session, renderer, plot_node, path; fps)` — headless frame export to .gif or .mp4 via Makie.record/recordframe!. Main-thread only (ADR-014).
+- Added GtkScale time-slider to property pane: shown when selected plot has an AnimBinding; dragging replaces the binding with updated current_frame.
+- Renderer observes `animation_binding` and swaps the :matrix Observable in the Makie handle per frame.
+- AnimBinding serialized/deserialized in .mvz [animation] sub-table.
+- Three Layer 2 integration tests: AnimBinding fields, save/load round-trip, GIF export file size > 0.
+- Key finding: FFMPEG_jll accessible via Makie.FFMPEG_jll (not as a direct dep); Makie.record(func, fig, path; framerate=fps) confirmed API.
 ### M6 — Session persistence (2026-08-26)
 - Added `save_session(session, path)` — serializes full Session tree to `.mvz` TOML (schema_version = "1.0").
 - Added `load_session(path)` — reconstructs Session from `.mvz`; major-version mismatch errors; same-major newer-minor warns; `data_inline` rejected with explicit error.
