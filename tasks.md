@@ -2279,7 +2279,7 @@ On fail: `TASK 063 FAILED — [criterion] — [Pkg.test tail; quote the failing 
 ---
 
 ## Task 064: preflight/check.jl — threshold decision + downsample recording (headless)
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-27, commit 8eeb940
 **Milestone:** M10
 **Depends on:** 063
 
@@ -2358,7 +2358,7 @@ end
 - `test/integration/preflight.jl` — modified: append the two testsets above
 
 ### Acceptance Criterion
-`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the two new testsets (`M10 preflight_decision — threshold logic` = 7 assertions, `M10 record_downsample! — records algorithm in plot attrs` = 3) passing. Report the `Test Summary:` counts. AND a source assertion:
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the two new testsets (`M10 preflight_decision — threshold logic` = 8 assertions, `M10 record_downsample! — records algorithm in plot attrs` = 3) passing. Report the `Test Summary:` counts. AND a source assertion:
 `julia -e 't = read("src/preflight/check.jl", String); for s in ("function over_threshold","function preflight_decision","function record_downsample!"); @assert occursin(s, t) "$s missing"; end; m = read("src/MakieViews.jl", String); @assert occursin("preflight/check.jl", m) "include not wired"; println("Task 064 source OK")'` exits 0 and prints `Task 064 source OK`.
 
 ### Commit
@@ -2370,3 +2370,95 @@ Then report `git show --stat --oneline -s HEAD`.
 ### Report back
 On pass: `TASK 064 PASSED — threshold + recording green, <N> tests, committed as <SHA>. Test summary: [paste]` + the `--stat`.
 On fail: `TASK 064 FAILED — [criterion] — [Pkg.test tail; quote the failing @test line verbatim]`
+
+---
+
+## Task 064b: preflight/check.jl — apply_downsample! (materialize reduced, retain full)
+**Status:** [ ] Pending
+**Milestone:** M10
+**Depends on:** 064
+
+### What to do
+Append `apply_downsample!` and a private `_repoint` helper to `src/preflight/check.jl` (no new file, no MakieViews.jl change — check.jl is already included). This is the 1-D (x, y) downsample-apply path per DESIGN §7.1 "apply + hold full ref" and TEST_PLAN §8: it materializes the reduced arrays as new snapshots, repoints the plot's `:x`/`:y` refs to them, records the algorithm, and leaves the full arrays in `session.data_snapshots` (retained for a v0.2 full-resolution re-render). 2-D field stride (heatmap/surface/contour/volume) is a separate mechanism (ADR-010) and out of scope here — the function requires `:x` and `:y` refs and throws otherwise.
+
+```julia
+# Repoint an immutable DataRef to a new snapshot id, preserving all other fields.
+_repoint(r::DataRef, new_snap::String) =
+    DataRef(r.role, new_snap, r.source, r.label,
+            r.absolute_path, r.relative_path, r.column, r.dataset, r.variable)
+
+# Apply a downsample to a 1-D (x,y) plot: materialize reduced snapshots, repoint the
+# :x/:y refs, record the algorithm, and keep the full arrays in data_snapshots.
+function apply_downsample!(session::Session, plot::Plot, algo::DownsampleAlgorithm)
+    refs = plot.data_refs[]
+    xi = findfirst(r -> r.role == :x, refs)
+    yi = findfirst(r -> r.role == :y, refs)
+    (xi === nothing || yi === nothing) && throw(ArgumentError(
+        "apply_downsample! requires :x and :y data refs (1-D plots); 2-D field stride is separate"))
+    xfull = session.data_snapshots[refs[xi].snapshot_id]
+    yfull = session.data_snapshots[refs[yi].snapshot_id]
+    rx, ry = downsample(algo, xfull, yfull)
+    rxid = string(uuid4()); ryid = string(uuid4())
+    session.data_snapshots[rxid] = rx
+    session.data_snapshots[ryid] = ry
+    newrefs = copy(refs)
+    newrefs[xi] = _repoint(refs[xi], rxid)
+    newrefs[yi] = _repoint(refs[yi], ryid)
+    plot.data_refs[] = newrefs
+    record_downsample!(plot, algo)
+    return plot
+end
+```
+
+`uuid4()` is in scope (MakieViews `using UUIDs`; session.jl already uses `string(uuid4())`). **Append** this testset to `test/integration/preflight.jl`:
+
+```julia
+@testset "M10 apply_downsample! — reduces plot data, retains full" begin
+    s = MakieViews.new_session()
+    fig = MakieViews.add_figure!(s; title = "F")
+    ax = MakieViews.add_axis!(fig; kind = :axis2d, title = "A")
+    n = 10_000
+    xfull = collect(1.0:n); yfull = sin.(xfull ./ 100)
+    s.data_snapshots["xfull"] = xfull
+    s.data_snapshots["yfull"] = yfull
+    p = MakieViews.add_plot!(ax, :line,
+        [MakieViews.DataRef(:x, "xfull", :main, "x"),
+         MakieViews.DataRef(:y, "yfull", :main, "y")])
+
+    MakieViews.apply_downsample!(s, p, MakieViews.LTTB(100))
+
+    refs = p.data_refs[]
+    xref = refs[findfirst(r -> r.role == :x, refs)]
+    yref = refs[findfirst(r -> r.role == :y, refs)]
+    @test length(s.data_snapshots[xref.snapshot_id]) == 100     # reduced to target
+    @test length(s.data_snapshots[yref.snapshot_id]) == 100
+    @test xref.snapshot_id != "xfull"                           # refs repointed
+    @test haskey(s.data_snapshots, "xfull")                     # full retained (TEST_PLAN §8)
+    @test length(s.data_snapshots["xfull"]) == n
+    @test p.attrs[:downsample_algorithm][] == MakieViews.LTTB(100)
+
+    # 2-D field plot (no :x/:y) is rejected
+    ax3 = MakieViews.add_axis!(fig; kind = :axis3d, title = "S")
+    s.data_snapshots["m"] = rand(4, 4)
+    ps = MakieViews.add_plot!(ax3, :surface, [MakieViews.DataRef(:matrix, "m", :main, "m")])
+    @test_throws ArgumentError MakieViews.apply_downsample!(s, ps, MakieViews.UniformStride(2))
+end
+```
+
+### Files touched
+- `src/preflight/check.jl` — modified: append `_repoint` + `apply_downsample!`
+- `test/integration/preflight.jl` — modified: append the testset above
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the new `M10 apply_downsample! — reduces plot data, retains full` testset (7 assertions) passing. Report the `Test Summary:` counts. AND a source assertion:
+`julia -e 't = read("src/preflight/check.jl", String); @assert occursin("function apply_downsample!", t) "apply_downsample! missing"; @assert occursin("_repoint", t) "_repoint missing"; println("Task 064b source OK")'` exits 0 and prints `Task 064b source OK`.
+
+### Commit
+Stage explicitly: `git add src/preflight/check.jl test/integration/preflight.jl` (do NOT touch tasks.md — per AGENTS.md).
+Subject: `feat: preflight apply_downsample! — materialize reduced, retain full (M10)`
+Body: `Task 064b. apply_downsample!(session, plot, algo) for 1-D (x,y) plots: runs downsample on the full x/y snapshots, stores the reduced arrays as new snapshots, repoints the plot's :x/:y DataRefs (via immutable-preserving _repoint), records the algorithm, and leaves the full arrays in session.data_snapshots (DESIGN §7.1 "apply + hold full ref"; v0.2 full-res re-render). Requires :x/:y refs; throws ArgumentError for 2-D field plots (stride is separate per ADR-010). Test: 10k->100 reduction, refs repointed, full retained, algo recorded, 2-D rejection.`
+Then report `git show --stat --oneline -s HEAD`.
+
+### Report back
+On pass: `TASK 064b PASSED — apply_downsample! green, <N> tests, committed as <SHA>. Test summary: [paste]` + the `--stat`.
+On fail: `TASK 064b FAILED — [criterion] — [Pkg.test tail; quote the failing @test line verbatim]`
