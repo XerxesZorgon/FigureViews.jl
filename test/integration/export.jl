@@ -2,7 +2,7 @@ using Test, MakieViews, Makie, CairoMakie
 using MakieViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, DataRef,
                   MainSource, Renderer, export_figure
 
-function _make_export_session(plot_type::Symbol)
+function _make_export_session(plot_type::Symbol; deterministic::Bool=false)
     s   = new_session()
     fig = add_figure!(s)
     kind = plot_type in (:surface, :volume) ? :axis3d : :axis2d
@@ -10,7 +10,7 @@ function _make_export_session(plot_type::Symbol)
     m   = Module(Symbol(:_Exp_, plot_type))
     refs = DataRef[]
     for (role, dim) in _roles_for(plot_type)
-        arr = _demo_array(dim)
+        arr = deterministic ? fill(1.0, dim...) : _demo_array(dim)
         Core.eval(m, :($(role) = $arr))
         src  = MainSource(m)
         snap = Base.invokelatest(ingest!, s, src, string(role))
@@ -64,3 +64,22 @@ end
     renderer  = Renderer(s, makie_fig)
     @test_throws Exception export_figure(renderer, "out.xyz")
 end
+
+@testset "M8 golden-image hashes — all 7 plot types stable" begin
+    using SHA, TOML
+    hashes_file = joinpath(@__DIR__, "..", "goldens", "hashes.toml")
+    ref_hashes  = TOML.parsefile(hashes_file)["golden_sha256"]
+
+    for ptype in [:line, :scatter, :bar, :heatmap, :contour, :surface, :volume]
+        s         = _make_export_session(ptype; deterministic=true)
+        makie_fig = Makie.Figure()
+        renderer  = Renderer(s, makie_fig)
+        tmp       = tempname() * ".png"
+        export_figure(renderer, tmp)
+        got_hash  = bytes2hex(sha256(read(tmp)))
+        rm(tmp)
+        ref_hash  = get(ref_hashes, string(ptype), "")
+        @test got_hash == ref_hash
+    end
+end
+
