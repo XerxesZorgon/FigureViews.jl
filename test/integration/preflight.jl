@@ -65,3 +65,34 @@ end
     @test haskey(p.attrs, :downsample_algorithm)
     @test p.attrs[:downsample_algorithm][] == MakieViews.LTTB(50)
 end
+
+@testset "M10 apply_downsample! — reduces plot data, retains full" begin
+    s = MakieViews.new_session()
+    fig = MakieViews.add_figure!(s; title = "F")
+    ax = MakieViews.add_axis!(fig; kind = :axis2d, title = "A")
+    n = 10_000
+    xfull = collect(1.0:n); yfull = sin.(xfull ./ 100)
+    s.data_snapshots["xfull"] = xfull
+    s.data_snapshots["yfull"] = yfull
+    p = MakieViews.add_plot!(ax, :line,
+        [MakieViews.DataRef(:x, "xfull", :main, "x"),
+         MakieViews.DataRef(:y, "yfull", :main, "y")])
+
+    MakieViews.apply_downsample!(s, p, MakieViews.LTTB(100))
+
+    refs = p.data_refs[]
+    xref = refs[findfirst(r -> r.role == :x, refs)]
+    yref = refs[findfirst(r -> r.role == :y, refs)]
+    @test length(s.data_snapshots[xref.snapshot_id]) == 100     # reduced to target
+    @test length(s.data_snapshots[yref.snapshot_id]) == 100
+    @test xref.snapshot_id != "xfull"                           # refs repointed
+    @test haskey(s.data_snapshots, "xfull")                     # full retained (TEST_PLAN §8)
+    @test length(s.data_snapshots["xfull"]) == n
+    @test p.attrs[:downsample_algorithm][] == MakieViews.LTTB(100)
+
+    # 2-D field plot (no :x/:y) is rejected
+    ax3 = MakieViews.add_axis!(fig; kind = :axis3d, title = "S")
+    s.data_snapshots["m"] = rand(4, 4)
+    ps = MakieViews.add_plot!(ax3, :surface, [MakieViews.DataRef(:matrix, "m", :main, "m")])
+    @test_throws ArgumentError MakieViews.apply_downsample!(s, ps, MakieViews.UniformStride(2))
+end

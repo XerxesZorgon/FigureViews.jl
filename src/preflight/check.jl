@@ -23,3 +23,30 @@ function record_downsample!(plot::Plot, algo::DownsampleAlgorithm)
     plot.attrs[:downsample_algorithm] = Observable{Any}(algo)
     return plot
 end
+
+# Repoint an immutable DataRef to a new snapshot id, preserving all other fields.
+_repoint(r::DataRef, new_snap::String) =
+    DataRef(r.role, new_snap, r.source, r.label,
+            r.absolute_path, r.relative_path, r.column, r.dataset, r.variable)
+
+# Apply a downsample to a 1-D (x,y) plot: materialize reduced snapshots, repoint the
+# :x/:y refs, record the algorithm, and keep the full arrays in data_snapshots.
+function apply_downsample!(session::Session, plot::Plot, algo::DownsampleAlgorithm)
+    refs = plot.data_refs[]
+    xi = findfirst(r -> r.role == :x, refs)
+    yi = findfirst(r -> r.role == :y, refs)
+    (xi === nothing || yi === nothing) && throw(ArgumentError(
+        "apply_downsample! requires :x and :y data refs (1-D plots); 2-D field stride is separate"))
+    xfull = session.data_snapshots[refs[xi].snapshot_id]
+    yfull = session.data_snapshots[refs[yi].snapshot_id]
+    rx, ry = downsample(algo, xfull, yfull)
+    rxid = string(uuid4()); ryid = string(uuid4())
+    session.data_snapshots[rxid] = rx
+    session.data_snapshots[ryid] = ry
+    newrefs = copy(refs)
+    newrefs[xi] = _repoint(refs[xi], rxid)
+    newrefs[yi] = _repoint(refs[yi], ryid)
+    plot.data_refs[] = newrefs
+    record_downsample!(plot, algo)
+    return plot
+end
