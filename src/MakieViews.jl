@@ -1,6 +1,6 @@
 module MakieViews
 
-using Gtk4, Gtk4Makie, GLMakie, Observables, Colors, UUIDs, TOML
+using Gtk4, Gtk4Makie, GLMakie, CairoMakie, Observables, Colors, UUIDs, TOML
 
 include("data/source.jl")
 include("data/main_source.jl")
@@ -18,7 +18,7 @@ include("persistence/mvz_save.jl")
 include("persistence/mvz_load.jl")
 
 export makieviews, save_session, load_session,
-       add_plot!, ingest!, build_dataref, animate_plot!, render_animation,
+       add_plot!, ingest!, build_dataref, animate_plot!, render_animation, export_figure,
        DataRef, MainSource, CsvSource, Hdf5Source, DataVar, AnimBinding
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)

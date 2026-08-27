@@ -33,3 +33,26 @@ function render_animation(session::Session, renderer::Renderer,
     end
     return path
 end
+
+"""
+    export_figure(renderer::Renderer, path::String) -> String
+
+Export `renderer.fig` to `path` as PNG, SVG, or PDF (format inferred from extension).
+Switches to CairoMakie backend for export, then restores GLMakie.
+Runs on the calling thread (main thread in GUI context, per ADR-014).
+Returns the path on success.
+"""
+function export_figure(renderer::Renderer, path::String)::String
+    ext = lowercase(splitext(path)[2])
+    ext in (".png", ".svg", ".pdf") ||
+        error("Unsupported export format $ext. Use .png, .svg, or .pdf.")
+    mkpath(dirname(abspath(path)))
+    # Switch to CairoMakie, export, restore GLMakie even on error
+    CairoMakie.activate!()
+    try
+        CairoMakie.save(path, renderer.fig)
+    finally
+        GLMakie.activate!()
+    end
+    return path
+end
