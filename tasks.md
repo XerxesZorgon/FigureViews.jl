@@ -1,3 +1,19 @@
+---
+{
+  "id": "file_ioq7kol9",
+  "filetype": "document",
+  "filename": "tasks",
+  "created_at": "2026-08-27T20:23:39.006Z",
+  "updated_at": "2026-08-27T20:23:39.006Z",
+  "meta": {
+    "location": "/",
+    "tags": [],
+    "categories": [],
+    "description": "",
+    "source": "markdown"
+  }
+}
+---
 # MakieViews — tasks.md
 
 Atomic execution list. One task per Antigravity instruction. Never advance
@@ -2037,4 +2053,88 @@ After 033 commits and Pkg.test is green: `git push`, verify CI 2/2 green. Then J
 
 ## Patch P1 exit gate
 
-When Tasks 032–033 are `[x] Done`, CI is 2/2 green, AND John's manual launch confirms the visual checklist (window, populated tree rows, viewport with plots, rotatable 3D axis, working camera editors), Patch P1 is complete. Then resume M5 kickoff.
+When Tasks 032–036 are `[x] Done`, CI 2/2 green, AND John's manual launch confirms the visual checklist, Patch P1 is complete.
+
+**P1 COMPLETE — 2026-08-26. CI 2/2 green (run 32979090425). Manual launch passed all checklist items.** Patch tasks: 032 (d96409a), 033 (553a5a6), 034 (ae7e110), 035 (56fa4d1), 036 (9ae5ac4).
+
+**Bug D (deferred):** clicking inside the 2D sine-wave cell also routes mouse events to the 3D surface axis — a focus/event-routing issue in the GLMakie embedding. Does not block M5+. Deferred to Patch P2.
+
+---
+
+## ⚠ Recovery note — Tasks 034–060 blocks lost 2026-08-27
+
+On 2026-08-27, during Task 062, Antigravity ran `git checkout tasks.md`, which discarded the uncommitted working-tree copy of this file. `tasks.md` had not been committed since the Task 033 era, so the full task blocks for **Tasks 034–060** (the Patch P1 tail and Milestones M5–M9) were lost from this document. **No code, tests, or git history was affected** — every commit 034–060 is intact in `git log`, and milestone records are in `SESSION_LOG.md`, `PLAN.md` §5, and Obsidian. Prevention: `tasks.md` is now committed after edits, and AGENTS.md forbids Antigravity from running `git checkout` / `stash` / `clean` / `add` on it.
+
+Recovered milestone summary (from SESSION_LOG.md / PLAN.md §5):
+
+| Milestone | Status | Delivered | Tests |
+|---|---|---|---|
+| M5 — Data ingestion | ✅ 2026-08-26 | MainSource / CsvSource / Hdf5Source, DataRef, `ingest!`, `add_plot!`; `_DEMO_DATA` retired | 162 |
+| M6 — Session persistence | ✅ 2026-08-26 | `save_session` / `load_session`, schema-version check, unknown-node preservation, DataRef provenance, `build_dataref` | 189 |
+| M7 — Animations | ✅ 2026-08-26 | `AnimBinding`, `animate_plot!`, `render_animation` (.gif/.mp4 via `Makie.record`), GtkScale time-slider, animation_binding observer | 200 |
+| M8 — Static export | ✅ 2026-08-26 | `export_figure` (PNG/SVG/PDF via CairoMakie), golden-image SHA-256 for all 7 plot types | 225 |
+| M9 — Preferences (Tasks 057–060) | ✅ 2026-08-26 (CI 33107717452) | Scratch.jl `preferences.toml` (independent schema_version), seed-on-new, `reset_to_preferences!`, `set_theme!` grep-gate | 236 |
+
+Exact per-task commit SHAs are in `git log`. Verbatim task blocks for 034–036 can be re-added from this session's Claude Chat transcript on request.
+
+---
+
+## Milestone M10 — Pre-flight dataset check
+
+**Exit criterion:** TEST_PLAN.md §8 pre-flight tests green on the 2-cell v0.1 CI matrix (`ubuntu-latest × {Julia 1.10, 1.12}`). The coarse fallback FPS formula (DESIGN §7.2) ships for v0.1; the full 3-machine measurement pass is deferred to M11 pre-release QA (John's decision 2026-08-27, option C). **ADR-020** authored recording the deferral; DESIGN §7 / §11 mark ODQ-5 resolved-with-fallback. Manual spot-check guard before sign-off (John's Windows box): 2–3 real loads at the heaviest combos (surface and volume at ~1e6 and ~1e7 points) confirm the fallback predicts *lower* fps than observed — i.e. it errs toward over-warning, never under-warning.
+
+**FPS decision (2026-08-27 — option C).** Ship the coarse fallback formula, defer the full measurement pass to M11's QA sweep, guard the fallback with the spot-check above. Rationale: the measurement pass needs GL-capable hardware on all three OSes (macOS unavailable until M11) and cannot run in the headless one-at-a-time loop; a single-OS table would look authoritative while covering a third of the target; the fallback's failure direction (over-warn = one dialog click) is the safe one per ADR-015. Recorded as ADR-020 at Task 065.
+
+**Task authoring.** M10 tasks are authored one at a time as predecessors go green (same gated pattern as Patch P1), because each task's acceptance criteria depend on the concrete struct/signature the prior task lands. Provisional sequence (titles only; full blocks written as each is reached):
+1. Task 061 — `preflight/detect.jl`: `detect_host_specs` (RAM, CPU threads, best-effort GPU VRAM).
+2. Task 062 — `preflight/estimate.jl`: `estimate_footprint` (bytes) + `estimate_fps` (fallback formula, `user_scale` clamp, 0.5 when VRAM undetectable).
+3. Task 063 — `preflight/downsample.jl`: `UniformStride`, `MinMaxDecimation`, `LTTB` (ADR-010 / DESIGN §7.3).
+4. Task 064 — pre-flight decision function (`:accept` / `:downsample` / `:override` given specs + footprint) + threshold logic (>60% VRAM OR est_fps < 15) + `Plot.attrs[:downsample_algorithm]` recording; Gtk4 warning dialog gated behind manual launch, decision logic headless + CI-tested.
+5. Task 065 — author **ADR-020** (deferral decision); mark ODQ-5 resolved-with-fallback in DESIGN §7 / §11.
+6. Task 066 — PLAN.md M10 + CHANGELOG; push + CI.
+
+---
+
+## Task 061: preflight/detect.jl — detect_host_specs (RAM, CPU threads, best-effort GPU VRAM)
+**Status:** [x] Done — 2026-08-27, commit 1ff9942
+**Milestone:** M10
+**Depends on:** 060
+
+### What to do
+Create `src/preflight/detect.jl` defining a `HostSpecs` struct and `detect_host_specs()::HostSpecs`, and wire it into the module. `HostSpecs` fields: `total_memory_bytes::Int` (`Sys.total_memory()`), `cpu_threads::Int` (`Sys.CPU_THREADS`), `vram_bytes::Union{Nothing,Int}` (best-effort; `nothing` when undetectable, SDD FR-026), `gpu_name::Union{Nothing,String}`. `detect_host_specs()` calls a private `_detect_gpu()` wrapped in `try/catch` returning `(nothing, nothing)` on any failure, guarding each probe with `Sys.which(...)`: NVIDIA via `nvidia-smi --query-gpu=memory.total,name --format=csv,noheader,nounits` (MiB→bytes); macOS via `system_profiler SPDisplaysDataType` (parse `VRAM (Total)`); else `(nothing, nothing)`. No native dep / jll. Include after `persistence/preferences.jl`. Headless test in new `test/integration/preflight.jl` (included from runtests.jl) asserts the struct populates and never throws with GPU absent.
+
+### Files touched
+- `src/preflight/detect.jl` — new
+- `src/MakieViews.jl` — add `include("preflight/detect.jl")`
+- `test/integration/preflight.jl` — new
+- `test/runtests.jl` — include the new file
+
+### Acceptance Criterion
+`Pkg.test()` exits 0, all prior tests green PLUS `M10 detect_host_specs — host detection populates and never throws` (5 assertions). Contract-only on CI (no GPU); VRAM-reading branches verified at the M10 spot-check. **PASSED** — 5/5, commit 1ff9942.
+
+---
+
+## Task 062: preflight/estimate.jl — estimate_footprint + estimate_fps (fallback formula)
+**Status:** [x] Done — 2026-08-27, commit 5f1a646
+**Milestone:** M10
+**Depends on:** 061
+
+### What to do
+Create `src/preflight/estimate.jl`: `estimate_footprint(a) = length(a)*sizeof(eltype(a))`; `estimate_fps(plot_type, n_points, host) = base/sqrt(max(n_points,1)/1e6) * _user_scale(host)`, base 60.0 (2D) / 30.0 (3D types `:surface`,`:volume`). `_user_scale(host)` = 0.5 when `vram_bytes === nothing`, else `clamp(vram_bytes / REFERENCE_VRAM_BYTES, 0.1, 10.0)`. `const REFERENCE_VRAM_BYTES = 8 * 1024^3` (provisional mid-range 2020-class reference GPU; real reference deferred to M11, recorded in ADR-020). `const _3D_PLOT_TYPES = (:surface, :volume)`. No new imports. Include after `preflight/detect.jl`. Append two testsets to `test/integration/preflight.jl`.
+
+### Files touched
+- `src/preflight/estimate.jl` — new
+- `src/MakieViews.jl` — add `include("preflight/estimate.jl")` after detect
+- `test/integration/preflight.jl` — append footprint + fps testsets
+
+### Acceptance Criterion
+`Pkg.test()` exits 0, all prior green PLUS `M10 estimate_footprint` (3) + `M10 estimate_fps — fallback formula + user_scale` (8). **PASSED** — 3/3 + 8/8, commit 5f1a646.
+
+---
+
+## Task 063: preflight/downsample.jl — UniformStride, MinMaxDecimation, LTTB
+**Status:** [ ] Pending
+**Milestone:** M10
+**Depends on:** 062
+
+*(Full block written at Task 063 kickoff, per the one-at-a-time authoring gate.)*
