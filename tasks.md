@@ -2374,7 +2374,7 @@ On fail: `TASK 064 FAILED — [criterion] — [Pkg.test tail; quote the failing 
 ---
 
 ## Task 064b: preflight/check.jl — apply_downsample! (materialize reduced, retain full)
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-27, commit 6d50567
 **Milestone:** M10
 **Depends on:** 064
 
@@ -2462,3 +2462,20 @@ Then report `git show --stat --oneline -s HEAD`.
 ### Report back
 On pass: `TASK 064b PASSED — apply_downsample! green, <N> tests, committed as <SHA>. Test summary: [paste]` + the `--stat`.
 On fail: `TASK 064b FAILED — [criterion] — [Pkg.test tail; quote the failing @test line verbatim]`
+
+---
+
+## Task 065: ADR-020 + ODQ-5 closure (docs, authored in Claude Chat)
+**Status:** [x] Done — 2026-08-27 (no code; docs)
+**Milestone:** M10
+**Depends on:** 064b
+
+### What to do
+Author **ADR-020** recording the option-C decision — ship the coarse fallback formula for v0.1, defer the full FPS measurement pass to the M11 pre-release QA sweep — with the concrete pinned parameters (fallback formula; `REFERENCE_VRAM_BYTES = 8 GiB`; the `>60% VRAM OR est_fps < 15` thresholds; the `:accept`/`:warn` decision surface; the manual spot-check guard). Mark **ODQ-5 resolved-with-fallback** in DESIGN §7.2 and §11. Pure docs — no code, no Antigravity; authored directly in Claude Chat and committed alongside tasks.md.
+
+### Files touched
+- `docs/adr/ADR-020-defer-fps-measurement-to-m11.md` — new
+- `docs/DESIGN.md` — §7.2 (coarse fallback ships for v0.1; measurement → M11; `REFERENCE_VRAM_BYTES`) + §11 ODQ-5 row (resolved-with-fallback, + ADR-020 link)
+
+### Acceptance Criterion
+ADR-020 exists and states the deferral + option C with the pinned parameters; DESIGN §11 ODQ-5 row reads "resolved-with-fallback" and links ADR-020; DESIGN §7.2 reflects the fallback shipping for v0.1. No code change → CI unaffected (still green at HEAD). Verified in Claude Chat via the applied edit diffs.
