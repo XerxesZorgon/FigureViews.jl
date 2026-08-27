@@ -177,7 +177,7 @@ PNG/SVG/PDF export via CairoMakie in the export dialog. Layer 4 golden-image has
 ### M9 — Preferences
 `Scratch.jl`-backed `preferences.toml`; seed-on-new behavior; "Reset selection to preferences" action.
 
-**Exit**: All layer-9 preferences tests (TEST_PLAN.md §9) pass; the grep-gate for `set_theme!` passes.
+**Exit** (met): M9 complete 2026-08-26. Preferences: Scratch.jl-backed preferences.toml (independent schema_version), seed-on-new from prefs, reset_to_preferences!, set_theme! grep-gate. 236 tests passing.
 
 ### M10 — Pre-flight dataset check
 `detect_host_specs`, `estimate_footprint`, warning dialog, `UniformStride` / `MinMaxDecimation` / `LTTB`. ODQ-5 formula (from DESIGN.md §11) measured and published.

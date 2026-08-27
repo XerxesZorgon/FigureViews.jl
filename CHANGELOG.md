@@ -5,6 +5,12 @@ All notable changes to MakieViews will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### M9 — Preferences (2026-08-26)
+- Added Scratch.jl-backed preferences.toml (load_preferences, save_preferences, preferences_path) with its own schema_version independent of .mvz (ADR-016).
+- New plots seed attrs from preferences (default_<attr> keys; palette cycles for :color across plots in an axis), falling back to spec defaults; add_plot! gains an optional prefs kwarg.
+- Added reset_to_preferences!(plot, prefs) — overwrites a plot's attrs from preferences.
+- ADR-006 grep-gate test: set_theme!( appears nowhere in src/. Preferences are defaults-only; the theme is never mutated.
+- Added Scratch as a direct dependency.
 ### M8 — Static export (2026-08-26)
 - Added `export_figure(renderer, path)` — exports renderer.fig to PNG, SVG, or PDF via CairoMakie (format inferred from extension). Switches to CairoMakie and restores GLMakie in try/finally. Main-thread, synchronous (ADR-014).
 - Golden-image SHA-256 hashes committed for all 7 plot types (test/goldens/hashes.toml). PNG output confirmed deterministic across 3 runs on this machine.
