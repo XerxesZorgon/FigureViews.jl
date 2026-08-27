@@ -31,7 +31,7 @@ end
 
 Read preferences.toml from the Scratch space. If absent, returns built-in defaults
 (and does not write a file). Missing fields are filled from defaults; unknown fields
-are preserved. Never calls set_theme!.
+are preserved. Preferences are defaults-only (see ADR-006); the theme is never mutated.
 """
 function load_preferences()::Dict{String,Any}
     path = preferences_path()
