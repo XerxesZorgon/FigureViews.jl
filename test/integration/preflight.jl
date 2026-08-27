@@ -33,3 +33,35 @@ end
 
     @test isfinite(MakieViews.estimate_fps(:line, 0, ref))               # n≤0 guarded
 end
+
+@testset "M10 preflight_decision — threshold logic" begin
+    host = MakieViews.HostSpecs(32 * 1024^3, 16, 8 * 1024^3, "GPU")  # 8 GiB VRAM
+
+    d1 = MakieViews.preflight_decision(host, zeros(Float64, 1000), :line)
+    @test d1.decision == :accept
+    @test d1.reason == :ok
+
+    d2 = MakieViews.preflight_decision(host, zeros(Float64, 100_000_000), :line)  # fps 6 < 15
+    @test d2.decision == :warn
+    @test d2.est_fps < 15
+
+    # predicate directly (isolating the VRAM term from the fps term):
+    @test MakieViews.over_threshold(host, 5 * 1024^3, 60.0) == true    # bytes > 0.6*8GiB, fps ok
+    @test MakieViews.over_threshold(host, 1000, 60.0) == false         # both ok
+
+    novram = MakieViews.HostSpecs(32 * 1024^3, 16, nothing, nothing)   # FR-026: fps-only
+    @test MakieViews.over_threshold(novram, 100 * 1024^3, 60.0) == false  # VRAM term ignored
+    @test MakieViews.over_threshold(novram, 100 * 1024^3, 10.0) == true   # fps < 15 → over
+end
+
+@testset "M10 record_downsample! — records algorithm in plot attrs" begin
+    s = MakieViews.new_session()
+    fig = MakieViews.add_figure!(s; title = "F")
+    ax = MakieViews.add_axis!(fig; kind = :axis2d, title = "A")
+    p = MakieViews.add_plot!(ax, :line,
+        [MakieViews.DataRef(:x, "s1", :main, "x"), MakieViews.DataRef(:y, "s2", :main, "y")])
+    @test !haskey(p.attrs, :downsample_algorithm)
+    MakieViews.record_downsample!(p, MakieViews.LTTB(50))
+    @test haskey(p.attrs, :downsample_algorithm)
+    @test p.attrs[:downsample_algorithm][] == MakieViews.LTTB(50)
+end

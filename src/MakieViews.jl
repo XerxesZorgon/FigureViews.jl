@@ -20,6 +20,7 @@ include("persistence/preferences.jl")
 include("preflight/detect.jl")
 include("preflight/estimate.jl")
 include("preflight/downsample.jl")
+include("preflight/check.jl")
 
 export makieviews, save_session, load_session,
        add_plot!, ingest!, build_dataref, animate_plot!, render_animation, export_figure,
