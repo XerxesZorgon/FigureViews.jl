@@ -21,7 +21,7 @@ include("persistence/preferences.jl")
 export makieviews, save_session, load_session,
        add_plot!, ingest!, build_dataref, animate_plot!, render_animation, export_figure,
        DataRef, MainSource, CsvSource, Hdf5Source, DataVar, AnimBinding,
-       load_preferences, save_preferences, preferences_path
+       load_preferences, save_preferences, preferences_path, reset_to_preferences!
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)

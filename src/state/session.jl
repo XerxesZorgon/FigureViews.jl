@@ -45,12 +45,58 @@ function add_axis!(fig::Figure; kind::Symbol = :axis2d, title::String = "")::Axi
     return ax
 end
 
-function _init_attrs(plot_type::Symbol)::Dict{Symbol, Observable{Any}}
+"""
+    _seed_attr_from_prefs(spec, prefs, palette_index) -> value
+
+Return the seed value for one attr: the matching preference if present, else spec.default.
+Convention: `default_<attr>` seeds `<attr>`; `palette` seeds `:color` cyclically.
+"""
+function _seed_attr_from_prefs(spec::AttrSpec, prefs::Dict{String,Any}, palette_index::Int)
+    if spec.name == :color && haskey(prefs, "palette")
+        pal = prefs["palette"]
+        if pal isa AbstractVector && !isempty(pal)
+            hex = pal[mod1(palette_index, length(pal))]
+            return parse(Colors.RGB, hex)
+        end
+    end
+    key = "default_" * string(spec.name)
+    if haskey(prefs, key)
+        v = prefs[key]
+        if spec.kind == :color && v isa String
+            return parse(Colors.RGB, v)
+        elseif spec.kind == :enum
+            return Symbol(v)
+        elseif spec.kind == :number
+            return Float64(v)
+        else
+            return v
+        end
+    end
+    return spec.default
+end
+
+function _init_attrs(plot_type::Symbol; prefs::Union{Nothing,Dict{String,Any}} = nothing,
+                     palette_index::Int = 1)::Dict{Symbol, Observable{Any}}
     d = Dict{Symbol, Observable{Any}}()
     for spec in PLOT_SCHEMAS[plot_type]
-        d[spec.name] = Observable{Any}(spec.default)
+        val = prefs === nothing ? spec.default : _seed_attr_from_prefs(spec, prefs, palette_index)
+        d[spec.name] = Observable{Any}(val)
     end
     return d
+end
+
+"""
+    reset_to_preferences!(plot, prefs; palette_index=1)
+
+Overwrite each of `plot`'s attrs with the preference value (or spec default if the
+preference does not declare it). Fires each attr observable so the renderer updates.
+"""
+function reset_to_preferences!(plot::Plot, prefs::Dict{String,Any}; palette_index::Int = 1)
+    for spec in PLOT_SCHEMAS[plot.type]
+        haskey(plot.attrs, spec.name) || continue
+        plot.attrs[spec.name][] = _seed_attr_from_prefs(spec, prefs, palette_index)
+    end
+    return plot
 end
 
 """
@@ -112,20 +158,18 @@ Generic plot constructor. `data_refs` is a `Vector{DataRef}` built by the caller
 after calling `ingest!` for each array. Keyword `attrs` override schema defaults.
 """
 function add_plot!(ax::Axis, plot_type::Symbol, data_refs::Vector{DataRef};
-                   plot_id::String = string(uuid4()), attrs...)::Plot
-    a = _init_attrs(plot_type)
+                   plot_id::String = string(uuid4()),
+                   prefs::Union{Nothing,Dict{String,Any}} = nothing,
+                   attrs...)::Plot
+    palette_index = length(ax.plots[]) + 1   # cyclic color per plot in this axis
+    a = _init_attrs(plot_type; prefs = prefs, palette_index = palette_index)
     for (k, v) in attrs
         if haskey(a, k)
             a[k][] = v
         end
     end
-    plot = Plot(
-        plot_id,
-        plot_type,
-        Observable(data_refs),
-        a,
-        Observable{Union{Nothing,AnimBinding}}(nothing)
-    )
+    plot = Plot(plot_id, plot_type, Observable(data_refs), a,
+                Observable{Union{Nothing,AnimBinding}}(nothing))
     ax.plots[] = [ax.plots[]..., plot]
     return plot
 end
