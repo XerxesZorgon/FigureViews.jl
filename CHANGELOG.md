@@ -5,6 +5,13 @@ All notable changes to MakieViews will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### M8 — Static export (2026-08-26)
+- Added `export_figure(renderer, path)` — exports renderer.fig to PNG, SVG, or PDF via CairoMakie (format inferred from extension). Switches to CairoMakie and restores GLMakie in try/finally. Main-thread, synchronous (ADR-014).
+- Golden-image SHA-256 hashes committed for all 7 plot types (test/goldens/hashes.toml). PNG output confirmed deterministic across 3 runs on this machine.
+- Hash-verification testset re-renders each plot type with fill(1.0) arrays and checks exact SHA-256 match.
+- Note: hashes must be regenerated on Makie minor version bumps.
+- CairoMakie added as explicit direct dep (was transitive). SHA added to test extras.
+- Key learning: CairoMakie requires explicit `using CairoMakie` in MakieViews.jl even when already a transitive dep.
 ### M7 — Animations (2026-08-26)
 - Added `AnimBinding` struct: snapshot_id, frame_count, fps, current_frame (immutable; time slider swaps via observable replacement).
 - Added `animate_plot!(session, plot_node, snapshot_id, frame_count; fps=30)` — validates 3D array A[x,y,t] and sets the animation binding observable.

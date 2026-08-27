@@ -169,10 +169,10 @@ Time slider bound to a numeric attribute or data slice; `AnimBinding` in the Plo
 
 **Exit** (met): M7 complete 2026-08-26. AnimBinding struct, animate_plot!, render_animation (.gif/.mp4 via Makie.record), GtkScale time-slider in property pane, animation_binding renderer observer. 200 tests passing.
 
-### M8 — Static export
+### M8 — Static export — **COMPLETE (2026-08-26)**
 PNG/SVG/PDF export via CairoMakie in the export dialog. Layer 4 golden-image hashes committed.
 
-**Exit**: All 7 golden images match on the 2-cell v0.1 CI matrix (per ADR-018); PDF/SVG validity checks pass. **Restoration note**: golden-image tests are Layer 4 (CairoMakie, headless-safe) — they do not require GLMakie — so once M8 lands, extending the CI matrix to run Layers 1, 2, and 4 on Windows and macOS becomes feasible in v0.2 (see ADR-018 restoration path).
+**Exit** (met): M8 complete 2026-08-26. Static export: export_figure (PNG/SVG/PDF via CairoMakie), golden-image SHA-256 hashes for all 7 plot types. 225 tests passing.
 
 ### M9 — Preferences
 `Scratch.jl`-backed `preferences.toml`; seed-on-new behavior; "Reset selection to preferences" action.
