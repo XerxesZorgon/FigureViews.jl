@@ -192,4 +192,20 @@ function _register_plot_observer!(renderer::Renderer, plot::Plot)
         end
         push!(renderer._observer_handles, h)
     end
+
+    # Animation binding observer: swap frame data when current_frame changes
+    hb = on(plot.animation_binding) do b
+        b === nothing && return
+        handle = get(renderer.plot_handles, plot.id, nothing)
+        handle === nothing && return
+        arr3d = get(renderer.session.data_snapshots, b.snapshot_id, nothing)
+        arr3d === nothing && return
+        mat_t = arr3d[:, :, b.current_frame]
+        if hasproperty(handle, :matrix)
+            handle.matrix[] = mat_t
+        elseif hasproperty(handle, :color)
+            handle.color[] = mat_t
+        end
+    end
+    push!(renderer._observer_handles, hb)
 end

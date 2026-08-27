@@ -97,6 +97,11 @@ function _populate_for_plot!(box::GtkBox, plot::Plot)
             push!(box, hbox)
         end
     end
+
+    # Time slider: shown only when plot has an animation binding
+    if plot.animation_binding[] !== nothing
+        _add_time_slider!(box, plot)
+    end
 end
 
 function _populate_for_axis!(box::GtkBox, ax::Axis)
@@ -213,4 +218,27 @@ function _widget_for_spec(specs::Vector{AttrSpec}, spec::AttrSpec, attr_observab
     else
         return GtkLabel("Unsupported: $(spec.kind)")
     end
+end
+
+function _add_time_slider!(box::GtkBox, plot::Plot)
+    binding = plot.animation_binding[]
+    binding === nothing && return
+
+    sep = GtkSeparator(:h)
+    push!(box, sep)
+    push!(box, GtkLabel("Frame (1–$(binding.frame_count))"))
+
+    # GtkScale(orientation, min, max, step)
+    slider = GtkScale(:h, 1.0, Float64(binding.frame_count), 1.0)
+    slider.value = Float64(binding.current_frame)
+
+    signal_connect(slider, "value-changed") do s
+        t   = round(Int, s.value)
+        old = plot.animation_binding[]
+        if old !== nothing && t != old.current_frame
+            plot.animation_binding[] = AnimBinding(
+                old.snapshot_id, old.frame_count, old.fps, t)
+        end
+    end
+    push!(box, slider)
 end
