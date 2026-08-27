@@ -16,6 +16,7 @@ Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 Observables = "510215fc-4207-5dde-b226-833fc4488ee2"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
+Scratch = "6c6a2e73-6563-6170-7368-637461726353"
 
 [compat]
 CSV = "0.10"
@@ -29,6 +30,7 @@ HDF5 = "0.17"
 Makie = "=0.24.13"
 Observables = "0.5"
 TOML = "1.0.3"
+Scratch = "1"
 julia = "1.10"
 
 [extras]
