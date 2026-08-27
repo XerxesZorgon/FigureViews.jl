@@ -19,6 +19,7 @@ include("persistence/mvz_load.jl")
 include("persistence/preferences.jl")
 include("preflight/detect.jl")
 include("preflight/estimate.jl")
+include("preflight/downsample.jl")
 
 export makieviews, save_session, load_session,
        add_plot!, ingest!, build_dataref, animate_plot!, render_animation, export_figure,
