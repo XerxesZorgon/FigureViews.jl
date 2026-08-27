@@ -71,7 +71,7 @@ function build_property_pane(session::Session)::GtkWidget
                 _populate_for_plot!(box, plot)
             else
                 ax = _find_axis(session, id)
-                if ax !== nothing && haskey(AXIS_SCHEMAS, ax.kind)
+                if ax !== nothing
                     empty!(box)
                     _populate_for_axis!(box, ax)
                 else
@@ -105,28 +105,41 @@ function _populate_for_plot!(box::GtkBox, plot::Plot)
 end
 
 function _populate_for_axis!(box::GtkBox, ax::Axis)
-    specs = AXIS_SCHEMAS[ax.kind]
-    if ax.camera[] === nothing
-        ax.camera[] = CameraSpec(1.275, 0.785, 1.0)   # match CameraSpec field order from types.jl
-    end
-    cam = ax.camera[]
-    field_obs = Dict{Symbol, Observable{Any}}(
-        :azimuth   => Observable{Any}(cam.azimuth),
-        :elevation => Observable{Any}(cam.elevation),
-        :zoom      => Observable{Any}(cam.zoom),
-    )
-    for (fname, obs) in field_obs
-        on(obs) do _
-            ax.camera[] = CameraSpec(field_obs[:azimuth][], field_obs[:elevation][], field_obs[:zoom][])
+    if haskey(AXIS_SCHEMAS, ax.kind)
+        specs = AXIS_SCHEMAS[ax.kind]
+        if ax.camera[] === nothing
+            ax.camera[] = CameraSpec(1.275, 0.785, 1.0)
+        end
+        cam = ax.camera[]
+        field_obs = Dict{Symbol, Observable{Any}}(
+            :azimuth   => Observable{Any}(cam.azimuth),
+            :elevation => Observable{Any}(cam.elevation),
+            :zoom      => Observable{Any}(cam.zoom),
+        )
+        for (fname, obs) in field_obs
+            on(obs) do _
+                ax.camera[] = CameraSpec(field_obs[:azimuth][], field_obs[:elevation][], field_obs[:zoom][])
+            end
+        end
+        for spec in specs
+            widget = _widget_for_spec(specs, spec, field_obs[spec.name])
+            hbox = GtkBox(:h)
+            push!(hbox, GtkLabel(spec.label))
+            push!(hbox, widget)
+            push!(box, hbox)
         end
     end
-    for spec in specs
-        widget = _widget_for_spec(specs, spec, field_obs[spec.name])
-        hbox = GtkBox(:h)
-        push!(hbox, GtkLabel(spec.label))
-        push!(hbox, widget)
-        push!(box, hbox)
+
+    # Recenter button: reset axis limits to fit all data (D5)
+    recenter_btn = GtkButton("Recenter")
+    signal_connect(recenter_btn, "clicked") do _b
+        renderer = _current_renderer[]
+        renderer === nothing && return
+        handle = get(renderer.axis_handles, ax.id, nothing)
+        handle === nothing && return
+        Makie.autolimits!(handle)
     end
+    push!(box, recenter_btn)
 end
 
 function _widget_for_spec(specs::Vector{AttrSpec}, spec::AttrSpec, attr_observable::Observable{Any})::GtkWidget
