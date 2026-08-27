@@ -2133,7 +2133,7 @@ Create `src/preflight/estimate.jl`: `estimate_footprint(a) = length(a)*sizeof(el
 ---
 
 ## Task 063: preflight/downsample.jl — UniformStride, MinMaxDecimation, LTTB
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-27, commit e261fa1
 **Milestone:** M10
 **Depends on:** 062
 
@@ -2264,7 +2264,7 @@ end
 - `test/runtests.jl` — modified: include `unit/downsample.jl`, matching the existing unit-include pattern
 
 ### Acceptance Criterion
-`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the three new testsets (`M10 downsample — UniformStride` = 5 assertions, `M10 downsample — MinMaxDecimation` = 6, `M10 downsample — LTTB` = 6) passing. Report the `Test Summary:` counts. AND a source assertion:
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the three new testsets (`M10 downsample — UniformStride` = 5 assertions, `M10 downsample — MinMaxDecimation` = 6, `M10 downsample — LTTB` = 5) passing. Report the `Test Summary:` counts. AND a source assertion:
 `julia -e 't = read("src/preflight/downsample.jl", String); for s in ("UniformStride","MinMaxDecimation","LTTB","function downsample"); @assert occursin(s, t) "$s missing"; end; m = read("src/MakieViews.jl", String); @assert occursin("preflight/downsample.jl", m) "include not wired"; println("Task 063 source OK")'` exits 0 and prints `Task 063 source OK`.
 
 ### Commit
@@ -2275,3 +2275,98 @@ Body: `Task 063. Three ADR-010 / DESIGN §7.3 downsampling algorithms over 1-D (
 ### Report back
 On pass: `TASK 063 PASSED — three downsamplers green, <N> tests, committed as <SHA>. Test summary: [paste]`
 On fail: `TASK 063 FAILED — [criterion] — [Pkg.test tail; quote the failing @test line verbatim]`
+
+---
+
+## Task 064: preflight/check.jl — threshold decision + downsample recording (headless)
+**Status:** [ ] Pending
+**Milestone:** M10
+**Depends on:** 063
+
+### What to do
+Create `src/preflight/check.jl` with the headless pre-flight decision logic (the Gtk4 warning dialog and the data-reduction apply are Task 064b, manual-gated — not this task). Three functions:
+
+```julia
+# Threshold: warn if fps too low OR footprint would blow past 60% of VRAM.
+# FR-026: when VRAM is undetectable (nothing), only the fps criterion applies.
+function over_threshold(host::HostSpecs, est_bytes::Integer, est_fps::Real)::Bool
+    return est_fps < 15 || (host.vram_bytes !== nothing && est_bytes > 0.6 * host.vram_bytes)
+end
+
+# Full decision for one array + plot type. `decision` is :accept (load full, no dialog)
+# or :warn (over threshold — caller shows the dialog in 064b). `reason` ∈ :ok/:fps/:vram/:both.
+function preflight_decision(host::HostSpecs, array::AbstractArray, plot_type::Symbol)
+    est_bytes = estimate_footprint(array)
+    est_fps   = estimate_fps(plot_type, length(array), host)
+    fps_over  = est_fps < 15
+    vram_over = host.vram_bytes !== nothing && est_bytes > 0.6 * host.vram_bytes
+    over = fps_over || vram_over
+    reason = !over ? :ok : (fps_over && vram_over) ? :both : fps_over ? :fps : :vram
+    return (decision = over ? :warn : :accept, reason = reason,
+            est_fps = est_fps, est_bytes = est_bytes)
+end
+
+# Record the chosen downsample algorithm on the plot (DESIGN §7.3). Serialization of the
+# algorithm into .mvz is handled by the persistence/docs task, not here.
+function record_downsample!(plot::Plot, algo::DownsampleAlgorithm)
+    plot.attrs[:downsample_algorithm] = Observable{Any}(algo)
+    return plot
+end
+```
+
+`check.jl` uses `HostSpecs` (detect.jl), `estimate_footprint`/`estimate_fps` (estimate.jl), `DownsampleAlgorithm` (downsample.jl), and `Plot`/`Observable` (state) — all already included before it. Add `include("preflight/check.jl")` to `src/MakieViews.jl` after the `include("preflight/downsample.jl")` line. No exports. **Append** two testsets to `test/integration/preflight.jl`:
+
+```julia
+@testset "M10 preflight_decision — threshold logic" begin
+    host = MakieViews.HostSpecs(32 * 1024^3, 16, 8 * 1024^3, "GPU")  # 8 GiB VRAM
+
+    d1 = MakieViews.preflight_decision(host, zeros(Float64, 1000), :line)
+    @test d1.decision == :accept
+    @test d1.reason == :ok
+
+    d2 = MakieViews.preflight_decision(host, zeros(Float64, 100_000_000), :line)  # fps 6 < 15
+    @test d2.decision == :warn
+    @test d2.est_fps < 15
+
+    # predicate directly (isolating the VRAM term from the fps term):
+    @test MakieViews.over_threshold(host, 5 * 1024^3, 60.0) == true    # bytes > 0.6*8GiB, fps ok
+    @test MakieViews.over_threshold(host, 1000, 60.0) == false         # both ok
+
+    novram = MakieViews.HostSpecs(32 * 1024^3, 16, nothing, nothing)   # FR-026: fps-only
+    @test MakieViews.over_threshold(novram, 100 * 1024^3, 60.0) == false  # VRAM term ignored
+    @test MakieViews.over_threshold(novram, 100 * 1024^3, 10.0) == true   # fps < 15 → over
+end
+
+@testset "M10 record_downsample! — records algorithm in plot attrs" begin
+    s = MakieViews.new_session()
+    fig = MakieViews.add_figure!(s; title = "F")
+    ax = MakieViews.add_axis!(fig; kind = :axis2d, title = "A")
+    p = MakieViews.add_plot!(ax, :line,
+        [MakieViews.DataRef(:x, "s1", :main, "x"), MakieViews.DataRef(:y, "s2", :main, "y")])
+    @test !haskey(p.attrs, :downsample_algorithm)
+    MakieViews.record_downsample!(p, MakieViews.LTTB(50))
+    @test haskey(p.attrs, :downsample_algorithm)
+    @test p.attrs[:downsample_algorithm][] == MakieViews.LTTB(50)
+end
+```
+
+(The 4-arg `DataRef(role, snapshot_id, source, id)` form is the one used in `MakieViews.jl`'s demo; `LTTB(50) == LTTB(50)` holds because the algorithm structs are immutable.)
+
+### Files touched
+- `src/preflight/check.jl` — new: `over_threshold`, `preflight_decision`, `record_downsample!`
+- `src/MakieViews.jl` — modified: add `include("preflight/check.jl")` after downsample
+- `test/integration/preflight.jl` — modified: append the two testsets above
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the two new testsets (`M10 preflight_decision — threshold logic` = 7 assertions, `M10 record_downsample! — records algorithm in plot attrs` = 3) passing. Report the `Test Summary:` counts. AND a source assertion:
+`julia -e 't = read("src/preflight/check.jl", String); for s in ("function over_threshold","function preflight_decision","function record_downsample!"); @assert occursin(s, t) "$s missing"; end; m = read("src/MakieViews.jl", String); @assert occursin("preflight/check.jl", m) "include not wired"; println("Task 064 source OK")'` exits 0 and prints `Task 064 source OK`.
+
+### Commit
+Stage explicitly: `git add src/preflight/check.jl src/MakieViews.jl test/integration/preflight.jl` (do NOT touch tasks.md — per AGENTS.md).
+Subject: `feat: preflight/check.jl — threshold decision + downsample recording (M10)`
+Body: `Task 064. Headless pre-flight decision: over_threshold(host, bytes, fps) = fps<15 OR bytes>0.6*VRAM (VRAM term skipped when undetectable, FR-026). preflight_decision(host, array, plot_type) returns (:accept|:warn, reason, est_fps, est_bytes). record_downsample!(plot, algo) records the chosen algorithm in plot.attrs[:downsample_algorithm] (DESIGN §7.3; .mvz serialization deferred to the persistence/docs task). The Gtk4 warning dialog + data-reduction apply are Task 064b (manual-gated). Tests cover accept/warn, the fps and VRAM terms in isolation, the FR-026 no-VRAM path, and the recording.`
+Then report `git show --stat --oneline -s HEAD`.
+
+### Report back
+On pass: `TASK 064 PASSED — threshold + recording green, <N> tests, committed as <SHA>. Test summary: [paste]` + the `--stat`.
+On fail: `TASK 064 FAILED — [criterion] — [Pkg.test tail; quote the failing @test line verbatim]`
