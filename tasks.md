@@ -2598,3 +2598,35 @@ M10 is COMPLETE when 1–3 pass. If CI is red or the spot-check shows the fallba
 
 ### Report back
 `M10 COMPLETE — CI 2/2 green (run <id>), <N> tests. Manual launch + spot-check: [result].` — or the specific failure.
+
+---
+
+## Task 067: Bug E hotfix — tree pane refresh! uses empty!, not splice! (Tier 1)
+**Status:** [x] Done — 2026-08-27, commit 143cbf9. CI #38 2/2 green (both cells). Bug E fixed: `refresh!` clears via `empty!(model)`. Regression test covers the `add_figure!` post-launch path; `add_axis!` post-launch is blocked by **Bug F** (renderer deadlock — filed separately), so the test isolates `add_figure!`.
+**Milestone:** Patch P2 (post-M10)
+**Depends on:** —
+
+### What to do
+In `src/ui/tree_pane.jl`, inside the `refresh!()` closure of `build_tree_pane`, replace `splice!(model, 1:length(model))` with `empty!(model)`. The existing `push!(model, l)` refill loop is unchanged. Root cause: Gtk4.jl defines no `splice!(::GtkStringList, ::UnitRange)`, so any post-launch node addition (figure/axis/plot — which fires the `session.figures`/`axes`/`plots` observers → `refresh!`) throws `MethodError`. Latent since M2 (the demo tree is built before the refresh observers are wired). `empty!(model)` confirmed working on this Gtk4.jl (2026-08-27 probe); `splice` is not exposed. Add a regression test (`test/integration/tree_refresh.jl`, included from runtests.jl) that builds the window via `makieviews()`, does a post-launch `add_figure!`/`add_axis!`, and asserts no throw + row growth via `_build_tree_rows`. (CI already builds Gtk4 widgets + calls `makieviews()` headlessly under xvfb in the M1 suite, so this runs in CI — no manual gate.)
+
+### Files touched
+- `src/ui/tree_pane.jl` — one line: `splice!(model, 1:length(model))` → `empty!(model)`
+- `test/integration/tree_refresh.jl` — new: regression testset
+- `test/runtests.jl` — include `integration/tree_refresh.jl`
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the new `Bug E — tree pane survives post-launch node additions` testset passing. Report the `Test Summary:` counts. AND: `julia -e 't = read("src/ui/tree_pane.jl", String); @assert occursin("empty!(model)", t); @assert !occursin("splice!(model", t); println("Task 067 source OK")'` prints `Task 067 source OK`.
+
+### Regression test (required, Tier-1 rule)
+Reproduces the exact crash: `makieviews()` → post-launch `add_figure!`/`add_axis!` → (old code threw at tree_pane.jl:62; fixed code does not) + row count grows.
+
+### Change Description
+`docs/CHANGE-bug-E-tree-refresh.md` (Tier-1 record).
+
+### Commit
+Stage: `git add src/ui/tree_pane.jl test/integration/tree_refresh.jl test/runtests.jl` (NOT tasks.md).
+Subject: `fix: tree pane refresh! clears via empty!, not splice! (Bug E)`
+
+### Report back
+On pass: `TASK 067 PASSED — Bug E fixed, <N> tests, committed as <SHA>. Test summary: [paste]` + `--stat`.
+On fail: `TASK 067 FAILED — [criterion] — [Pkg.test tail; quote the failing @test line verbatim]`
