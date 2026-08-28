@@ -2725,7 +2725,7 @@ On fail: `TASK 068 FAILED — [criterion] — [Pkg.test tail; quote the failing 
 ---
 
 ## Task 069: Defer FPS measurement pass to v0.2 (docs, authored in Claude Chat)
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-28 (docs; no code). ADR-020 updated (H1 retitled timeless; "Update 2026-08-28" block records M11 → v0.2 target move; Decision + Consequences reflect the refined target). DESIGN.md §7.2 + §11 ODQ-5 now say "v0.2" (also stripped a JSON metadata junk block — third file from the 2026-08-28 ~14:12 batch). PLAN.md M11 carryovers: FPS measurement pass moved out to v0.2 note; (a) interactive-fps, (b) VRAM parse retained. ADR-020 filename kept per John's decision — avoids cascading link updates across README/SDD/DESIGN/PLAN/ADR-022/tasks.md; H1 now timeless.
 **Milestone:** M11
 **Depends on:** —
 

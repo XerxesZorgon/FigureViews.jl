@@ -1,9 +1,11 @@
-# ADR-020 — Defer the FPS measurement pass to M11; ship the coarse fallback for v0.1
+# ADR-020 — Defer the FPS measurement pass; ship the coarse fallback for v0.1
 
-**Status**: Accepted (2026-08-27).
+**Status**: Accepted (2026-08-27). **Updated**: 2026-08-28 (deferral target moved from M11 → v0.2).
 **Date**: 2026-08-27
 **Deciders**: John Peach
-**Related**: [ADR-015](ADR-015-preflight-fps-formula-conservative.md) (refines its timing), [ADR-010](ADR-010-downsampling-algorithms.md), [ADR-018](ADR-018-ci-matrix-reduction-ubuntu-only.md), DESIGN.md §7, ODQ-5
+**Related**: [ADR-015](ADR-015-preflight-fps-formula-conservative.md) (refines its timing), [ADR-010](ADR-010-downsampling-algorithms.md), [ADR-018](ADR-018-ci-matrix-reduction-ubuntu-only.md), [ADR-022](ADR-022-v0-1-ships-repl-driven.md) (v0.1.0 scope decision), DESIGN.md §7, ODQ-5
+
+> **Update 2026-08-28 (John's decision).** The measurement pass is deferred further, from **M11 → v0.2**. The M10 pre-tag spot-check (2026-08-27, Task 066) confirmed the coarse fallback under-predicts and never over-predicts on the heaviest Windows-box combos, so it is safe to ship without measured data. A multi-OS timing pass (three reference machines × seven plot types × six point-count decades) is disproportionate for a first release and would delay v0.1.0 for a refinement that does not close a v0.1 gap. The Windows/macOS live-tests remain in M11 (ADR-018) as launch/render smoke checks; the FPS measurement table is v0.2 work. This refines but does not overturn ADR-020's core decision (ship the fallback for v0.1); only the target for the eventual measurement pass moves. See also [ADR-022](ADR-022-v0-1-ships-repl-driven.md) for the broader v0.1.0 REPL-driven scope.
 
 ## Context
 
@@ -19,7 +21,7 @@ Measuring on only the available Windows box would yield a single-OS table that *
 
 ## Decision
 
-**Ship the coarse fallback formula for v0.1; defer the full measurement pass to the M11 pre-release QA sweep** (which already forces a human onto all three OSes). ODQ-5 is **resolved-with-fallback**.
+**Ship the coarse fallback formula for v0.1; defer the full measurement pass beyond v0.1** (originally targeted at M11; deferred further to v0.2 per the Update 2026-08-28 above). ODQ-5 is **resolved-with-fallback**.
 
 Concrete v0.1 pre-flight parameters (previously only sketched in ADR-015 / §7.2):
 
@@ -43,7 +45,7 @@ This **refines ADR-015**: its formula and conservative-bias rationale stand unch
 ## Consequences
 
 - v0.1 pre-flight warnings are calibrated by formula, not measurement — occasionally imprecise, but biased toward the safe direction (over-warn = one dialog click; the app never silently freezes on a case the formula flagged).
-- The measurement pass folds into the M11 QA sweep at no extra hardware cost (M11 already touches Windows + macOS + Linux).
+- The measurement pass moves to v0.2 (see Update 2026-08-28); it needs GL-capable hardware on all three OSes, which is not on the v0.1 critical path.
 - `src/preflight/fps_lookup.jl` is **not** created in v0.1; the fallback lives in `src/preflight/estimate.jl`.
 - `REFERENCE_VRAM_BYTES` is a documented provisional constant; changing it later touches no file format or public API.
 

@@ -456,7 +456,7 @@ user_scale    = clamp(user_gpu_score / reference_gpu_score, 0.1, 10.0)
               # if VRAM undetectable → user_scale = 0.5  (conservative: assume ½ reference)
 ```
 
-`fps_ref[plot_type][log10_n]` is a measured lookup table. **Its measurement pass is deferred to the M11 pre-release QA pass** (ADR-020, option C): it needs GL-capable hardware on all three OSes (one measurement per OS × seven v0.1 plot types × point counts 10³..10⁸) and cannot run in the headless CI loop (ADR-018). When it lands it lives at `src/preflight/fps_lookup.jl`.
+`fps_ref[plot_type][log10_n]` is a measured lookup table. **Its measurement pass is deferred to v0.2** (ADR-020, updated 2026-08-28): it needs GL-capable hardware on all three OSes (one measurement per OS × seven v0.1 plot types × point counts 10³..10⁸), cannot run in the headless CI loop (ADR-018), and the M10 spot-check (2026-08-27) confirmed the coarse fallback under-predicts (never over-predicts), so shipping without the measured table is safe. When it lands it lives at `src/preflight/fps_lookup.jl`.
 
 For v0.1 the coarse fallback formula ships in its place (ADR-020):
 
@@ -544,7 +544,7 @@ All seven v0.1 open design questions are resolved. Each is now an ADR (ADR-011..
 | ODQ-2 | Data-ref paths: store both absolute and relative-to-mvz; loader tries relative first, then absolute; missing → dialog with Browse + Skip. Content-hash deferred to v0.2. | [ADR-012](adr/ADR-012-data-ref-path-precedence.md) | §3.2, §3.6 |
 | ODQ-3 | MP4/GIF fps: user-configurable in export dialog (1–60), default 30. Not stored in `.mvz`. | [ADR-013](adr/ADR-013-mp4-fps-configurable.md) | (export dialog UI, not per-plot schema) |
 | ODQ-4 | Animation export runs modal on main thread for v0.1 with progress + cancel; snapshot at export-start. Background export deferred to v0.2. | [ADR-014](adr/ADR-014-animation-export-modal-v0-1.md) | §9 |
-| ODQ-5 | Pre-flight FPS: **resolved-with-fallback** (ADR-020, option C). v0.1 ships the coarse fallback formula + `user_scale` clamp (0.5 when VRAM undetectable; `REFERENCE_VRAM_BYTES = 8 GiB`); the measurement-driven lookup is deferred to the M11 QA pass. | [ADR-015](adr/ADR-015-preflight-fps-formula-conservative.md), [ADR-020](adr/ADR-020-defer-fps-measurement-to-m11.md) | §7.2 |
+| ODQ-5 | Pre-flight FPS: **resolved-with-fallback** (ADR-020, option C). v0.1 ships the coarse fallback formula + `user_scale` clamp (0.5 when VRAM undetectable; `REFERENCE_VRAM_BYTES = 8 GiB`); the measurement-driven lookup is deferred to v0.2 (ADR-020, updated 2026-08-28). | [ADR-015](adr/ADR-015-preflight-fps-formula-conservative.md), [ADR-020](adr/ADR-020-defer-fps-measurement-to-m11.md) | §7.2 |
 | ODQ-6 | `preferences.toml` and `.mvz` carry **independent** `schema_version` fields. | [ADR-016](adr/ADR-016-independent-schema-versions.md) | §3, §6 |
 | ODQ-7 | Reserve `[[figure.axis.plot.data_inline]]` in v0.1 schema. v0.1 loader refuses with specific message: `"This .mvz contains inline data (data_inline), which requires MakieViews v0.2 or later. Loading aborted."` v0.2 defines the sub-table. | [ADR-017](adr/ADR-017-reserve-data-inline-schema-slot.md) | §3.2, §3.3 |
 
