@@ -190,6 +190,8 @@ Registrator.jl submission dry-run; CI green on the 2-cell v0.1 matrix (per ADR-0
 
 **M10 carryovers to fold into this QA pass** (deferred from M10 per ADR-020 / spot-check on 2026-08-27): (a) the FPS **measurement pass** — build the three-OS reference table → `src/preflight/fps_lookup.jl`, replacing the coarse fallback; (b) verify `detect_host_specs`' **VRAM-parsing branch** on a real NVIDIA box — only the `nothing` fallback has run (no `nvidia-smi` on the dev machine); (c) **interactive-fps** sanity of the pre-flight fallback through the embedded viewport, once Bug E (tree-pane refresh crash) is fixed.
 
+**Pre-tag docs reconciliation (v0.1-readiness, flagged 2026-08-27):** README/SDD describe an **interactive GUI** (variable picker, Add Plot / File / Export menus, the warning-with-buttons modal) that v0.1-as-built does **not** have — the shipped v0.1 is **REPL-driven** (build the session via `add_plot!` / `add_plot_checked!` / `save_session` / `export_figure`, then `makieviews()` to display; build-then-display; live *attribute* edits work, live *structural* edits hang per Bug F → v0.2). Before tagging v0.1.0, rewrite the README Quickstart, "Large datasets", and "click-to-build" tagline (and audit the SDD) to describe the REPL-driven workflow. The interactive GUI layer (menus, load flow, modal, live structural mutation) is the v0.2 story — 064c, Bug F, and this doc gap all point at the same deferred layer.
+
 **Exit**: SDD SC-001 met (registered as v0.1.0); tagged release; pre-release manual QA report attached to release notes.
 
 ---

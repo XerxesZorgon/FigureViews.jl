@@ -2630,3 +2630,26 @@ Subject: `fix: tree pane refresh! clears via empty!, not splice! (Bug E)`
 ### Report back
 On pass: `TASK 067 PASSED — Bug E fixed, <N> tests, committed as <SHA>. Test summary: [paste]` + `--stat`.
 On fail: `TASK 067 FAILED — [criterion] — [Pkg.test tail; quote the failing @test line verbatim]`
+
+---
+
+## Bug F (deferred to v0.2): structural mutation of a displayed window hangs
+**Status:** Filed — deferred to v0.2 (John's decision 2026-08-27). Documented as a v0.1 limitation; no v0.1 code change.
+**Component:** `src/render/renderer.jl` (live-update path)
+
+### Symptom
+After `makieviews()` shows the window, adding/removing a figure/axis/plot (e.g. `add_axis!`, `add_plot!`) hangs the REPL and freezes the window — no error, must kill the process. Confirmed in a standalone terminal (not an integrated-REPL artifact).
+
+### Root cause
+The Renderer's structural observers (`on(session.figures)`, `on(fig.axes)`, `on(ax.plots)`) each do `empty!(renderer.fig)` + a full `_rebuild_from_session!` on any change. Rebuilding (new Makie axes + shader recompile) synchronously while the window is live and drawing deadlocks against the running render loop. Compounding: `_rebuild_from_session!` re-registers observers on every rebuild without removing the old ones — an accumulating leak → cascading/re-entrant rebuilds.
+
+### Scope (what still works in v0.1)
+- **Build-then-display**: construct the session in the REPL, THEN `makieviews()` — the rebuild runs once, before the window is live. Fine. This is the demo path and v0.1's intended workflow (ADR-011).
+- **Live attribute edits** (color, title, limits) — update the Makie handle in place, no rebuild. Fine.
+- Only live **structural** mutation of a displayed window hangs.
+
+### v0.2 fix direction
+Incremental live-update (add just the new axis/plot; don't nuke the whole figure) + remove stale observers before re-registering + schedule GL work via a Gtk4 idle callback rather than inline. Pairs with the deferred GUI load flow + Gtk4 warning modal (064c) — all "edit a displayed session" work lands together in v0.2.
+
+### v0.1 disposition
+Documented limitation (build-then-display). Same deferred bucket as Patch P2 items D4 / Bug D.
