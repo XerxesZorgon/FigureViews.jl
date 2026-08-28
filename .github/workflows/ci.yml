@@ -1,9 +1,11 @@
 # .github/workflows/ci.yml
 #
-# CI matrix reduced from 6 cells (Julia {1.10, 1.12} × OS {Ubuntu, Windows, macOS})
-# to 2 cells (Julia {1.10, 1.12} × Ubuntu) per ADR-018 (2026-08-24).
-# Original 6-cell intent: docs/adr/ADR-009-test-strategy.md.
-# Reduction rationale + restoration path (v0.2): docs/adr/ADR-018-ci-matrix-reduction-ubuntu-only.md.
+# CI matrix: 4 cells (Julia {1.10, 1.12} × OS {ubuntu-latest, macos-latest}).
+# History:
+# - ADR-018 (2026-08-24) reduced from 6-cell {Ubuntu, Windows, macOS} to 2-cell Ubuntu-only for M0-M10.
+# - ADR-023 (2026-08-28) amends ADR-018: adds macos-latest for headless test coverage on Apple Silicon,
+#   deferring interactive macOS verification to post-v0.1.0.
+# - Windows is validated manually before release (Task 072); interactive macOS deferred (see ADR-023).
 
 name: CI
 
@@ -21,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         julia-version: ['1.10', '1.12']
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,6 +37,7 @@ jobs:
         uses: julia-actions/cache@v2
 
       - name: Install xvfb
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb
@@ -42,5 +45,10 @@ jobs:
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
 
-      - name: Run tests (under xvfb)
+      - name: Run tests (Linux, under xvfb)
+        if: runner.os == 'Linux'
         run: xvfb-run -a julia --project=. -e 'using Pkg; Pkg.test()'
+
+      - name: Run tests (macOS, native window server)
+        if: runner.os == 'macOS'
+        run: julia --project=. -e 'using Pkg; Pkg.test()'
