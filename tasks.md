@@ -2483,7 +2483,7 @@ ADR-020 exists and states the deferral + option C with the pinned parameters; DE
 ---
 
 ## Task 064c: preflight/check.jl — add_plot_checked! (REPL pre-flight-aware add)
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-27, commit 1762c1c
 **Milestone:** M10
 **Depends on:** 064b
 
@@ -2559,7 +2559,7 @@ end
 - `test/integration/preflight.jl` — modified: append the testset above
 
 ### Acceptance Criterion
-`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the new `M10 add_plot_checked! — pre-flight-aware add` testset (7 assertions) passing. Report the `Test Summary:` counts. AND a source assertion:
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the new `M10 add_plot_checked! — pre-flight-aware add` testset (8 assertions) passing. Report the `Test Summary:` counts. AND a source assertion:
 `julia -e 't = read("src/preflight/check.jl", String); @assert occursin("function add_plot_checked!", t) "add_plot_checked! missing"; m = read("src/MakieViews.jl", String); @assert occursin("add_plot_checked!", m) "not exported"; println("Task 064c source OK")'` exits 0 and prints `Task 064c source OK`.
 
 ### Manual launch (John, at M10 sign-off)
