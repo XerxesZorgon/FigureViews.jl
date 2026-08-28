@@ -7,9 +7,13 @@
 
 ---
 
+> **v0.1.0 delivery scope.** MakieViews v0.1.0 ships a **REPL-driven core**, not the interactive GUI. The requirements below remain the project's target and describe the Veusz-style GUI that is the north star; they are **not** rewritten. Instead, each is marked with its v0.1 delivery status — **Delivered (v0.1)**, **Partial**, **Deferred (v0.2)**, or **Pending (M11)** — in §5.4 (functional/non-functional) and §8 (success criteria). The GUI affordances the requirements name (variable picker, Add Plot menu, property-panel-as-primary-flow, File dialogs, non-blocking warning dialog) are Deferred (v0.2); their underlying capabilities ship in v0.1 as REPL functions where noted. See [ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md).
+
+---
+
 ## 1. Problem Statement
 
-Julia's Makie ecosystem is the most capable scientific plotting library in Julia, but every plot requires code. Julia users who want interactive, exploratory plotting — the [Veusz](https://veusz.github.io/) workflow: click-to-build figures, live property editing, saveable sessions, 3D rotation — have no equivalent Julia-native tool. MakieViews closes this gap with a first-class Julia package: a Veusz-style GUI (graphical user interface) over Makie's public API, preserving GLMakie's full 3D and animation capability while eliminating the code-writing friction for standard plotting workflows.
+Julia's Makie ecosystem is the most capable scientific plotting library in Julia, but every plot requires code. Julia users who want interactive, exploratory plotting — the [Veusz](https://veusz.github.io/) workflow: click-to-build figures, live property editing, saveable sessions, 3D rotation — have no equivalent Julia-native tool. MakieViews closes this gap with a first-class Julia package: a Veusz-style GUI (graphical user interface) over Makie's public API, preserving GLMakie's full 3D and animation capability while eliminating the code-writing friction for standard plotting workflows. In v0.1, this capability is delivered through a REPL API (build → style → export → save); the click-to-build GUI described here is the v0.2+ target (see the v0.1.0 delivery-scope note above and [ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md)).
 
 ## 2. Primary Users
 
@@ -29,6 +33,8 @@ Julia users doing scientific plotting who want to reduce friction on exploratory
 ---
 
 ## 4. User Scenarios *(mandatory)*
+
+> **v0.1 note.** These journeys describe the **v0.2 GUI target**. In v0.1 the same capabilities are exercised through the REPL API (see the README Quickstart): the GUI affordances named below — variable picker, Add Plot menu, property panel, File→Save/Export dialogs, time slider — are Deferred (v0.2) per [ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md). The per-requirement status is in §5.4 and §8.
 
 ### User Story 1 — Build and save a labeled 3D surface (Priority: P1)
 
@@ -201,6 +207,44 @@ Julia users doing scientific plotting who want to reduce friction on exploratory
 - **Preferences**: a per-user TOML document (styling defaults) plus a UI action ("Reset selection to preferences") that applies them on demand.
 - **`.mvz` file**: TOML document with `schema_version`, a preferences snapshot, and the serialized tree.
 
+### 5.4 v0.1.0 Delivery Status
+
+v0.1.0 ships the REPL-driven core (ADR-022). Legend: **Delivered** = works in v0.1; **(REPL)** = delivered as a REPL call, GUI affordance deferred; **Partial** = capability present, full requirement not met; **Deferred v0.2**; **Pending M11** = release-task not yet done; **Unverified** = not yet measured.
+
+| Requirement | v0.1 status | Note |
+|---|---|---|
+| FR-001 | Partial | `MainSource` enumerates `Main`; GUI variable picker deferred v0.2 |
+| FR-002 | Delivered (REPL) | `CsvSource`; GUI load dialog deferred v0.2 |
+| FR-003 | Delivered (REPL) | `Hdf5Source`; GUI load dialog deferred v0.2 |
+| FR-004 | Delivered | snapshot-by-copy in `ingest!` |
+| FR-005 | Partial | 7 types via `add_plot!`; "through the GUI" deferred v0.2 |
+| FR-006 | Deferred v0.2 | tree add/delete/reorder/rename is a GUI action; live structural edit blocked by Bug F |
+| FR-007 | Partial | property schema + panel exist (demo window); user-data editing flow deferred v0.2 |
+| FR-008 | Partial | camera azimuth/elevation wired; property-panel flow deferred v0.2 |
+| FR-009 | Delivered | schema-driven panel (architecture) |
+| FR-010 | Delivered | tree model Session→Figure→Axis→Plot |
+| FR-011 | Delivered | node type is data; generalizes |
+| FR-012 | Delivered | GLMakie rotate/pan/zoom on the displayed window |
+| FR-013 | Partial | `animate_plot!` binds a time index (REPL); general GUI slider binding deferred v0.2 |
+| FR-014 | Delivered | `render_animation` → MP4/GIF at fps |
+| FR-015 | Delivered | `save_session` + `schema_version` |
+| FR-016 | Deferred v0.2 | load restores tree+styling, **not data**; full round-trip deferred v0.2 (ADR-017) |
+| FR-017 | Delivered | future-major `.mvz` rejected with a clear error |
+| FR-018 | Delivered | unknown nodes preserved and round-tripped |
+| FR-019 | Delivered | `export_figure` → PNG/SVG/PDF |
+| FR-020 | Delivered | preferences TOML via Scratch.jl |
+| FR-021 | Delivered | preferences seed new plots only |
+| FR-022 | Delivered (REPL) | `reset_to_preferences!`; GUI action deferred v0.2 |
+| FR-023 | Delivered | host detection + footprint/fps estimate |
+| FR-024 | Partial | decision + advisory `@warn` (REPL); non-blocking dialog deferred v0.2 (ADR-020) |
+| FR-025 | Delivered | UniformStride / MinMaxDecimation / LTTB |
+| FR-026 | Delivered | VRAM-undetectable fallback message |
+| NFR-001 | Delivered | versioned `.mvz` + unknown-node preservation |
+| NFR-002 | Delivered | no hard-coded per-plot-type UI branching |
+| NFR-003 | Partial | Linux (CI) + Windows (dev) verified; macOS pending pre-release gate (ADR-018); v0.1 launches to a demo session, not a blank one |
+| NFR-004 | Pending M11 | General-registry registration is an M11 task |
+| NFR-005 | Unverified | startup budget not yet measured across OSes |
+
 ---
 
 ## 6. Out of Scope for v0.1
@@ -239,6 +283,20 @@ These constraints are referenced from ADR-004 (session format), ADR-006 (propert
 - **SC-005** (Seven plot types): All seven plot types (line, scatter, bar, heatmap, contour, surface, volume) can be created through the GUI, styled through the property panel, and exported statically.
 - **SC-006** (Pre-flight warns): Loading a dataset that exceeds thresholds triggers the non-blocking warning; declining the offered downsampling still permits loading; accepting produces a plot with the promised point count.
 - **SC-007** (Preferences are defaults-only): A saved figure with old styling opens with that styling; a new figure created afterward uses the current preferences.
+
+#### v0.1.0 Success-Criteria Status
+
+Per [ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md), the **v0.1.0 release gate** is: the REPL end-to-end (build → export → save/reload the session spec), General-registry registration, and cross-platform install + launch-to-demo. The GUI-flow criteria below are re-scoped to v0.2.
+
+| Criterion | v0.1 status | Note |
+|---|---|---|
+| SC-001 | Pending M11 | registration + cross-OS resolve is an M11 task |
+| SC-002 | Deferred v0.2 | GUI window across 3 OSes; v0.1 launches to a demo, not blank |
+| SC-003 | Deferred v0.2 | "without writing plotting code" is the GUI goal; v0.1 is REPL |
+| SC-004 | Deferred v0.2 | `.mvz` load doesn't restore data, so the load→render→golden path isn't closed in v0.1 |
+| SC-005 | Partial | 7 types created + styled + exported via REPL; "through the GUI" deferred v0.2 |
+| SC-006 | Delivered (REPL) | advisory warning + downsample; interactive dialog deferred v0.2 |
+| SC-007 | Delivered | preferences are defaults-only |
 
 ### Non-Measurable Goals (informing but not gating v0.1)
 

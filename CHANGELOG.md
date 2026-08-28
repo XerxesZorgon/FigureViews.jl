@@ -5,6 +5,10 @@ All notable changes to MakieViews will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### M11 — Pre-tag docs reconciliation (2026-08-28)
+- **ADR-022**: v0.1.0 ships the REPL-driven core; the interactive Veusz-style GUI is deferred to v0.2+. README, SDD (§5.4 / §8 delivery-status layer), CHANGELOG, and PLAN reconciled to the REPL-driven scope. The Veusz-style GUI remains the project's north star.
+- Surfaced v0.1 limitations in-doc: `.mvz` load restores tree+styling but not data (full round-trip is v0.2, ADR-017); `makieviews()` displays the built-in demo session only; live structural edits to a displayed window hang (Bug F, v0.2).
+- Removed a stray document-manager JSON metadata block that had been prepended to this file.
 ### M10 — Pre-flight dataset check (2026-08-27)
 - Added `detect_host_specs()` → `HostSpecs` (total RAM, CPU threads, best-effort GPU VRAM/name via nvidia-smi / system_profiler; never throws, degrades to `nothing` on missing GPU per FR-026).
 - Added `estimate_footprint(array)` (bytes = length × sizeof(eltype)) and `estimate_fps(plot_type, n, host)` — coarse fallback `60/√(n/1e6)` (2D) / `30/√(n/1e6)` (3D) × `user_scale` (`REFERENCE_VRAM_BYTES = 8 GiB`; `user_scale = 0.5` when VRAM undetectable).
@@ -63,19 +67,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [0.1.0] — TBD
 
-Initial release scope. See `docs/SDD.md` §5 for the full requirement list and `docs/PLAN.md` for the M1–M11 breakdown.
+Initial release scope. See `docs/SDD.md` §5 for the full requirement list and `docs/PLAN.md` for the M1–M11 breakdown. **v0.1.0 ships the REPL-driven core; the interactive point-and-click GUI is v0.2+ ([ADR-022](docs/adr/ADR-022-v0-1-ships-repl-driven.md)).**
 
 ### Added
-- Gtk4.jl + Gtk4Makie.jl desktop shell with an embedded GLMakie viewport.
+- Gtk4.jl + Gtk4Makie.jl desktop shell with an embedded GLMakie viewport (displays the built-in demo session in v0.1; the interactive GUI is v0.2).
 - Tree model: Session → Figure → Axis → Plot, with `UnknownNode` escape hatch for forward-compatible session files.
 - Seven plot types: line, scatter, bar, heatmap, contour, surface (3D), volume (3D).
 - Schema-driven property panel — no per-plot-type UI branching (see ADR-002, DESIGN.md §5).
 - Three data ingestion sources: Julia REPL `Main`, CSV (CSV.jl + DataFrames.jl), HDF5 (HDF5.jl).
 - `.mvz` session save/load with `schema_version` and unknown-node preservation.
 - Static export: PNG, SVG, PDF via CairoMakie.
-- Animation: time slider binding + MP4 and GIF export.
-- Per-user preferences via Scratch.jl-backed TOML; defaults-only behavior with a "Reset selection to preferences" action.
-- Pre-flight dataset check: host-spec detection, footprint and FPS estimate, non-blocking warning, downsampling offer (uniform stride, min/max decimation, LTTB).
+- Animation: `animate_plot!` time-index binding over a 3D array `A[x, y, t]`, with MP4/GIF export via `render_animation`.
+- Per-user preferences via Scratch.jl-backed TOML; defaults-only, with a `reset_to_preferences!` action.
+- Pre-flight dataset check: host-spec detection, footprint and FPS estimate, an advisory `@warn` via `add_plot_checked!`, and downsampling via `downsample=` (uniform stride, min/max decimation, LTTB).
 
 ### Compat
 - Julia 1.10+ (primary target: 1.12).
@@ -86,6 +90,9 @@ Initial release scope. See `docs/SDD.md` §5 for the full requirement list and `
 - No user-defined `@recipe` types exposed through the GUI (users extend via code).
 - No in-GUI data transformations.
 - No WGLMakie / web viewport.
+- Interactive point-and-click GUI is v0.2+; v0.1 is REPL-driven (ADR-022).
+- `.mvz` load restores the tree and styling but not data arrays; full save/reload round-trip is v0.2 (ADR-017).
+- `makieviews()` displays the built-in demo session only; displaying a user-built session, and live structural edits to a displayed window, are v0.2 (Bug F).
 - Linux Wayland + NVIDIA driver quirks inherited from Gtk4Makie (see `docs/troubleshooting.md`).
 
 [Unreleased]: https://github.com/PLACEHOLDER-USER/MakieViews.jl/compare/v0.1.0...HEAD

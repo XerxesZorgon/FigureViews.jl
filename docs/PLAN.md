@@ -1,15 +1,12 @@
 # PLAN.md — MakieViews v0.1
 
-**Status**: Draft
-**Date**: 2026-08-24
-**Companion documents**: SDD.md, DESIGN.md, ADR-001..010, ADR-011..017, **ADR-018 (CI matrix reduction)**, **ADR-019 (reactive state model: Observables.jl)**, TEST_PLAN.md
-**Template basis**: Adapted from `.specify/templates/plan-template.md` (Spec Kit), with Summary / Technical Context / Structure retained and Milestones / Compat Pins added.
+**Status**: Draft **Date**: 2026-08-24 **Companion documents**: SDD.md, DESIGN.md, ADR-001..010, ADR-011..017, **ADR-018 (CI matrix reduction)**, **ADR-019 (reactive state model: Observables.jl)**, TEST_PLAN.md **Template basis**: Adapted from `.specify/templates/plan-template.md` (Spec Kit), with Summary / Technical Context / Structure retained and Milestones / Compat Pins added.
 
 ---
 
 ## 1. Summary
 
-Ship MakieViews v0.1.0 to Julia's General registry: a Veusz-style desktop GUI over Makie for Julia scientific plotting, running on Windows, macOS, and Linux. Eleven milestones (M1–M11) from empty shell to registered package. Test-first at every milestone per TEST_PLAN.md.
+Ship MakieViews v0.1.0 to Julia's General registry. MakieViews' goal is a Veusz-style desktop GUI over Makie for Julia scientific plotting, running on Windows, macOS, and Linux; **v0.1.0 delivers the REPL-driven core of that tool** — build, style, export, and save figures from the REPL — with the interactive point-and-click GUI arriving in v0.2+ ([ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md)). Eleven milestones (M1–M11) from empty shell to registered package. Test-first at every milestone per TEST_PLAN.md.
 
 ---
 
@@ -18,6 +15,7 @@ Ship MakieViews v0.1.0 to Julia's General registry: a Veusz-style desktop GUI ov
 **Language / Version**: Julia. Primary target Julia 1.12.6; LTS validation on Julia 1.10.11. Compat range in `Project.toml`: `julia = "1.10"`. See ADR-001.
 
 **Primary Dependencies** (all pinned, see §3 for exact versions):
+
 - Makie, GLMakie, CairoMakie (plotting engine)
 - Gtk4.jl, Gtk4Makie.jl (desktop shell + Makie embed)
 - CSV.jl, DataFrames.jl (CSV ingestion)
@@ -136,61 +134,72 @@ Resolve the seven Open Design Questions in DESIGN.md §11 into ADR-011..ADR-017.
 **Exit** (met): DESIGN.md §11 shows all seven ODQs closed and cross-referenced to their ADRs; ADR-011..017 present and Accepted; DESIGN.md §3, §4.3, §6, §7.2, §9 updated to fold in the ADR decisions.
 
 ### M1 — Shell
+
 Gtk4 top-level window with an embedded GLMakie viewport (empty). No tree, no property panel, no plots. `makieviews()` entry point.
 
 **Exit**: Layer-3 GUI smoke green on the v0.1 CI matrix (2 cells: `ubuntu-latest × {Julia 1.10, 1.12}`, per ADR-018); SDD SC-002 (blank session) partially met. Windows and macOS coverage is developer-machine-verified, not CI-verified, for v0.1 (see ADR-018 rationale).
 
 ### M2 — Tree + one plot type
+
 `SessionState` with Session/Figure/Axis/Plot tree; `PLOT_SCHEMAS[:line]` populated; tree pane + property pane wired; end-to-end for a hand-constructed line plot.
 
 **Exit**: Layer-2 integration passes for line; property panel schema-driven test passes for line.
 
 ### M3 — Remaining 2D plot types
+
 Schemas + rendering for `:scatter`, `:bar`, `:heatmap`, `:contour`.
 
 **Exit**: Layer-2 covers all four; goldens present for each.
 
 ### M4 — 3D plot types + camera controls
+
 Schemas + rendering for `:surface`, `:volume`. Camera azimuth/elevation/zoom in the property panel for `:axis3d`.
 
 **Exit**: Layer-2 covers both; goldens present; interactive rotate tested manually.
 
 ### M5 — Data ingestion — **COMPLETE (2026-08-26)**
+
 `MainSource`, `CsvSource`, `Hdf5Source`. Data variable picker in the UI. Snapshot-by-copy invariant enforced.
 
-**Exit** (met): M5 complete 2026-08-26. Data ingestion layer: MainSource, CsvSource, Hdf5Source, DataRef, ingest!, add_plot!; _DEMO_DATA retired; 162 tests passing.
+**Exit** (met): M5 complete 2026-08-26. Data ingestion layer: MainSource, CsvSource, Hdf5Source, DataRef, ingest!, add_plot!; \_DEMO_DATA retired; 162 tests passing.
 
 ### M6 — Session persistence — **COMPLETE (2026-08-26)**
+
 `.mvz` TOML save/load; `schema_version` handling; unknown-node preservation.
 
 **Exit** (met): M6 complete 2026-08-26. Session persistence: save_session/load_session, schema version check, unknown-node preservation, DataRef provenance, build_dataref. 189 tests passing.
 
 ### M7 — Animations — **COMPLETE (2026-08-26)**
+
 Time slider bound to a numeric attribute or data slice; `AnimBinding` in the Plot schema; MP4 + GIF export.
 
 **Exit** (met): M7 complete 2026-08-26. AnimBinding struct, animate_plot!, render_animation (.gif/.mp4 via Makie.record), GtkScale time-slider in property pane, animation_binding renderer observer. 200 tests passing.
 
 ### M8 — Static export — **COMPLETE (2026-08-26)**
+
 PNG/SVG/PDF export via CairoMakie in the export dialog. Layer 4 golden-image hashes committed.
 
 **Exit** (met): M8 complete 2026-08-26. Static export: export_figure (PNG/SVG/PDF via CairoMakie), golden-image SHA-256 hashes for all 7 plot types. 225 tests passing.
 
 ### M9 — Preferences
+
 `Scratch.jl`-backed `preferences.toml`; seed-on-new behavior; "Reset selection to preferences" action.
 
 **Exit** (met): M9 complete 2026-08-26. Preferences: Scratch.jl-backed preferences.toml (independent schema_version), seed-on-new from prefs, reset_to_preferences!, set_theme! grep-gate. 236 tests passing.
 
 ### M10 — Pre-flight dataset check — **COMPLETE (2026-08-27)**
+
 `detect_host_specs`, `estimate_footprint` + `estimate_fps`, `UniformStride` / `MinMaxDecimation` / `LTTB`, the `preflight_decision` threshold + `apply_downsample!`, and the REPL-facing `add_plot_checked!` warning surface.
 
-**Exit** (met): TEST_PLAN.md §8 pre-flight tests green on the 2-cell v0.1 CI matrix (294 tests total). Per **ADR-020** (option C, 2026-08-27), v0.1 ships the coarse fallback FPS formula (`REFERENCE_VRAM_BYTES = 8 GiB`; `user_scale` clamp; 0.5 when VRAM undetectable); the full measurement pass is deferred to the M11 QA sweep, and ODQ-5 is resolved-with-fallback in DESIGN §7/§11. The Gtk4 warning modal is deferred to v0.2 (v0.1 has no GUI load flow); the v0.1 surface is the advisory `@warn` in `add_plot_checked!`. Manual spot-check on the Windows box (surface/volume at ~1e6 and ~1e7 points) confirms the fallback under-predicts fps.
+**Exit** (met): TEST_PLAN.md §8 pre-flight tests green on the 2-cell v0.1 CI matrix (294 tests total). Per **ADR-020** (option C, 2026-08-27), v0.1 ships the coarse fallback FPS formula (`REFERENCE_VRAM_BYTES = 8 GiB`; `user_scale` clamp; 0.5 when VRAM undetectable); the full measurement pass is deferred to the M11 QA sweep, and ODQ-5 is resolved-with-fallback in DESIGN §7/§11. The Gtk4 warning modal is deferred to v0.2 (v0.1 has no GUI load flow); the v0.1 surface is the advisory `@warn` in `add_plot_checked!`. Manual spot-check on the Windows box (surface/volume at \~1e6 and \~1e7 points) confirms the fallback under-predicts fps.
 
 ### M11 — Cross-OS packaging + registration
+
 Registrator.jl submission dry-run; CI green on the 2-cell v0.1 matrix (per ADR-018) for the full suite; LICENSE / README / semver check. **Pre-release manual verification protocol (per ADR-018): maintainer runs the full test suite manually on a Windows 11 machine and on macOS before tagging v0.1.0. Failure on either → fix or document as known limitation in release notes.**
 
 **M10 carryovers to fold into this QA pass** (deferred from M10 per ADR-020 / spot-check on 2026-08-27): (a) the FPS **measurement pass** — build the three-OS reference table → `src/preflight/fps_lookup.jl`, replacing the coarse fallback; (b) verify `detect_host_specs`' **VRAM-parsing branch** on a real NVIDIA box — only the `nothing` fallback has run (no `nvidia-smi` on the dev machine); (c) **interactive-fps** sanity of the pre-flight fallback through the embedded viewport, once Bug E (tree-pane refresh crash) is fixed.
 
-**Pre-tag docs reconciliation (v0.1-readiness, flagged 2026-08-27):** README/SDD describe an **interactive GUI** (variable picker, Add Plot / File / Export menus, the warning-with-buttons modal) that v0.1-as-built does **not** have — the shipped v0.1 is **REPL-driven** (build the session via `add_plot!` / `add_plot_checked!` / `save_session` / `export_figure`, then `makieviews()` to display; build-then-display; live *attribute* edits work, live *structural* edits hang per Bug F → v0.2). Before tagging v0.1.0, rewrite the README Quickstart, "Large datasets", and "click-to-build" tagline (and audit the SDD) to describe the REPL-driven workflow. The interactive GUI layer (menus, load flow, modal, live structural mutation) is the v0.2 story — 064c, Bug F, and this doc gap all point at the same deferred layer.
+**Pre-tag docs reconciliation (DONE 2026-08-28, [ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md)):** The README, SDD, CHANGELOG, and this PLAN described an **interactive GUI** (variable picker, Add Plot / File / Export menus, the warning-with-buttons modal) that v0.1-as-built does **not** have. ADR-022 records the scope decision: v0.1.0 ships the **REPL-driven core** — build a session with `new_session` / `add_figure!` / `add_axis!` / `ingest!` / `add_plot!` / `add_plot_checked!`, render and export via a `Renderer` + `export_figure` / `render_animation`, and `save_session` to `.mvz`; `makieviews()` previews the built-in **demo** session only. Reconciled: README (Framing-A REPL Quickstart, corrected "Large datasets" and tagline), SDD (§5.4 / §8 delivery-status layer), CHANGELOG, and this PLAN §1. The interactive GUI layer (menus, load flow, modal, live structural mutation — Bug F) is the v0.2 story; `.mvz` data round-trip (SC-004) is v0.2 too (ADR-017).
 
 **Exit**: SDD SC-001 met (registered as v0.1.0); tagged release; pre-release manual QA report attached to release notes.
 
