@@ -20,6 +20,14 @@ function Renderer(session::Session, fig::Makie.Figure)
     return renderer
 end
 
+"""
+    render_session(session::Session) -> Renderer
+
+Render `session` into a fresh Makie figure and return the `Renderer`. Convenience for
+headless export and animation: `export_figure(render_session(s), "out.png")`.
+"""
+render_session(session::Session) = Renderer(session, Makie.Figure())
+
 function _rebuild_from_session!(renderer::Renderer)
     axis_index = 0
     for fig_node in renderer.session.figures[]
