@@ -2653,3 +2653,185 @@ Incremental live-update (add just the new axis/plot; don't nuke the whole figure
 
 ### v0.1 disposition
 Documented limitation (build-then-display). Same deferred bucket as Patch P2 items D4 / Bug D.
+
+---
+
+# M11 — Cross-OS packaging + registration
+
+Milestone frontier as of 2026-08-28. Per **ADR-022**, v0.1.0 ships the REPL-driven core. Strict one-at-a-time execution gate. **Antigravity task: 068 only.** 069 is Claude-Chat docs; 070–075 are maintainer-run (John) audit / QA / release steps.
+
+---
+
+## Task 068: render_session convenience helper (headless render → Renderer)
+**Status:** [x] Done — 2026-08-28, commit fc25312. Full suite green locally (72 testsets, all pass; ~308 assertions), including new `M11 render_session — headless render + export` (3 assertions). Source assertion (`Task 068 source OK`) also passed. Antigravity's initial "137 tests" report was a truncated summary pane, not a regression — verified by re-running and pasting the full `Test Summary:` block. CI verification is Task 071.
+**Milestone:** M11
+**Depends on:** —
+
+### What to do
+Add an exported one-line helper `render_session(session) -> Renderer` to `src/render/renderer.jl` so headless export doesn't force users to touch `Makie` directly. Today a user must write `MakieViews.Renderer(s, MakieViews.Makie.Figure())`; `render_session` wraps that. Define it next to the `Renderer` constructor: build a fresh `Makie.Figure()` (accessible module-internally), pass it to the existing `Renderer(session, fig)` constructor (which renders synchronously via `_rebuild_from_session!`), and return the `Renderer`. Export `render_session` from `src/MakieViews.jl` (right after `export_figure`). Then create a new integration test file and include it from `runtests.jl`.
+
+```julia
+"""
+    render_session(session::Session) -> Renderer
+
+Render `session` into a fresh Makie figure and return the `Renderer`. Convenience for
+headless export and animation: `export_figure(render_session(s), "out.png")`.
+"""
+render_session(session::Session) = Renderer(session, Makie.Figure())
+```
+
+New file `test/integration/render_session.jl`:
+```julia
+@testset "M11 render_session — headless render + export" begin
+    s = MakieViews.new_session()
+    fig = MakieViews.add_figure!(s; title = "F")
+    ax = MakieViews.add_axis!(fig; kind = :axis2d, title = "A")
+    s.data_snapshots["x"] = collect(1.0:50.0)
+    s.data_snapshots["y"] = sin.((1.0:50.0) ./ 10)
+    MakieViews.add_plot!(ax, :line,
+        [MakieViews.DataRef(:x, "x", :main, "x"), MakieViews.DataRef(:y, "y", :main, "y")])
+    r = MakieViews.render_session(s)
+    @test r isa MakieViews.Renderer
+    mktempdir() do dir
+        out = joinpath(dir, "rs.png")
+        MakieViews.export_figure(r, out)
+        @test isfile(out)
+        @test filesize(out) > 0
+    end
+end
+```
+Add `include("integration/render_session.jl")` to `test/runtests.jl` alongside the other `integration/` includes.
+
+### Files touched
+- `src/render/renderer.jl` — append `render_session`
+- `src/MakieViews.jl` — export `render_session` (after `export_figure`)
+- `test/integration/render_session.jl` — new: testset above
+- `test/runtests.jl` — include the new file
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the new `M11 render_session — headless render + export` testset (3 assertions) passing. Report the `Test Summary:` counts. AND a source assertion:
+`julia -e 't = read("src/render/renderer.jl", String); @assert occursin("render_session", t) "render_session missing"; m = read("src/MakieViews.jl", String); @assert occursin("render_session", m) "not exported"; println("Task 068 source OK")'` exits 0 and prints `Task 068 source OK`.
+
+### Commit
+Stage explicitly: `git add src/render/renderer.jl src/MakieViews.jl test/integration/render_session.jl test/runtests.jl` (do NOT touch tasks.md — per AGENTS.md).
+Subject: `feat: render_session helper — headless render to Renderer (M11)`
+Body: `Task 068. render_session(session) -> Renderer wraps Renderer(session, Makie.Figure()) so headless export/animation doesn't require users to reach into MakieViews.Makie. Exported; matches the README v0.1 Quickstart. Test: build a line session, render_session, assert Renderer + non-empty PNG via export_figure.`
+Then report `git show --stat --oneline -s HEAD`.
+
+### Report back
+On pass: `TASK 068 PASSED — render_session green, <N> tests, committed as <SHA>. Test summary: [paste]` + the `--stat`.
+On fail: `TASK 068 FAILED — [criterion] — [Pkg.test tail; quote the failing @test line verbatim]`
+
+---
+
+## Task 069: Defer FPS measurement pass to v0.2 (docs, authored in Claude Chat)
+**Status:** [ ] Pending
+**Milestone:** M11
+**Depends on:** —
+
+### What to do
+Record the decision (John, 2026-08-28) to **defer the measurement-driven FPS lookup (`fps_lookup.jl`) to v0.2**, keeping the coarse conservative fallback for v0.1.0. The fallback under-predicts and never over-predicts (M10 spot-check), so it is safe to ship. Update **ADR-020** (note: the M11 measurement pass is now deferred to v0.2 — the multi-OS timing runs are disproportionate for v0.1 given the safe fallback), **DESIGN.md** §11 ODQ-5 row + §7.2 ("deferred to the M11 QA pass" → "deferred to v0.2"), and **PLAN.md** M11 carryover (a). Pure docs — no code, no Antigravity; authored in Claude Chat and committed alongside tasks.md.
+
+### Files touched
+- `docs/adr/ADR-020-defer-fps-measurement-to-m11.md` — measurement pass now → v0.2
+- `docs/DESIGN.md` — §11 ODQ-5 + §7.2 wording: M11 → v0.2
+- `docs/PLAN.md` — M11 carryover (a): measurement pass → v0.2
+
+### Acceptance Criterion
+ADR-020, DESIGN §11/§7.2, and PLAN M11 all state the FPS measurement pass is deferred to v0.2 (fallback ships for v0.1). No code change → CI unaffected (still green at HEAD). Verified in Claude Chat via the applied edit diffs.
+
+---
+
+## Task 070: Release-readiness audit (Claude Chat + John)
+**Status:** [ ] Pending
+**Milestone:** M11
+**Depends on:** 068, 069
+
+### What to do
+Pre-registration audit of package metadata and release docs:
+1. **Project.toml compat** — decide the exact pins `Makie = "=0.24.13"`, `GLMakie = "=0.13.13"`: General AutoMerge permits them but flags overly-tight compat, and they block downstream upgrades. Options: keep exact (Gtk4Makie pins Makie upstream anyway) or loosen to `"0.24"` / `"0.13"`. Decide + record rationale. Confirm every non-stdlib dep has a `[compat]` entry and `julia` has a lower bound (✓ "1.10").
+2. **Version** — plan the `0.1.0-DEV` → `0.1.0` bump (applied in Task 075 at the release commit).
+3. **LICENSE / README / semver** — LICENSE present + MIT (✓); README accurate (✓ reconciled, ADR-022); CHANGELOG `[0.1.0]` entries complete; semver = 0.1.0 correct for a first release.
+4. **CHANGELOG finalize plan** — at release, move `[0.1.0] — TBD` to a dated release and fold in the relevant `[Unreleased]` items.
+
+### Files touched
+- `Project.toml` — any agreed compat edit (or note deferring it to Task 075)
+- `docs/RELEASE-READINESS.md` — optional: the audit note
+
+### Acceptance Criterion
+A written readiness note resolving the compat-pin decision, confirming LICENSE/README/semver, and listing the exact CHANGELOG + version edits for Task 075. Each of the four items has a recorded decision; no blocking metadata issue remains.
+
+---
+
+## Task 071: Full-suite CI green at the release candidate (CI)
+**Status:** [ ] Pending
+**Milestone:** M11
+**Depends on:** 070
+
+### What to do
+On the release-candidate commit, confirm the 2-cell CI matrix (`ubuntu-latest × {Julia 1.10, 1.12}`, per ADR-018) runs the full suite green. Record the run id and exact test count.
+
+### Acceptance Criterion
+CI 2/2 green on the RC commit; full suite (confirm exact total). Report: `CI <run-id> 2/2 green, <N> tests`.
+
+---
+
+## Task 072: Windows 11 manual full-suite run (John)
+**Status:** [ ] Pending
+**Milestone:** M11
+**Depends on:** 071
+
+### What to do
+On the Windows 11 dev box: `julia --project=. -e 'using Pkg; Pkg.test()'`, then `makieviews()` from a real terminal (not the VS Code integrated REPL — it doesn't pump the Gtk4 loop) → window opens, demo renders, 3D axis rotates, one live attribute edit (title/color) reflects.
+
+### Acceptance Criterion
+`Pkg.test()` exits 0 (report count); `makieviews()` opens and the demo is interactive (rotate + one live attribute edit). Report: `Windows: tests <N> green; launch + interact OK` — or the specific failure.
+
+---
+
+## Task 073: macOS full-suite run + live launch — HARD GATE (John, ADR-018)
+**Status:** [ ] Pending
+**Milestone:** M11
+**Depends on:** 071
+
+### What to do
+The pre-release macOS live-test — the hard gate before tagging v0.1.0 (ADR-018). On a macOS 12+ machine with a fresh Julia 1.12: instantiate, run the full suite, and launch. `Pkg.test()`; then `makieviews()` → window opens, demo (incl. 3D surface) renders, rotate works, one live attribute edit reflects, and `export_figure` to PNG succeeds. Any failure → fix, or document as a known limitation in the release notes (per ADR-018), before tagging.
+
+### Acceptance Criterion
+On macOS: `Pkg.test()` exits 0 (report count); `makieviews()` opens and renders the demo; 3D rotate + one live attribute edit work; `export_figure` writes a non-empty PNG. Report: `macOS: tests <N> green; launch + 3D + export OK` — or the specific failure + disposition. **v0.1.0 does not tag until this passes or its failures are documented.**
+
+### On Failure
+Report verbatim: the failing `Pkg.test()` tail or the launch symptom, the macOS version, and the Julia version. Do not tag.
+
+---
+
+## Task 074: Carryover QA — interactive-fps + VRAM parse (John)
+**Status:** [ ] Pending
+**Milestone:** M11
+**Depends on:** 072, 073
+
+### What to do
+Two M10 carryovers (ADR-020 / 2026-08-27):
+(a) **Interactive-fps sanity** through the embedded viewport — now unblocked (Bug E fixed, Task 067). With a large-ish plot displayed, confirm the pre-flight fallback under-predicts (observed fps ≥ estimate; no freeze).
+(b) **VRAM-parsing branch** of `detect_host_specs` on a real NVIDIA box (only the `nothing` fallback has run — no `nvidia-smi` on the dev box). If no NVIDIA machine is available, document as a known limitation in the release notes (per ADR-018) rather than block.
+
+### Acceptance Criterion
+(a) reported: observed vs. estimated fps for one heavy plot, no freeze. (b) either `detect_host_specs` returns a populated VRAM / GPU name on an NVIDIA box, OR a one-line known-limitation entry is added to the release notes. Report both outcomes.
+
+---
+
+## Task 075: Release — version bump, CHANGELOG, Registrator, tag (John)
+**Status:** [ ] Pending
+**Milestone:** M11
+**Depends on:** 072, 073, 074
+
+### What to do
+Cut the release once the QA gate (072, 073, and 074's disposition) is green:
+1. Bump `Project.toml` `version = "0.1.0"`.
+2. Finalize `CHANGELOG.md`: move `[0.1.0] — TBD` to `[0.1.0] — <date>`, fold in the relevant `[Unreleased]` entries, fix the compare/tag links.
+3. Commit the release commit; push; confirm CI green.
+4. Registrator.jl **dry-run**, then trigger General-registry registration (JuliaRegistrator). Address any AutoMerge feedback (compat, etc.).
+5. After the registry PR merges: `git tag v0.1.0` + push the tag; attach the Windows/macOS QA report (072–074) to the release notes.
+
+### Acceptance Criterion (M11 / SC-001 exit)
+MakieViews v0.1.0 is registered in General and resolves via `] add MakieViews` on a fresh environment; the `v0.1.0` tag exists; release notes include the pre-release manual QA report. Report: `v0.1.0 registered (<registry PR>), tagged, QA report attached` — SC-001 met.
