@@ -2578,7 +2578,7 @@ On fail: `TASK 064c FAILED — [criterion] — [Pkg.test tail; quote the failing
 ---
 
 ## Task 066: M10 close — PLAN + CHANGELOG + push + CI + manual launch/spot-check
-**Status:** [ ] Pending (docs applied; awaiting push + CI + manual launch)
+**Status:** [x] Done — 2026-08-27. CI #37 (1f7e0ff) 2/2 green; `makieviews()` launches from a real terminal (VS Code's REPL doesn't pump the Gtk4 loop — not a bug); `add_plot_checked!` `@warn` confirmed (reason `:vram`). Spot-check passes in substance: at `user_scale = 0.5` (no `nvidia-smi` → VRAM `nothing`), the 1e6 surface (predicted 15, accept) renders fine and everything heavier warns — no over-prediction into a freeze zone. Carryovers to M11 QA: (a) VRAM-parsing branch unverified (no NVIDIA GPU on the dev box); (b) interactive fps through the embedded window (blocked by Bug E). Test total ~294 (confirm from CI log).
 **Milestone:** M10
 **Depends on:** 064c, 065
 

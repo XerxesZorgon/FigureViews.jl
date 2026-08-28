@@ -188,6 +188,8 @@ PNG/SVG/PDF export via CairoMakie in the export dialog. Layer 4 golden-image has
 ### M11 — Cross-OS packaging + registration
 Registrator.jl submission dry-run; CI green on the 2-cell v0.1 matrix (per ADR-018) for the full suite; LICENSE / README / semver check. **Pre-release manual verification protocol (per ADR-018): maintainer runs the full test suite manually on a Windows 11 machine and on macOS before tagging v0.1.0. Failure on either → fix or document as known limitation in release notes.**
 
+**M10 carryovers to fold into this QA pass** (deferred from M10 per ADR-020 / spot-check on 2026-08-27): (a) the FPS **measurement pass** — build the three-OS reference table → `src/preflight/fps_lookup.jl`, replacing the coarse fallback; (b) verify `detect_host_specs`' **VRAM-parsing branch** on a real NVIDIA box — only the `nothing` fallback has run (no `nvidia-smi` on the dev machine); (c) **interactive-fps** sanity of the pre-flight fallback through the embedded viewport, once Bug E (tree-pane refresh crash) is fixed.
+
 **Exit**: SDD SC-001 met (registered as v0.1.0); tagged release; pre-release manual QA report attached to release notes.
 
 ---
