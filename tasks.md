@@ -2479,3 +2479,98 @@ Author **ADR-020** recording the option-C decision — ship the coarse fallback 
 
 ### Acceptance Criterion
 ADR-020 exists and states the deferral + option C with the pinned parameters; DESIGN §11 ODQ-5 row reads "resolved-with-fallback" and links ADR-020; DESIGN §7.2 reflects the fallback shipping for v0.1. No code change → CI unaffected (still green at HEAD). Verified in Claude Chat via the applied edit diffs.
+
+---
+
+## Task 064c: preflight/check.jl — add_plot_checked! (REPL pre-flight-aware add)
+**Status:** [ ] Pending
+**Milestone:** M10
+**Depends on:** 064b
+
+### What to do
+Append `add_plot_checked!` to `src/preflight/check.jl` and export it. This is the v0.1 pre-flight *surface* (option C, John's decision 2026-08-27): a REPL-facing wrapper around `add_plot!` that runs `preflight_decision` on the largest of the plot's arrays and, on `:warn` without a `downsample=` kwarg, emits an advisory `@warn` (estimated MB, fps, reason) but still adds the plot at full size — matching DESIGN §7.1's Accept/Override → load-full default. Passing `downsample=<algo>` adds the plot and applies the reduction (no warning). No Gtk4 modal in v0.1 (deferred to v0.2 with a GUI load flow, per ADR-020).
+
+```julia
+"""
+    add_plot_checked!(ax, plot_type, data_refs; session, host, downsample) -> (plot, decision, reason)
+
+Pre-flight-aware `add_plot!`. Runs `preflight_decision` on the largest referenced
+array; on `:warn` with no `downsample=`, emits an advisory `@warn` and still adds the
+plot at full size. `downsample=<DownsampleAlgorithm>` adds then reduces (no warning).
+"""
+function add_plot_checked!(ax::Axis, plot_type::Symbol, data_refs::Vector{DataRef};
+                           session::Session = _current_session[],
+                           host::HostSpecs = detect_host_specs(),
+                           downsample::Union{Nothing, DownsampleAlgorithm} = nothing)
+    session === nothing && throw(ArgumentError("add_plot_checked! needs an active session"))
+    arrays = [session.data_snapshots[r.snapshot_id]
+              for r in data_refs if haskey(session.data_snapshots, r.snapshot_id)]
+    dec = isempty(arrays) ?
+          (decision = :accept, reason = :ok, est_fps = Inf, est_bytes = 0) :
+          preflight_decision(host, argmax(length, arrays), plot_type)
+    plot = add_plot!(ax, plot_type, data_refs)
+    if downsample !== nothing
+        apply_downsample!(session, plot, downsample)
+    elseif dec.decision == :warn
+        @warn "MakieViews pre-flight: this $plot_type plot is large and may run slowly or freeze the GUI." estimated_MB = round(dec.est_bytes / 1e6; digits = 1) estimated_fps = round(dec.est_fps; digits = 1) reason = dec.reason tip = "pass downsample=LTTB(n) (or UniformStride / MinMaxDecimation) to reduce it"
+    end
+    return (plot = plot, decision = dec.decision, reason = dec.reason)
+end
+```
+
+Add `add_plot_checked!` to the `export` list in `src/MakieViews.jl` (right after `add_plot!`). `argmax(length, arrays)` (Julia ≥1.7) returns the longest array. **Append** this testset to `test/integration/preflight.jl`:
+
+```julia
+@testset "M10 add_plot_checked! — pre-flight-aware add" begin
+    s = MakieViews.new_session()
+    fig = MakieViews.add_figure!(s; title = "F")
+    ax = MakieViews.add_axis!(fig; kind = :axis2d, title = "A")
+    host_big  = MakieViews.HostSpecs(32 * 1024^3, 16, 8 * 1024^3, "GPU")
+    host_tiny = MakieViews.HostSpecs(32 * 1024^3, 16, 1000, "TinyGPU")   # forces VRAM-over on any array
+
+    s.data_snapshots["sx"] = collect(1.0:1000.0); s.data_snapshots["sy"] = sin.((1.0:1000.0) ./ 50)
+    r1 = MakieViews.add_plot_checked!(ax, :line,
+        [MakieViews.DataRef(:x, "sx", :main, "x"), MakieViews.DataRef(:y, "sy", :main, "y")];
+        session = s, host = host_big)
+    @test r1.decision == :accept
+    @test r1.plot !== nothing
+
+    s.data_snapshots["bx"] = collect(1.0:1000.0); s.data_snapshots["by"] = sin.((1.0:1000.0) ./ 50)
+    r2 = @test_logs (:warn, r"pre-flight") match_mode=:any MakieViews.add_plot_checked!(ax, :line,
+        [MakieViews.DataRef(:x, "bx", :main, "x"), MakieViews.DataRef(:y, "by", :main, "y")];
+        session = s, host = host_tiny)
+    @test r2.decision == :warn
+    @test r2.plot !== nothing            # advisory: still added at full size
+
+    s.data_snapshots["dx"] = collect(1.0:1000.0); s.data_snapshots["dy"] = sin.((1.0:1000.0) ./ 50)
+    r3 = MakieViews.add_plot_checked!(ax, :line,
+        [MakieViews.DataRef(:x, "dx", :main, "x"), MakieViews.DataRef(:y, "dy", :main, "y")];
+        session = s, host = host_tiny, downsample = MakieViews.LTTB(50))
+    @test r3.plot !== nothing
+    @test r3.plot.attrs[:downsample_algorithm][] == MakieViews.LTTB(50)
+    xref = r3.plot.data_refs[][findfirst(r -> r.role == :x, r3.plot.data_refs[])]
+    @test length(s.data_snapshots[xref.snapshot_id]) == 50   # reduced on the downsample path
+end
+```
+
+### Files touched
+- `src/preflight/check.jl` — modified: append `add_plot_checked!`
+- `src/MakieViews.jl` — modified: add `add_plot_checked!` to the `export` list (after `add_plot!`)
+- `test/integration/preflight.jl` — modified: append the testset above
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the new `M10 add_plot_checked! — pre-flight-aware add` testset (7 assertions) passing. Report the `Test Summary:` counts. AND a source assertion:
+`julia -e 't = read("src/preflight/check.jl", String); @assert occursin("function add_plot_checked!", t) "add_plot_checked! missing"; m = read("src/MakieViews.jl", String); @assert occursin("add_plot_checked!", m) "not exported"; println("Task 064c source OK")'` exits 0 and prints `Task 064c source OK`.
+
+### Manual launch (John, at M10 sign-off)
+In a REPL after `makieviews()`: build a large-ish x/y (e.g. `1e6` points), `ingest!` them, and call `add_plot_checked!(ax, :line, refs)` — confirm the `@warn` prints estimated MB/fps; then call again with `downsample=LTTB(1000)` and confirm no warning + a reduced plot.
+
+### Commit
+Stage explicitly: `git add src/preflight/check.jl src/MakieViews.jl test/integration/preflight.jl` (do NOT touch tasks.md — per AGENTS.md).
+Subject: `feat: add_plot_checked! — REPL pre-flight-aware add (M10, option C)`
+Body: `Task 064c. add_plot_checked!(ax, type, refs; session, host, downsample) wraps add_plot!: runs preflight_decision on the largest referenced array; on :warn without downsample=, emits an advisory @warn (est MB/fps/reason) and still adds the plot full (DESIGN §7.1 Accept/Override default); downsample=<algo> adds then applies apply_downsample!. Exported. v0.1 pre-flight surface per ADR-020 (option C) — no Gtk4 modal (deferred to v0.2). Tests: accept (silent), warn (advisory, full add), downsample (reduced, no warn).`
+Then report `git show --stat --oneline -s HEAD`.
+
+### Report back
+On pass: `TASK 064c PASSED — add_plot_checked! green, <N> tests, committed as <SHA>. Test summary: [paste]` + the `--stat`.
+On fail: `TASK 064c FAILED — [criterion] — [Pkg.test tail; quote the failing @test line verbatim]`
