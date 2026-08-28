@@ -90,8 +90,9 @@ MakieViews.jl/
 │   │   └── hdf5_source.jl
 │   ├── preflight/
 │   │   ├── detect.jl             # Sys/GPU probes
-│   │   ├── estimate.jl           # footprint + fps model
-│   │   └── downsample.jl         # UniformStride, MinMaxDecimation, LTTB
+│   │   ├── estimate.jl           # footprint + fps model (coarse fallback; fps_lookup.jl deferred to M11 per ADR-020)
+│   │   ├── downsample.jl         # UniformStride, MinMaxDecimation, LTTB
+│   │   └── check.jl              # threshold decision, apply_downsample!, add_plot_checked!
 │   ├── persistence/
 │   │   ├── mvz_save.jl
 │   │   ├── mvz_load.jl
@@ -179,10 +180,10 @@ PNG/SVG/PDF export via CairoMakie in the export dialog. Layer 4 golden-image has
 
 **Exit** (met): M9 complete 2026-08-26. Preferences: Scratch.jl-backed preferences.toml (independent schema_version), seed-on-new from prefs, reset_to_preferences!, set_theme! grep-gate. 236 tests passing.
 
-### M10 — Pre-flight dataset check
-`detect_host_specs`, `estimate_footprint`, warning dialog, `UniformStride` / `MinMaxDecimation` / `LTTB`. ODQ-5 formula (from DESIGN.md §11) measured and published.
+### M10 — Pre-flight dataset check — **COMPLETE (2026-08-27)**
+`detect_host_specs`, `estimate_footprint` + `estimate_fps`, `UniformStride` / `MinMaxDecimation` / `LTTB`, the `preflight_decision` threshold + `apply_downsample!`, and the REPL-facing `add_plot_checked!` warning surface.
 
-**Exit**: TEST_PLAN.md §8 tests green; measurement pass documented; DESIGN.md §7 ODQ-5 marked resolved with a new **ADR-020** (was originally reserved as ADR-018 in this document; ADR-018 was assigned to the CI-matrix reduction on 2026-08-24 and ADR-019 to the reactive state model, so the pre-flight FPS ADR is now ADR-020).
+**Exit** (met): TEST_PLAN.md §8 pre-flight tests green on the 2-cell v0.1 CI matrix (294 tests total). Per **ADR-020** (option C, 2026-08-27), v0.1 ships the coarse fallback FPS formula (`REFERENCE_VRAM_BYTES = 8 GiB`; `user_scale` clamp; 0.5 when VRAM undetectable); the full measurement pass is deferred to the M11 QA sweep, and ODQ-5 is resolved-with-fallback in DESIGN §7/§11. The Gtk4 warning modal is deferred to v0.2 (v0.1 has no GUI load flow); the v0.1 surface is the advisory `@warn` in `add_plot_checked!`. Manual spot-check on the Windows box (surface/volume at ~1e6 and ~1e7 points) confirms the fallback under-predicts fps.
 
 ### M11 — Cross-OS packaging + registration
 Registrator.jl submission dry-run; CI green on the 2-cell v0.1 matrix (per ADR-018) for the full suite; LICENSE / README / semver check. **Pre-release manual verification protocol (per ADR-018): maintainer runs the full test suite manually on a Windows 11 machine and on macOS before tagging v0.1.0. Failure on either → fix or document as known limitation in release notes.**

@@ -2574,3 +2574,27 @@ Then report `git show --stat --oneline -s HEAD`.
 ### Report back
 On pass: `TASK 064c PASSED — add_plot_checked! green, <N> tests, committed as <SHA>. Test summary: [paste]` + the `--stat`.
 On fail: `TASK 064c FAILED — [criterion] — [Pkg.test tail; quote the failing @test line verbatim]`
+
+---
+
+## Task 066: M10 close — PLAN + CHANGELOG + push + CI + manual launch/spot-check
+**Status:** [ ] Pending (docs applied; awaiting push + CI + manual launch)
+**Milestone:** M10
+**Depends on:** 064c, 065
+
+### What to do
+Docs applied in Claude Chat: PLAN.md M10 marked **COMPLETE** + §4 `check.jl` added; CHANGELOG `[Unreleased]` M10 entry. Then John commits the pending docs, pushes, verifies CI, and runs the manual launch + fallback spot-check.
+
+### Files touched
+- `docs/PLAN.md` — M10 COMPLETE + §4 `check.jl` (Claude Chat)
+- `CHANGELOG.md` — M10 `[Unreleased]` entry (Claude Chat)
+- `tasks.md` — this block + Task 064c done-mark
+
+### Acceptance Criterion (M10 exit)
+1. `git push`; CI 2/2 green (`ubuntu-latest × {1.10, 1.12}`), full suite (~294 tests — confirm the exact total from the run).
+2. Manual launch: `makieviews()` opens; `add_plot_checked!` with a large-ish array prints the `@warn` (est MB/fps); `downsample=LTTB(n)` reduces with no warning.
+3. Fallback spot-check (Windows box): surface + volume at ~1e6 and ~1e7 points — observed fps ≥ `estimate_fps` (the fallback under-predicts, never over-predicts).
+M10 is COMPLETE when 1–3 pass. If CI is red or the spot-check shows the fallback over-predicting on a heavy case, reopen (adjust `REFERENCE_VRAM_BYTES` / `base_fps` and re-run).
+
+### Report back
+`M10 COMPLETE — CI 2/2 green (run <id>), <N> tests. Manual launch + spot-check: [result].` — or the specific failure.

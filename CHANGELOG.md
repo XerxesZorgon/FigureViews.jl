@@ -5,6 +5,13 @@ All notable changes to MakieViews will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### M10 — Pre-flight dataset check (2026-08-27)
+- Added `detect_host_specs()` → `HostSpecs` (total RAM, CPU threads, best-effort GPU VRAM/name via nvidia-smi / system_profiler; never throws, degrades to `nothing` on missing GPU per FR-026).
+- Added `estimate_footprint(array)` (bytes = length × sizeof(eltype)) and `estimate_fps(plot_type, n, host)` — coarse fallback `60/√(n/1e6)` (2D) / `30/√(n/1e6)` (3D) × `user_scale` (`REFERENCE_VRAM_BYTES = 8 GiB`; `user_scale = 0.5` when VRAM undetectable).
+- Added three downsampling algorithms over 1-D (x,y): `UniformStride`, `MinMaxDecimation`, `LTTB` (Steinarsson 2013); all preserve first/last points and monotonic x (ADR-010).
+- Added `preflight_decision(host, array, plot_type)` → `(:accept | :warn, reason, est_fps, est_bytes)` with the threshold `est_fps < 15 OR bytes > 60% VRAM` (VRAM term skipped when undetectable); `record_downsample!` and `apply_downsample!` (materialize reduced snapshots, repoint `:x`/`:y` refs, retain the full arrays — DESIGN §7.1).
+- Added exported `add_plot_checked!(ax, type, refs; session, host, downsample)` — the v0.1 REPL pre-flight surface: advisory `@warn` (est MB/fps/reason) on `:warn`, `downsample=<algo>` reduces (option C, ADR-020). The Gtk4 warning modal is deferred to v0.2 (no GUI load flow in v0.1).
+- **ADR-020**: the FPS measurement pass is deferred to the M11 pre-release QA sweep; v0.1 ships the coarse fallback formula guarded by a manual spot-check. ODQ-5 resolved-with-fallback (DESIGN §7/§11).
 ### M9 — Preferences (2026-08-26)
 - Added Scratch.jl-backed preferences.toml (load_preferences, save_preferences, preferences_path) with its own schema_version independent of .mvz (ADR-016).
 - New plots seed attrs from preferences (default_<attr> keys; palette cycles for :color across plots in an axis), falling back to spec defaults; add_plot! gains an optional prefs kwarg.
