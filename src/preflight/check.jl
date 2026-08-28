@@ -50,3 +50,29 @@ function apply_downsample!(session::Session, plot::Plot, algo::DownsampleAlgorit
     record_downsample!(plot, algo)
     return plot
 end
+
+"""
+    add_plot_checked!(ax, plot_type, data_refs; session, host, downsample) -> (plot, decision, reason)
+
+Pre-flight-aware `add_plot!`. Runs `preflight_decision` on the largest referenced
+array; on `:warn` with no `downsample=`, emits an advisory `@warn` and still adds the
+plot at full size. `downsample=<DownsampleAlgorithm>` adds then reduces (no warning).
+"""
+function add_plot_checked!(ax::Axis, plot_type::Symbol, data_refs::Vector{DataRef};
+                           session::Session = _current_session[],
+                           host::HostSpecs = detect_host_specs(),
+                           downsample::Union{Nothing, DownsampleAlgorithm} = nothing)
+    session === nothing && throw(ArgumentError("add_plot_checked! needs an active session"))
+    arrays = [session.data_snapshots[r.snapshot_id]
+              for r in data_refs if haskey(session.data_snapshots, r.snapshot_id)]
+    dec = isempty(arrays) ?
+          (decision = :accept, reason = :ok, est_fps = Inf, est_bytes = 0) :
+          preflight_decision(host, argmax(length, arrays), plot_type)
+    plot = add_plot!(ax, plot_type, data_refs)
+    if downsample !== nothing
+        apply_downsample!(session, plot, downsample)
+    elseif dec.decision == :warn
+        @warn "MakieViews pre-flight: this $plot_type plot is large and may run slowly or freeze the GUI." estimated_MB = round(dec.est_bytes / 1e6; digits = 1) estimated_fps = round(dec.est_fps; digits = 1) reason = dec.reason tip = "pass downsample=LTTB(n) (or UniformStride / MinMaxDecimation) to reduce it"
+    end
+    return (plot = plot, decision = dec.decision, reason = dec.reason)
+end

@@ -96,3 +96,34 @@ end
     ps = MakieViews.add_plot!(ax3, :surface, [MakieViews.DataRef(:matrix, "m", :main, "m")])
     @test_throws ArgumentError MakieViews.apply_downsample!(s, ps, MakieViews.UniformStride(2))
 end
+
+@testset "M10 add_plot_checked! — pre-flight-aware add" begin
+    s = MakieViews.new_session()
+    fig = MakieViews.add_figure!(s; title = "F")
+    ax = MakieViews.add_axis!(fig; kind = :axis2d, title = "A")
+    host_big  = MakieViews.HostSpecs(32 * 1024^3, 16, 8 * 1024^3, "GPU")
+    host_tiny = MakieViews.HostSpecs(32 * 1024^3, 16, 1000, "TinyGPU")   # forces VRAM-over on any array
+
+    s.data_snapshots["sx"] = collect(1.0:1000.0); s.data_snapshots["sy"] = sin.((1.0:1000.0) ./ 50)
+    r1 = MakieViews.add_plot_checked!(ax, :line,
+        [MakieViews.DataRef(:x, "sx", :main, "x"), MakieViews.DataRef(:y, "sy", :main, "y")];
+        session = s, host = host_big)
+    @test r1.decision == :accept
+    @test r1.plot !== nothing
+
+    s.data_snapshots["bx"] = collect(1.0:1000.0); s.data_snapshots["by"] = sin.((1.0:1000.0) ./ 50)
+    r2 = @test_logs (:warn, r"pre-flight") match_mode=:any MakieViews.add_plot_checked!(ax, :line,
+        [MakieViews.DataRef(:x, "bx", :main, "x"), MakieViews.DataRef(:y, "by", :main, "y")];
+        session = s, host = host_tiny)
+    @test r2.decision == :warn
+    @test r2.plot !== nothing            # advisory: still added at full size
+
+    s.data_snapshots["dx"] = collect(1.0:1000.0); s.data_snapshots["dy"] = sin.((1.0:1000.0) ./ 50)
+    r3 = MakieViews.add_plot_checked!(ax, :line,
+        [MakieViews.DataRef(:x, "dx", :main, "x"), MakieViews.DataRef(:y, "dy", :main, "y")];
+        session = s, host = host_tiny, downsample = MakieViews.LTTB(50))
+    @test r3.plot !== nothing
+    @test r3.plot.attrs[:downsample_algorithm][] == MakieViews.LTTB(50)
+    xref = r3.plot.data_refs[][findfirst(r -> r.role == :x, r3.plot.data_refs[])]
+    @test length(s.data_snapshots[xref.snapshot_id]) == 50   # reduced on the downsample path
+end
