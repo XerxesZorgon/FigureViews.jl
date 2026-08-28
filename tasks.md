@@ -2789,19 +2789,24 @@ On the Windows 11 dev box: `julia --project=. -e 'using Pkg; Pkg.test()'`, then 
 
 ---
 
-## Task 073: macOS full-suite run + live launch — HARD GATE (John, ADR-018)
-**Status:** [ ] Pending
+## Task 073: GHA macOS runner — headless full-suite CI on macos-latest (per ADR-023)
+**Status:** [ ] Pending (Antigravity)
 **Milestone:** M11
 **Depends on:** 071
 
 ### What to do
-The pre-release macOS live-test — the hard gate before tagging v0.1.0 (ADR-018). On a macOS 12+ machine with a fresh Julia 1.12: instantiate, run the full suite, and launch. `Pkg.test()`; then `makieviews()` → window opens, demo (incl. 3D surface) renders, rotate works, one live attribute edit reflects, and `export_figure` to PNG succeeds. Any failure → fix, or document as a known limitation in the release notes (per ADR-018), before tagging.
+Per ADR-023: extend the CI matrix to include `macos-latest × {Julia 1.10, 1.12}` alongside the existing `ubuntu-latest` cells. The full matrix becomes `{ubuntu-latest, macos-latest} × {"1.10", "1.12"}` (4 cells). No `xvfb-run` on macOS (native window server). Keep every existing Ubuntu step unchanged. Run the full `Pkg.test()` suite on macos-latest, exactly as on Ubuntu. If the Gtk4/GLMakie stack cannot initialize in the headless macOS runner (unproven pattern for MakieViews specifically — see ADR-023 fallback), report the specific error verbatim and stop; do NOT weaken the test scope without amending ADR-023. Do not touch anything outside `.github/workflows/`.
+
+This is an Antigravity task. Its instruction will be generated separately after Claude reads the current workflow file structure (`.github/workflows/*`) to write a delta-only instruction. Do not begin implementation until that instruction is generated.
+
+### Files touched
+- `.github/workflows/*.yml` — extend the OS matrix. Exact file(s) to modify determined by current workflow structure (verified before instruction generation).
 
 ### Acceptance Criterion
-On macOS: `Pkg.test()` exits 0 (report count); `makieviews()` opens and renders the demo; 3D rotate + one live attribute edit work; `export_figure` writes a non-empty PNG. Report: `macOS: tests <N> green; launch + 3D + export OK` — or the specific failure + disposition. **v0.1.0 does not tag until this passes or its failures are documented.**
+After the change is pushed, the next CI run on `main` is 4/4 cells green (`{ubuntu-latest, macos-latest} × {Julia 1.10, 1.12}`), running the full test suite. Report the run id and the test count per cell.
 
 ### On Failure
-Report verbatim: the failing `Pkg.test()` tail or the launch symptom, the macOS version, and the Julia version. Do not tag.
+Report the failing cell(s), grep the workflow log for `ERROR` / `FAIL`, and paste ~20 lines of context. Categorize the failure: (a) Gtk4/GLMakie init failure on macOS specifically (needs ADR-023 fallback), (b) a MakieViews test that fails on macOS (real macOS bug — good catch), or (c) transient CI issue (retry once, then escalate). Do NOT push a workaround; if the failure requires ADR-023's fallback plan, come back to Claude for ADR-023 amendment first.
 
 ---
 
@@ -2835,3 +2840,21 @@ Cut the release once the QA gate (072, 073, and 074's disposition) is green:
 
 ### Acceptance Criterion (M11 / SC-001 exit)
 MakieViews v0.1.0 is registered in General and resolves via `] add MakieViews` on a fresh environment; the `v0.1.0` tag exists; release notes include the pre-release manual QA report. Report: `v0.1.0 registered (<registry PR>), tagged, QA report attached` — SC-001 met.
+
+---
+
+## Deferred to post-v0.1.0: Interactive macOS verification (per ADR-023)
+**Status:** Filed — deferred to post-v0.1.0 (committed before v0.2.0). Documented as a v0.1 known limitation.
+**Component:** Manual QA on macOS hardware.
+
+### Symptom / missing coverage
+No mouse-driven interactive verification on macOS for v0.1.0: rotating a 3D axis by mouse in the displayed window, live attribute edits via the demo window's property panel, window dragging/resizing, and `export_figure` from a displayed (rather than headless) window. Cursor/focus/HiDPI/menu-bar behaviors on macOS are also unverified.
+
+### Coverage that DOES ship in v0.1.0 (per ADR-023)
+The GHA macos-latest CI job (Task 073) runs the full headless `Pkg.test()` suite on Apple Silicon, exercising ~99% of what the manual gate would have covered: all seven plot types, GLMakie rendering via macOS OpenGL compat, CairoMakie export, session persistence, downsampling, preferences, and `add_plot_checked!`. What remains uncovered is user-driven interaction (mouse, keyboard, window events) — no automated test framework replaces a human at a Mac.
+
+### v0.1 disposition
+Documented in README Platforms section (ADR-023 cross-ref) and CHANGELOG [0.1.0] Known limitations. Mac users on v0.1.0 are asked to report issues via GitHub Issues; the accumulated set is fixed in v0.1.x patches or gated by the interactive pass before v0.2.0.
+
+### Trigger to close
+Before v0.2.0: perform the original ADR-018 manual gate on a macOS 12+ machine (`Pkg.test()` locally + `makieviews()` + 3D rotate by mouse + one live attribute edit + `export_figure` from the displayed window). If it passes, close this block and update ADR-023 with the outcome. If failures found, fix or document as v0.2 known limitations.
