@@ -2743,7 +2743,7 @@ ADR-020, DESIGN §11/§7.2, and PLAN M11 all state the FPS measurement pass is d
 ---
 
 ## Task 070: Release-readiness audit (Claude Chat + John)
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-28 (docs; no code). `docs/RELEASE-READINESS.md` authored. Decisions recorded: (1) compat pins — keep exact `Makie = "=0.24.13"` / `GLMakie = "=0.13.13"` (GLMakie upstream-pins Makie exactly, so loosening gives no immediate resolver freedom; AutoMerge accepts exact pins per RegistryCI guidelines; first-release reproducibility over nimbleness); (2) version — 0.1.0-DEV → 0.1.0 at Task 075; (3) LICENSE ✓ (MIT verified), README ✓ (reconciled ADR-022), CHANGELOG ✓ (Task 069); (4) CHANGELOG finalize plan — move dev history under new "Pre-release history" heading beneath [0.1.0], reset [Unreleased], swap PLACEHOLDER-USER → XerxesZorgon. Repo confirmed at [XerxesZorgon/MakieViews.jl](https://github.com/XerxesZorgon/MakieViews.jl) via user screenshot (my web_fetches were serving stale GitHub-cached HTML). Post-v0.1.0 follow-up captured: in-package update-check helper (v0.2 candidate). No blocking issues.
 **Milestone:** M11
 **Depends on:** 068, 069
 
