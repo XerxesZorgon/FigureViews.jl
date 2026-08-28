@@ -59,7 +59,7 @@ function build_tree_pane(session::Session)
         empty!(labels); append!(labels, new_labels)
         empty!(ids);    append!(ids, new_ids)
         # In Gtk4, we can clear the string list and append
-        splice!(model, 1:length(model))
+        empty!(model)
         for l in labels
             push!(model, l)
         end
