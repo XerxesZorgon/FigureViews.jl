@@ -2764,7 +2764,7 @@ A written readiness note resolving the compat-pin decision, confirming LICENSE/R
 ---
 
 ## Task 071: Full-suite CI green at the release candidate (CI)
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-28. CI run #40 both green on commit `4d053a7` (`ubuntu-latest × {Julia 1.10, 1.12}` per ADR-018). Test count 72 testsets / ~308 assertions — unchanged since Task 068 (`fc25312`), as Tasks 069 and 070 are docs-only. HEAD (`4d053a7`) is the pre-RC state; Task 075's version-bump commit will re-run CI as its own final gate.
 **Milestone:** M11
 **Depends on:** 070
 
