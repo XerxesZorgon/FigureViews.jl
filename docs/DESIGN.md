@@ -509,6 +509,24 @@ On each observed change:
 
 CairoMakie static export operates on the same `Renderer.fig`: `CairoMakie.activate!(); save("out.pdf", fig); GLMakie.activate!()`.
 
+### 8.1 Amendment — v0.1 reality vs. the incremental path (per [ADR-024](adr/ADR-024-incremental-render-path-bug-f.md))
+
+The design above describes the *target* incremental renderer. **The v0.1 implementation does not achieve it**, and the gap is Bug F. Two specifics above are aspirational, not shipped:
+
+- "Structural changes → replay the affected subtree" — v0.1 does **not** replay a subtree. Every structural observer runs `empty!(renderer.fig)` and rebuilds the *entire* figure from the session (`src/render/renderer.jl`, `_rebuild_from_session!`). This is coarse but correct **only while headless** (before any window opens).
+- "When a node is removed, its handlers are explicitly `off(...)`'d" — v0.1 does **not** call `off`; observer handles accumulate in `_observer_handles` and are only released when the whole `Renderer` is dropped.
+
+**Why this is Bug F.** Once `makieviews()` opens a live window, the Gtk4/GLib event loop owns the main thread. A structural mutation issued from the REPL (`add_plot!`) fires the full-rebuild observer *from the REPL context*, which contends with the loop for the main thread and deadlocks. The v0.1 demo avoids this only because every `add_plot!` executes **before** `show(w)` — all mutation is headless; the window opens last. Live *attribute* edits work (they mutate an existing Makie handle in place, on the render thread, no rebuild), which is why §5's value flow is real in v0.1 but §8's structural path is not.
+
+**v0.2 target (ADR-024).** Bug F is two coupled defects — wrong thread *and* wrong granularity — and both are fixed together:
+
+- **Thread:** structural mutations are posted to a thread-safe queue and drained on the main thread via `Gtk4.GLib.g_idle_add` (the same idle-marshalling primitive §9 already uses for data ingestion). When no window is live, mutations apply synchronously and directly, exactly as in v0.1 — the queue engages only once a window is displayed.
+- **Granularity:** the full-figure `empty!` observers are replaced (for the live path) by incremental operations that mutate only the changed node's handle — `_add_plot_handle!`, `_remove_plot_handle!`, `_add_axis!`, `_remove_axis!` — each ending in `Gtk4.queue_render(glarea)`. Removed nodes get their observers `off(...)`'d at that point, closing the leak the v0.1 accumulation leaves open.
+
+A single `apply_structural!(session, op)` funnel branches on "is a window live?" so callers never choose between the direct and queued paths.
+
+> **Embedding risk (ADR-024 constraint 2).** `makieviews()` embeds the viewport via `Gtk4Makie.GtkMakieWidget` (`src/MakieViews.jl`), which Gtk4Makie documents as unstable, with open upstream issue #14 on *adding a plot to an existing widget* — the exact operation the incremental path needs. v0.2's first spike must resolve the embedding path (drive #14, switch to `GTKScreen`-in-grid, or `GLMakie.Screen(; window=…, start_renderloop=false)`) before any GUI task is committed. This gates the milestone.
+
 ---
 
 ## 9. Threading & Event Loop
@@ -521,6 +539,15 @@ Gtk4 requires all UI mutations to happen on its main thread. GLMakie renders on 
 - **Animation export runs on the main thread inside a modal dialog for v0.1** (per ADR-014). Frames are rendered sequentially via GLMakie (or CairoMakie for MP4 export), then encoded via FFMPEG. The "Exporting animation…" modal shows `current_frame / total_frames` and a Cancel button; cancel deletes the partial file. Background/off-thread export is a named v0.2 project — GLMakie's main-thread OpenGL context makes background rendering a real engineering investment.
 
 Every callback that mutates `SessionState` is documented as "runs on the Gtk4 main thread" and is asserted to be so with `@assert Gtk4.is_main_thread()` in debug builds.
+
+### 9.1 Amendment — live structural mutation and the interactive-thread prerequisite (per [ADR-024](adr/ADR-024-incremental-render-path-bug-f.md))
+
+The rules above cover data ingestion, downsampling, and animation export — all of which either run headless or marshal a *result* back to the main thread. They do **not** cover live *structural* mutation of a displayed window (add/remove/reorder a figure, axis, or plot after `makieviews()` opens it). In v0.1 that path deadlocks (Bug F); see §8.1.
+
+v0.2 adds one rule and one prerequisite:
+
+- **Structural mutation funnels through a main-thread-drained queue.** Once a window is live, `add_plot!` / `add_axis!` / `add_figure!` do not mutate the renderer in the caller's context. They post to a thread-safe queue drained on the main thread via `Gtk4.GLib.g_idle_add` — the same primitive this section already uses for ingestion. The queue is the **only** structural-mutation entry point while a window is displayed; nothing off the main thread may touch a live `Makie.Figure` (not even via Observables — GLMakie figures are not thread-safe to update off the render thread).
+- **Interactive thread is a hard launch prerequisite for live editing.** The GLib loop only has a thread to run the idle drain on if Julia starts with an interactive thread pool (`--threads N,1`, or `JULIA_NUM_THREADS="N,1"`). Without it the loop starves and the UI freezes during any REPL work; on Julia 1.11 the REPL freezes outright. v0.2 `makieviews()` must **detect the absence of an interactive thread at startup and refuse with an actionable message** rather than open a window that will deadlock. This must be verified on both ends of the compat range (Julia 1.10 LTS and 1.12, per ADR-001).
 
 ---
 
