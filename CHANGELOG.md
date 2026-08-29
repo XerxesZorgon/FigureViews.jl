@@ -93,7 +93,7 @@ Initial release scope. See `docs/SDD.md` §5 for the full requirement list and `
 - Interactive point-and-click GUI is v0.2+; v0.1 is REPL-driven (ADR-022).
 - `.mvz` load restores the tree and styling but not data arrays; full save/reload round-trip is v0.2 (ADR-017).
 - `makieviews()` displays the built-in demo session only; displaying a user-built session, and live structural edits to a displayed window, are v0.2 (Bug F).
-- Interactive/live macOS use (mouse-driven 3D rotation, live attribute editing, window dragging) not verified for v0.1.0; headless test suite passes on macOS CI ([ADR-023](docs/adr/ADR-023-defer-interactive-macos-to-post-v0-1.md)).
+- macOS untested for v0.1.0 — GHA headless runners cannot initialize GLMakie (NSGL pixel-format failure on Apple Silicon VMs); macOS CI requires conditional backend loading (v0.2 backlog). Interactive macOS verification also deferred. See [ADR-023](docs/adr/ADR-023-defer-interactive-macos-to-post-v0-1.md).
 - Linux Wayland + NVIDIA driver quirks inherited from Gtk4Makie (see `docs/troubleshooting.md`).
 
 [Unreleased]: https://github.com/PLACEHOLDER-USER/MakieViews.jl/compare/v0.1.0...HEAD

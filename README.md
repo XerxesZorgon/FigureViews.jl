@@ -116,7 +116,7 @@ Three algorithms are available: `UniformStride`, `MinMaxDecimation`, and `LTTB` 
 
 ## Platforms
 
-Developed on Windows; continuous integration runs on Linux (Ubuntu) headless under xvfb and on macOS (macos-latest, Apple Silicon), both across Julia 1.10 + 1.12 ([ADR-023](docs/adr/ADR-023-defer-interactive-macos-to-post-v0-1.md) amends ADR-018's original Ubuntu-only matrix). Windows is validated manually before release. **Interactive/live macOS use (mouse-driven 3D rotation, live attribute editing, window dragging) is not verified for v0.1.0** — the headless test suite passes on macOS CI, but no human has driven the running app on a Mac; that verification is committed before v0.2.0 ([ADR-023](docs/adr/ADR-023-defer-interactive-macos-to-post-v0-1.md)). Please report any macOS-specific issues via GitHub Issues. On Linux with Wayland or NVIDIA drivers, see [`docs/troubleshooting.md`](docs/troubleshooting.md) (Gtk4Makie inherits some upstream quirks in these configurations).
+Developed on Windows; continuous integration runs on Linux (Ubuntu, Julia 1.10 + 1.12) headless under xvfb. Windows is validated manually before release (Task 072). **macOS is untested for v0.1.0** — GHA headless runners cannot initialize GLMakie (NSGL pixel-format failure on Apple Silicon; see [ADR-023](docs/adr/ADR-023-defer-interactive-macos-to-post-v0-1.md)); macOS CI requires conditional backend loading, a v0.2 backlog item. Interactive macOS verification (running `makieviews()` on a Mac) is also deferred to post-v0.1.0. Please report any macOS-specific issues via GitHub Issues. On Linux with Wayland or NVIDIA drivers, see [`docs/troubleshooting.md`](docs/troubleshooting.md) (Gtk4Makie inherits some upstream quirks in these configurations).
 
 ## Documentation
 

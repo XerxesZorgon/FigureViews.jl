@@ -1,11 +1,12 @@
 # .github/workflows/ci.yml
 #
-# CI matrix: 4 cells (Julia {1.10, 1.12} × OS {ubuntu-latest, macos-latest}).
+# CI matrix: 2 cells (Julia {1.10, 1.12} × Ubuntu).
 # History:
-# - ADR-018 (2026-08-24) reduced from 6-cell {Ubuntu, Windows, macOS} to 2-cell Ubuntu-only for M0-M10.
-# - ADR-023 (2026-08-28) amends ADR-018: adds macos-latest for headless test coverage on Apple Silicon,
-#   deferring interactive macOS verification to post-v0.1.0.
-# - Windows is validated manually before release (Task 072); interactive macOS deferred (see ADR-023).
+# - ADR-018 (2026-08-24): reduced from 6-cell {Ubuntu, Windows, macOS} to 2-cell Ubuntu-only for M0-M10.
+# - ADR-023 (2026-08-28): attempted macos-latest addition; confirmed infeasible — `using MakieViews`
+#   unconditionally loads GLMakie/Gtk4Makie which fail to precompile on headless Apple Silicon GHA VMs
+#   (NSGL FORMAT_UNAVAILABLE). Reverted to Ubuntu-only. macOS CI requires conditional backend loading
+#   (v0.2 backlog). Windows is validated manually before release (Task 072).
 
 name: CI
 
@@ -23,7 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         julia-version: ['1.10', '1.12']
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,10 +46,5 @@ jobs:
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
 
-      - name: Run tests (Linux, under xvfb)
-        if: runner.os == 'Linux'
+      - name: Run tests (under xvfb)
         run: xvfb-run -a julia --project=. -e 'using Pkg; Pkg.test()'
-
-      - name: Run tests (macOS, CairoMakie-only entry point)
-        if: runner.os == 'macOS'
-        run: julia --project=. test/runtests_cairo.jl

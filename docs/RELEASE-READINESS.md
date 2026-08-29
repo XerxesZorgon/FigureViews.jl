@@ -57,26 +57,15 @@ At the release commit:
 
 ---
 
-## 5. macOS verification (per ADR-023)
+## 5. macOS verification (per ADR-023) — CI infeasible for v0.1.0
 
-**Decision (2026-08-28):** split macOS verification into two parts.
+**Final outcome (2026-08-28):** macOS CI dropped for v0.1.0. Two attempts (Tasks 073 and 073b) confirmed that `using MakieViews` unconditionally loads GLMakie and Gtk4Makie at `src/MakieViews.jl:3`, which fail to precompile on GHA Apple Silicon VMs (`NSGL: Failed to find a suitable pixel format`). A separate `test/runtests_cairo.jl` entry point also fails at `using MakieViews`. There is no way to run any MakieViews test on GHA macOS without conditional backend loading.
 
-**Part A — Headless CI on GHA `macos-latest`:** new job added via Task 073, running the full `Pkg.test()` suite on `macos-latest × {Julia 1.10, 1.12}` (real macOS on Apple Silicon). Exercises ~99% of the test coverage the original ADR-018 manual gate would have hit: all seven plot types, GLMakie rendering via macOS OpenGL compat layer, CairoMakie export, session persistence, downsampling, preferences, and `add_plot_checked!`. Gates every release the same way Ubuntu CI does.
+**What ships for v0.1.0:** Ubuntu CI only (2 cells, 72 testsets, ~308 assertions). Windows validated manually (Task 072). macOS is untested — both headless and interactive. README and CHANGELOG reflect this accurately.
 
-**Part B — Interactive/live-launch verification deferred to post-v0.1.0** (no fixed version tag; committed before v0.2.0). Mouse-driven 3D rotation, live attribute edits, window dragging, and `export_figure` from a displayed (rather than headless) window need a human at a Mac; no CI substitutes for that.
+**v0.2 backlog item:** Enable macOS CI via conditional backend loading (guard `GLMakie`/`Gtk4`/`Gtk4Makie` imports behind `ENV["MAKIEVIEWS_BACKEND"]` or `Preferences.jl`). This pairs naturally with the GUI/headless split already planned for v0.2. Interactive macOS verification (Task 073's original manual gate) also remains a v0.2 commitment (ADR-023).
 
-**Verified facts:**
-- GLMakie's own docs state "GLMakie's CI has no GPU" and point to a working GHA workflow — GHA runners can initialize GLMakie without dedicated hardware via Apple's OpenGL compatibility layer.
-- Gtk4Makie's README states it runs on Windows, macOS, and Linux. Its behavior in a headless macOS CI environment specifically is unproven for MakieViews — the fallback per ADR-023 kicks in if init fails.
-- `macos-latest` GHA runners are free for public repos within reasonable limits; XerxesZorgon/MakieViews.jl is public.
-
-**Rationale:** no Mac hardware currently available to John; GHA macos-latest is a ~30-line addition that meaningfully de-risks the release for Mac users. The residual risk (cursor/focus/HiDPI/menu-bar behaviors visible only to a live user) is acknowledged rather than papered over.
-
-**Fallback plan:** if the headless macOS runner can't initialize the Gtk4/GLMakie stack, Task 073 falls back to a narrower macOS job that runs Layers 1, 2, and 4 but skips Layer 3 GUI smoke (per ADR-023). ADR-023 will be updated with the actual outcome once Task 073 completes.
-
-**Amends ADR-018:** CI matrix goes from Ubuntu-only (2 cells) to `{ubuntu-latest, macos-latest} × {Julia 1.10, 1.12}` (4 cells). Windows manual gate (Task 072) remains.
-
-**Alternatives rejected** (full list in ADR-023): defer macOS entirely (leaves Mac users as beta testers), cloud Mac rental for the interactive test (paid, disproportionate), browser-based macOS "simulators" like macos-web.app (JavaScript UI recreations, cannot run Julia), local KVM/QEMU emulation (EULA violation, no GPU passthrough).
+**Alternatives rejected** (full record in ADR-023): CairoMakie-only entry point (fails because `using MakieViews` loads GLMakie regardless), cloud Mac rental (disproportionate), browser-based simulators (cannot run Julia), local KVM/QEMU (EULA + no GPU).
 
 ---
 

@@ -31,9 +31,15 @@ A skeptic's counter deserves an honest answer: Windows + Linux CI catches most b
 
 ADR-018's Ubuntu-only CI matrix is amended: the matrix becomes `{ubuntu-latest, macos-latest} × {Julia 1.10, 1.12}` (four cells). If the GHA macos-latest job cannot initialize the Gtk4/GLMakie stack in a headless runner (unproven pattern for MakieViews specifically), the fallback is a narrower macOS job that skips Layer 3 GUI smoke tests but keeps Layers 1, 2, and 4 (unit / integration / golden-image export). ADR-023 will be updated with the actual outcome once Task 073 completes.
 
+> **Update 2026-08-28 — Task 073b outcome (CairoMakie-only entry point attempt).** `using MakieViews` unconditionally loads `GLMakie` and `Gtk4Makie` at `src/MakieViews.jl:3`. Even a separate `test/runtests_cairo.jl` that includes only pure-data testsets fails immediately at `using MakieViews` with the same `NSGL: Failed to find a suitable pixel format` error. There is no way to load MakieViews on a headless macOS GHA runner without architectural changes.
+>
+> **Final outcome — macOS CI dropped for v0.1.0 (Option 2).** The CI matrix reverts to Ubuntu-only (2 cells). macOS CI requires conditional backend loading (guard `GLMakie`/`Gtk4`/`Gtk4Makie` imports behind `ENV["MAKIEVIEWS_BACKEND"]` or `Preferences.jl`) — this is a v0.2 backlog item, pairing naturally with the GUI/headless split that v0.2 needs anyway. `test/runtests_cairo.jl` is removed (it cannot run without `using MakieViews`). `ci.yml` reverts to the 2-cell Ubuntu-only matrix with the xvfb-run step restored.
+>
+> **What this means for v0.1.0:** Ubuntu CI (2 cells, 72 testsets, ~308 assertions) is the only automated test coverage. Windows is validated manually (Task 072). macOS is untested for v0.1.0 — both headless and interactive. README and CHANGELOG reflect this accurately.
+
 ## Consequences
 
-- **v0.1.0 has real macOS test coverage on every commit** for ~99% of the test suite that runs headless. Whether Gtk4Makie's shared-figure embedding works in a headless macOS session is verified by whether the M1 shell tests pass on the new runner — stronger evidence than any single manual launch on a Mac.
+- **v0.1.0 has no macOS CI coverage** (see Updates 2026-08-28 above). Ubuntu CI (2 cells, 72 testsets) remains the automated gate. macOS is untested for v0.1.0 — both headless and interactive. Enabling macOS CI requires conditional backend loading (v0.2 backlog).
 - **v0.1.0 acknowledges what it does not cover**: rotating a 3D axis by mouse, live attribute edits, window dragging — not verified on macOS for v0.1.0. README and CHANGELOG note this explicitly.
 - **Risk accepted**: a Mac user's first live/interactive session may hit an issue the headless suite didn't catch (probably minor: cursor handling, focus, HiDPI scaling, menu-bar quirks). Mitigation: release notes suggest reporting issues; the interactive verification pass before v0.2.0 catches the accumulated set.
 - **Latency**: CI runs go from ~10 min (Ubuntu ×2) to ~25 min (+ macOS ×2). macOS runners boot slower but tests run in similar wall-clock time.
