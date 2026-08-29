@@ -2912,7 +2912,7 @@ Report `TASK 076 FAILED — [what went wrong at the Julia level, e.g. precompila
 ---
 
 ## Task 077: Spike — Route 1 stress test (GtkMakieWidget structural-mutation sequence)
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-29. All 4 structural-mutation steps passed on Windows with Gtk4Makie.jl v0.3.9. See header in spike/m12_route1_stress.jl.
 **Milestone:** M12
 **Depends on:** 076
 
@@ -2948,7 +2948,7 @@ Report `TASK 077 FAILED — [which step failed: step N / precompile error / scri
 ---
 
 ## Task 078: Spike — Route 2/3 fallback evaluation (conditional)
-**Status:** [ ] Pending
+**Status:** [s] Skipped — Route 1 stress test passed (Task 077)
 **Milestone:** M12
 **Depends on:** 077
 
@@ -2969,7 +2969,7 @@ Report `TASK 078 FAILED — [error]` with full error text. Claude will decide wh
 ---
 
 ## Task 079: Write ADR-025 — embedding path for live editing (M12 exit deliverable)
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-29
 **Milestone:** M12
 **Depends on:** 077 (and 078 if not skipped); also depends on CI smoke result from Task 077 if Route 1 is chosen (see Task 077 stress-test note)
 
@@ -2992,3 +2992,9 @@ Do **not** commit the spike scripts (`spike/`) — they are throwaway. Do commit
 
 ### On Failure
 Report `TASK 079 FAILED — [which section is missing / file not found / commit not pushed]` with detail. Claude will diagnose.
+
+---
+
+## Milestone M12 Complete — 2026-08-29
+**Exit deliverable:** ADR-025 written, committed, and pushed. Route 1 (`GtkMakieWidget` + `--threads 4,1`) confirmed viable for live structural editing. M13 incremental renderer implementation unblocked.
+
