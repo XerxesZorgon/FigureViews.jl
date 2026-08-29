@@ -2835,7 +2835,13 @@ Two M10 carryovers (ADR-020 / 2026-08-27):
 ---
 
 ## Task 075: Release — version bump, CHANGELOG, Registrator, tag (John)
-**Status:** [~] In progress — 2026-08-28. Release commit `3d4da4a` pushed (`release: v0.1.0`): Project.toml bumped to 0.1.0, CHANGELOG finalized (date 2026-08-28, pre-release history restructured, Compat exact pins, two new Known limitations, links fixed). Awaiting CI green on `3d4da4a`, then Registrator dry-run + General submission, then tag.
+**Status:** [~] In progress — awaiting AutoMerge on General PR #166500 (3-day new-package window).
+- Release commit `3d4da4a` (`release: v0.1.0`): Project.toml 0.1.0, CHANGELOG finalized. CI #49 green.
+- Tag `v0.1.0` pushed (annotated, pointing to `3d4da4a34c5c6b5aff680ca755b44ffdb7466ba6`).
+- JuliaRegistrator installed via `https://github.com/JuliaRegistries/Registrator.jl` install button.
+- General registry PR: https://github.com/JuliaRegistries/General/pull/166500
+- AutoMerge: 3-day new-package waiting period. Will merge automatically if all checks pass (no naming objections, compat valid, LICENSE present). No action needed until merge.
+- On merge: confirm `] add MakieViews` resolves on a fresh environment → SC-001 met → mark [x] Done.
 **Milestone:** M11
 **Depends on:** 072, 073, 074
 
