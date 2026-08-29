@@ -2887,7 +2887,7 @@ Before v0.2.0: perform the original ADR-018 manual gate on a macOS 12+ machine (
 ---
 
 ## Task 076: Spike — reproduce GtkMakieWidget #14 failure (Route 1 evaluation)
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-29. Route 1 succeeded on Windows (no freeze, no error). See header comment in `spike/m12_route1_widget.jl`. Surprising result — #14 did not reproduce with `--threads 4,1`. Pivot: Task 077 becomes a Route 1 stress test rather than a GTKScreen evaluation.
 **Milestone:** M12
 **Depends on:** 075 (M11 complete, registry merge confirmed; M12 proceeds in parallel if merge is still pending per SESSION_LOG)
 
@@ -2911,68 +2911,67 @@ Report `TASK 076 FAILED — [what went wrong at the Julia level, e.g. precompila
 
 ---
 
-## Task 077: Spike — GTKScreen-in-grid with g_idle_add (Route 2 evaluation)
+## Task 077: Spike — Route 1 stress test (GtkMakieWidget structural-mutation sequence)
 **Status:** [ ] Pending
 **Milestone:** M12
 **Depends on:** 076
 
+**Pivot from original plan:** Task 076 showed Route 1 (`GtkMakieWidget` + `--threads 4,1`) succeeds for a second `lines!` on an existing axis. Task 077 now stress-tests the full structural-mutation sequence that M13 actually needs, still using Route 1, before committing to it. Routes 2 and 3 are evaluated only if this task fails.
+
 ### What to do
-Create `spike/m12_route2_gtkscreen.jl`. This script builds the three-pane shell (tree pane placeholder + GLMakie area + property pane placeholder) using `Gtk4Makie.GTKScreen` as the Makie embed, placing the screen's GLArea in a `Gtk4.GtkGrid` alongside two `GtkLabel` placeholders for the panes. The script must:
-1. Open the window with `show(w); Gtk4.main()` running in the background (use `Threads.@spawn Gtk4.main()` so the REPL/script can continue).
-2. After the window is displayed, post a structural mutation via `Gtk4.GLib.g_idle_add`: inside the idle callback, call `lines!(ax, rand(10))` on an axis that already exists in the displayed figure, then call `Gtk4.queue_render(glarea)`. Return `false` from the idle callback (one-shot).
-3. Wait 2 seconds (sleep), then post a second `g_idle_add` that adds a scatter plot to the same axis and calls `queue_render`. Wait another 2 seconds.
-4. Record: did both plots appear without deadlock? Any errors?
+Create `spike/m12_route1_stress.jl`. Using the same `GtkMakieWidget` + `Threads.@spawn Gtk4.main()` setup from Task 076, exercise the following sequence **after** the window is displayed. Each step must be issued from the script thread (not from inside a GTK callback). Between each step, sleep 1 second and call `Gtk4.queue_render(viewport_widget)`.
 
-The script is throwaway. The header comment must record: (a) `GTKScreen` API call used to create the screen, (b) how `glarea` handle was obtained from the screen, (c) whether both idle-add mutations rendered correctly, (d) any error or freeze verbatim.
+1. **Add a second plot to an existing axis** — `scatter!(ax, rand(10), rand(10))` (different plot type from the first `lines!`).
+2. **Add a new axis to the figure** — `ax2 = Axis(fig[2, 1]); lines!(ax2, cumsum(randn(20)))`. This is the operation most likely to expose the full-rebuild defect from ADR-024 (Defect 2).
+3. **Delete a plot from the first axis** — obtain the plot handle from step 1 and call `delete!(ax, handle)` or `Makie.delete!(handle)` (use whichever the Makie 0.24 API exposes; check `methods(delete!)` if uncertain).
+4. **Remove the second axis** — `delete!(ax2)` or `Makie.delete!(ax2)`.
 
-Run with `julia --threads 4,1 --project=. spike/m12_route2_gtkscreen.jl`.
+For each step record: did it succeed without freeze, error, or visible corruption of unrelated plot objects? After all four steps, sleep 3 seconds so the final state is observable, then exit gracefully.
 
-**Design note from ADR-024 constraint 2:** Gtk4Makie's own docs recommend the window-based `GTKScreen` path over `GtkMakieWidget` for stability, and the working button-callback example in the Gtk4Makie issue tracker uses `empty!(ax); lines!(ax,…); Gtk4.queue_render(glarea)` — which is exactly what this route tests via `g_idle_add` instead of a button.
+The header comment block must record, for each of the four steps:
+- (a) exact call used
+- (b) success / freeze / error
+- (c) any error text verbatim, or "no error"
+- (d) whether the *other* axis/plots were visibly corrupted by the operation
+
+The script must be runnable with `julia --threads 4,1 --project=. spike/m12_route1_stress.jl` and must not import anything from `src/`.
 
 ### Files touched
-- `spike/m12_route2_gtkscreen.jl` — new scratch script
+- `spike/m12_route1_stress.jl` — new scratch script
 
 ### Acceptance Criterion
-`spike/m12_route2_gtkscreen.jl` exists and runs to completion (the 4-second wait elapses without a Julia crash). The header comment records all four items listed above. Report back the full header comment block, and state explicitly: **did adding a plot to an already-displayed window succeed without deadlock?** (Yes/No, with evidence.)
+`spike/m12_route1_stress.jl` exists and runs to completion (the sleep intervals elapse without a Julia-level crash). The header comment records all four steps with fields (a)–(d). Report back the full header comment block and state explicitly: **did all four structural-mutation steps succeed without deadlock or error?** (Yes/No per step.)
 
 ### On Failure
-Report `TASK 077 FAILED — [what failed: precompile error / GTKScreen API not found / deadlock / crash]` with full error. Include which Gtk4Makie.jl version is loaded (check `Pkg.status("Gtk4Makie")`). Do not attempt to fix; Claude will diagnose.
+Report `TASK 077 FAILED — [which step failed: step N / precompile error / script crash]` with full error text. If a specific step froze or errored, note whether the Julia process itself crashed or just the window hung. Do not attempt to fix; Claude will diagnose and decide whether to pivot to Route 2.
 
 ---
 
-## Task 078: Spike — custom GLMakie.Screen embedding (Route 3 evaluation, conditional)
+## Task 078: Spike — Route 2/3 fallback evaluation (conditional)
 **Status:** [ ] Pending
 **Milestone:** M12
 **Depends on:** 077
 
-> **Conditional task.** Run this only if Task 077's result is negative (GTKScreen-in-grid with `g_idle_add` did NOT successfully add a plot to an already-displayed window without deadlock). If Task 077 succeeded, skip this task and proceed directly to Task 079. Report back "TASK 078 SKIPPED — Route 2 succeeded" and Claude will advance the gate.
+> **Conditional task.** Run this only if Task 077's stress test showed one or more of the four structural-mutation steps failing (freeze, error, or corruption). If Task 077 passed all four steps, skip this task and proceed directly to Task 079. Report back "TASK 078 SKIPPED — Route 1 stress test passed" and Claude will advance the gate.
 
 ### What to do
-Create `spike/m12_route3_glscreen.jl`. This script embeds a GLMakie figure via `GLMakie.Screen(; window=…, start_renderloop=false)` into a Gtk4 `GtkGLArea`, per GLMakie's documented custom-window route (https://docs.makie.org/dev/explanations/backends/glmakie). The script must:
-1. Create a `Gtk4.GtkGLArea`, insert it into a minimal 3-column `GtkGrid` (placeholders for the two side panes).
-2. In the GLArea's `realize` signal callback, create the GLMakie screen against the GLArea's GL context.
-3. Display the window; after display, post a `g_idle_add` callback that calls `lines!(ax, rand(10))` on the screen's figure and triggers a render.
-4. Record: does the embedding compile? Does the idle-add mutation render without deadlock?
-
-The header comment must record: (a) exact `GLMakie.Screen` constructor call used, (b) how the GL context was bridged from GtkGLArea to GLMakie, (c) whether the idle-add mutation rendered correctly, (d) any error or freeze verbatim.
-
-Run with `julia --threads 4,1 --project=. spike/m12_route3_glscreen.jl`.
+Based on which step(s) of Task 077 failed, Claude will write a targeted instruction for this task at that time — either a `GTKScreen`-in-grid evaluation (Route 2) or a `GLMakie.Screen` custom-window evaluation (Route 3), depending on the failure mode. Do not run this task until Claude has diagnosed Task 077's failure and issued the specific instruction.
 
 ### Files touched
-- `spike/m12_route3_glscreen.jl` — new scratch script
+- TBD by Claude after Task 077 failure diagnosis
 
 ### Acceptance Criterion
-`spike/m12_route3_glscreen.jl` exists, runs, and the header comment records all four items. Report back the header and state: **did adding a plot to an already-displayed window succeed without deadlock?** (Yes/No, with evidence.)
+TBD by Claude after Task 077 failure diagnosis.
 
 ### On Failure
-Report `TASK 078 FAILED — [error]` with full error text. Claude will decide whether all three routes are exhausted (triggering re-planning) or whether a targeted fix to the Route 3 attempt is warranted.
+Report `TASK 078 FAILED — [error]` with full error text. Claude will decide whether further routes remain or whether v0.2 GUI scope requires re-planning.
 
 ---
 
 ## Task 079: Write ADR-025 — embedding path for live editing (M12 exit deliverable)
 **Status:** [ ] Pending
 **Milestone:** M12
-**Depends on:** 077 (and 078 if not skipped)
+**Depends on:** 077 (and 078 if not skipped); also depends on CI smoke result from Task 077 if Route 1 is chosen (see Task 077 stress-test note)
 
 ### What to do
 Write `docs/adr/ADR-025-embedding-path-live-editing.md`. This is the M12 exit deliverable — a one-page (≈ 400–600 word) decision record that:
