@@ -2777,7 +2777,10 @@ CI 2/2 green on the RC commit; full suite (confirm exact total). Report: `CI <ru
 ---
 
 ## Task 072: Windows 11 manual full-suite run (John)
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-28. Windows 11 full suite: 72 testsets, all pass (~308 assertions). Two cosmetic warnings noted (not blocking):
+- `ModernGL.ContextNotAvailable` at process exit (GLMakie/Gtk4Makie teardown ordering on Windows; fires after "tests passed", affects no test result; known upstream issue).
+- `Volume ... not supported by cairo right now` during M8 export (CairoMakie limitation; test passes because file is produced; pre-existing).
+Interactive: `makieviews()` launched, demo rendered (2D sine+scatter + 3D surface), 3D axis rotated by mouse, live attribute edit reflected in viewport. ✓
 **Milestone:** M11
 **Depends on:** 071
 
@@ -2815,7 +2818,9 @@ Report the failing cell(s), grep the workflow log for `ERROR` / `FAIL`, and past
 ---
 
 ## Task 074: Carryover QA — interactive-fps + VRAM parse (John)
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-28. Folded into Task 072 Windows QA run.
+- **(a) Interactive-fps sanity:** `makieviews()` launched and ran smoothly on Windows 11 with the demo session (2D sine+scatter + 3D surface). No freeze or performance issue observed. The pre-flight fallback formula is confirmed safe — under-predicts as expected (ADR-020).
+- **(b) VRAM-parsing branch:** No NVIDIA box available; documented as a known limitation per the Task 074 spec. The `nothing` fallback path (FR-026 compliant, never throws) is the v0.1.0 shipping path.
 **Milestone:** M11
 **Depends on:** 072, 073
 
