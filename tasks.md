@@ -2794,7 +2794,7 @@ On the Windows 11 dev box: `julia --project=. -e 'using Pkg; Pkg.test()'`, then 
 - Task 073: GHA macos-latest (Apple Silicon) fails at GLMakie precompilation with `NSGL FORMAT_UNAVAILABLE` — `using MakieViews` unconditionally loads GLMakie/Gtk4Makie which require a display context.
 - Task 073b: A separate `test/runtests_cairo.jl` entry point also fails — `using MakieViews` still loads GLMakie at `src/MakieViews.jl:3` before any test code runs.
 
-**Outcome:** CI matrix reverted to Ubuntu-only (2 cells). `test/runtests_cairo.jl` removed. `ci.yml` restored to the original 2-cell xvfb-run shape. ADR-023 updated with both attempt outcomes. macOS CI requires conditional backend loading (guard GLMakie/Gtk4 imports behind env var or Preferences.jl) — v0.2 backlog item. See ADR-023 for full record.
+**Outcome:** CI matrix reverted to Ubuntu-only (2 cells). `test/runtests_cairo.jl` removed. `ci.yml` restored to the original 2-cell xvfb-run shape. CI #45 (commit `39ca32b`) 2/2 green, confirming the revert is clean. ADR-023 updated with both attempt outcomes. macOS CI requires conditional backend loading (guard GLMakie/Gtk4 imports behind env var or Preferences.jl) — v0.2 backlog item. See ADR-023 for full record.
 **Milestone:** M11
 **Depends on:** 071
 
