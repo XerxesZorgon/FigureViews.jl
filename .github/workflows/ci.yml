@@ -49,6 +49,6 @@ jobs:
         if: runner.os == 'Linux'
         run: xvfb-run -a julia --project=. -e 'using Pkg; Pkg.test()'
 
-      - name: Run tests (macOS, native window server)
+      - name: Run tests (macOS, CairoMakie-only entry point)
         if: runner.os == 'macOS'
-        run: julia --project=. -e 'using Pkg; Pkg.test()'
+        run: julia --project=. test/runtests_cairo.jl
