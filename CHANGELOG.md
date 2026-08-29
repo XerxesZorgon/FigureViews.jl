@@ -5,6 +5,10 @@ All notable changes to MakieViews will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+*No changes yet.*
+
+## Pre-release development history (M1–M11)
 ### M11 — Pre-tag docs reconciliation (2026-08-28)
 - **ADR-022**: v0.1.0 ships the REPL-driven core; the interactive Veusz-style GUI is deferred to v0.2+. README, SDD (§5.4 / §8 delivery-status layer), CHANGELOG, and PLAN reconciled to the REPL-driven scope. The Veusz-style GUI remains the project's north star.
 - Surfaced v0.1 limitations in-doc: `.mvz` load restores tree+styling but not data (full round-trip is v0.2, ADR-017); `makieviews()` displays the built-in demo session only; live structural edits to a displayed window hang (Bug F, v0.2).
@@ -65,7 +69,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - 2026-08-24 — M0 (ADR closure) complete: ADR-011..ADR-017 written for the seven open design questions; DESIGN.md §11 cleared. `tasks.md` writing is unblocked.
 - 2026-08-24 — Planning documents (SDD, DESIGN, ADR-001..010, TEST_PLAN, PLAN, README, CHANGELOG) drafted.
 
-## [0.1.0] — TBD
+## [0.1.0] — 2026-08-28
 
 Initial release scope. See `docs/SDD.md` §5 for the full requirement list and `docs/PLAN.md` for the M1–M11 breakdown. **v0.1.0 ships the REPL-driven core; the interactive point-and-click GUI is v0.2+ ([ADR-022](docs/adr/ADR-022-v0-1-ships-repl-driven.md)).**
 
@@ -83,7 +87,7 @@ Initial release scope. See `docs/SDD.md` §5 for the full requirement list and `
 
 ### Compat
 - Julia 1.10+ (primary target: 1.12).
-- Makie 0.24.x, GLMakie 0.13.x, CairoMakie 0.15.x, Gtk4 0.7.x, Gtk4Makie 0.3.x, CSV 0.10.x, DataFrames 1.8.x, HDF5 0.18.x, Scratch 1.x.
+- Makie 0.24.13 (exact pin), GLMakie 0.13.13 (exact pin), CairoMakie 0.15.13 (exact pin), Gtk4 0.7.12+, Gtk4Makie 0.3.9+, CSV 0.10.16+, DataFrames 1.8.2+, HDF5 0.17+, Scratch 1.3.0+. Exact pins on Makie/GLMakie/CairoMakie are intentional for v0.1.0 reproducibility; see `docs/RELEASE-READINESS.md` §1.
 
 ### Known limitations
 - No undo/redo (planned for v0.2).
@@ -95,6 +99,8 @@ Initial release scope. See `docs/SDD.md` §5 for the full requirement list and `
 - `makieviews()` displays the built-in demo session only; displaying a user-built session, and live structural edits to a displayed window, are v0.2 (Bug F).
 - macOS untested for v0.1.0 — GHA headless runners cannot initialize GLMakie (NSGL pixel-format failure on Apple Silicon VMs); macOS CI requires conditional backend loading (v0.2 backlog). Interactive macOS verification also deferred. See [ADR-023](docs/adr/ADR-023-defer-interactive-macos-to-post-v0-1.md).
 - Linux Wayland + NVIDIA driver quirks inherited from Gtk4Makie (see `docs/troubleshooting.md`).
+- On Windows, a cosmetic `ModernGL.ContextNotAvailable` stacktrace appears at process exit after `Pkg.test()` (GLMakie/Gtk4Makie teardown ordering; no test is affected).
+- CairoMakie does not support volume rendering; volume PNG/SVG/PDF export produces a blank canvas (CairoMakie upstream limitation).
 
-[Unreleased]: https://github.com/PLACEHOLDER-USER/MakieViews.jl/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/PLACEHOLDER-USER/MakieViews.jl/releases/tag/v0.1.0
+[Unreleased]: https://github.com/XerxesZorgon/MakieViews.jl/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/XerxesZorgon/MakieViews.jl/releases/tag/v0.1.0
