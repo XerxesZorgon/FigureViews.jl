@@ -11,3 +11,16 @@ test/Manifest.toml
 .DS_Store
 .vscode/
 Thumbs.db
+
+# IDE / tool config dirs (Codex, Cursor, MCP)
+.codex/
+.cursor/
+.mcp.json
+
+# Scratch / one-off test files
+scratch_test*.jl
+test_out.txt
+
+# Untracked docs kept locally but not committed
+docs/CHANGE-tree-pane-viewport-fix.md
+docs/Makie_Functions.mdx
