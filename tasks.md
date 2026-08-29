@@ -2835,7 +2835,7 @@ Two M10 carryovers (ADR-020 / 2026-08-27):
 ---
 
 ## Task 075: Release — version bump, CHANGELOG, Registrator, tag (John)
-**Status:** [ ] Pending
+**Status:** [~] In progress — 2026-08-28. Release commit `3d4da4a` pushed (`release: v0.1.0`): Project.toml bumped to 0.1.0, CHANGELOG finalized (date 2026-08-28, pre-release history restructured, Compat exact pins, two new Known limitations, links fixed). Awaiting CI green on `3d4da4a`, then Registrator dry-run + General submission, then tag.
 **Milestone:** M11
 **Depends on:** 072, 073, 074
 
