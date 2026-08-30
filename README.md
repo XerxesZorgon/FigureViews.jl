@@ -1,5 +1,8 @@
 # FigureViews.jl
 
+[![CI](https://github.com/XerxesZorgon/FigureViews.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/XerxesZorgon/FigureViews.jl/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/XerxesZorgon/FigureViews.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/XerxesZorgon/FigureViews.jl)
+
 A Julia package for building, styling, exporting, and saving [Makie](https://docs.makie.org/) figures as reusable session specs — the REPL foundation of a forthcoming Veusz-style GUI over Makie.
 
 **Repository**: [https://github.com/XerxesZorgon/FigureViews.jl](https://github.com/XerxesZorgon/FigureViews.jl)
