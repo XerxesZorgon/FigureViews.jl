@@ -3059,7 +3059,7 @@ Report `TASK 080 FAILED — [grep hit / test failure / file not renamed]` with t
 ---
 
 ## Task 081: Widen GLMakie and Makie compat pins
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-29, commit ba6602d
 **Milestone:** P4
 **Depends on:** 080
 
@@ -3082,7 +3082,7 @@ Report `TASK 081 FAILED — [test failure or resolve error]` with the failing ou
 ---
 
 ## Task 082: Gate golden-image testset behind environment variable; fix fill(1.0) test data
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-29, commit 65d41e0
 **Milestone:** P4
 **Depends on:** 081
 
@@ -3126,7 +3126,7 @@ Report `TASK 082 FAILED — [which check failed: skip not printed / golden test 
 ---
 
 ## Task 083: Add TagBot and Codecov to CI
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-29, commit 0f42070
 **Milestone:** P4
 **Depends on:** 082
 
@@ -3185,7 +3185,7 @@ Report `TASK 083 FAILED — [which file missing or malformed]` with detail.
 ---
 
 ## Task 084: Add .julia_package_ignore to exclude internal artifacts from releases
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-29, commit 40d5d15
 **Milestone:** P4
 **Depends on:** 083
 
@@ -3221,7 +3221,7 @@ Report `TASK 084 FAILED — [file missing / tests broken]` with detail.
 ---
 
 ## Task 085: Push P4 and confirm CI green
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-29; CI 2/2 green (run 33286155847)
 **Milestone:** P4
 **Depends on:** 084
 
