@@ -3048,3 +3048,198 @@ Commit **only** the renamed/edited files (do not stage `spike/` scripts). Commit
 ### On Failure
 Report `TASK 080 FAILED — [grep hit / test failure / file not renamed]` with the failing output. Do not push a broken state; fix before committing.
 
+---
+
+# Patch P4 — Pre-Registration Fixes (Goerz Review)
+
+> Tasks 081–085 address the remaining feedback from Michael Goerz's review of the original
+> registry PR. All must be green before re-registering FigureViews in General.
+> Run in order; each task gates the next.
+
+---
+
+## Task 081: Widen GLMakie and Makie compat pins
+**Status:** [ ] Pending
+**Milestone:** P4
+**Depends on:** 080
+
+### What to do
+In `Project.toml`, change the two exact-version compat pins to minor-version ranges:
+- `GLMakie = "=0.13.13"` → `GLMakie = "0.13"`
+- `Makie = "=0.24.13"` → `Makie = "0.24"`
+
+No other changes. Run `julia --project=. -e 'using Pkg; Pkg.test()'` to confirm tests still pass. Commit with message: `compat: widen GLMakie and Makie pins to minor-version ranges`
+
+### Files touched
+- `Project.toml` — two compat lines only
+
+### Acceptance Criterion
+`Project.toml` contains `GLMakie = "0.13"` and `Makie = "0.24"` (no leading `=`). `julia --project=. -e 'using Pkg; Pkg.test()'` exits 0. Report back: `TASK 081 PASSED — compat widened, tests green, commit = [hash]`.
+
+### On Failure
+Report `TASK 081 FAILED — [test failure or resolve error]` with the failing output.
+
+---
+
+## Task 082: Gate golden-image testset behind environment variable; fix fill(1.0) test data
+**Status:** [ ] Pending
+**Milestone:** P4
+**Depends on:** 081
+
+### What to do
+In `test/integration/export.jl`, make two changes:
+
+**Change 1 — gate the golden-image testset behind an env var.** Wrap the `@testset "M8 golden-image hashes — all 7 plot types stable"` block so it only runs when `get(ENV, "FIGUREVIEWS_GOLDEN", "0") == "1"`. If the env var is not set, skip it with `@info "Skipping golden-image testset (set FIGUREVIEWS_GOLDEN=1 to enable)"`. This means `Pkg.test()` by default skips the golden testset; CI can opt in by setting the env var.
+
+**Change 2 — fix the fill(1.0) test data for line and contour.** In `_make_export_session`, when `deterministic=true`, the current `fill(1.0, dim...)` produces identical images for `:line` and `:contour` (both render an essentially empty axis). Replace the deterministic data with varied but reproducible arrays:
+- For `:line`: `x = collect(1.0:Float64(dim[1]))`, `y = sin.(x)`
+- For `:scatter`: same as line
+- For `:bar`: `x = collect(1.0:Float64(dim[1]))`, `y = collect(1.0:Float64(dim[1]))`
+- For `:heatmap`: `[Float64(i+j) for i in 1:dim[1], j in 1:dim[2]]`
+- For `:contour`: `x = collect(LinRange(0.0, 1.0, dim[1]))`, `y = collect(LinRange(0.0, 1.0, dim[2]))`, `matrix = [sin(x)*cos(y) for x in LinRange(0.0,1.0,dim[1]), y in LinRange(0.0,1.0,dim[2])]`
+- For `:surface`: same shape as contour
+- For `:volume`: `[Float64(i+j+k) for i in 1:dim[1], j in 1:dim[2], k in 1:dim[3]]`
+
+Implement this by replacing the single `fill(1.0, dim...)` line in `_make_export_session` with a dispatch on `role` and `plot_type` when `deterministic=true`. Keep the `rand` path for `deterministic=false` unchanged.
+
+After both changes, **regenerate `test/goldens/hashes.toml`** with the new deterministic data by running:
+```julia
+using FigureViews, Makie, CairoMakie, SHA, TOML
+# (reproduce the hash-generation logic from the original task that created goldens/hashes.toml)
+```
+Check whether a hash-generation script exists anywhere in the repo; if so use it. If not, write a one-off script `test/goldens/regen_hashes.jl` that generates and writes `hashes.toml`, run it under `xvfb-run`, then delete the script.
+
+Run `julia --project=. -e 'using Pkg; Pkg.test()'` (without `FIGUREVIEWS_GOLDEN=1`) to confirm the golden testset is now skipped and all other tests pass. Then run `FIGUREVIEWS_GOLDEN=1 xvfb-run julia --project=. -e 'using Pkg; Pkg.test()'` to confirm the golden testset passes with the new hashes.
+
+Commit message: `test: gate golden testset behind env var; fix fill(1.0) deterministic data`
+
+### Files touched
+- `test/integration/export.jl` — env-var gate, deterministic data fix
+- `test/goldens/hashes.toml` — regenerated hashes
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 and output contains `Skipping golden-image testset`. `FIGUREVIEWS_GOLDEN=1 xvfb-run julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 and the golden testset passes (no `Test Failed`). Report back: `TASK 082 PASSED — golden testset gated and passing, commit = [hash]`.
+
+### On Failure
+Report `TASK 082 FAILED — [which check failed: skip not printed / golden test failed / hash mismatch]` with the failing output. If the golden testset fails after regeneration, paste the mismatched hashes.
+
+---
+
+## Task 083: Add TagBot and Codecov to CI
+**Status:** [ ] Pending
+**Milestone:** P4
+**Depends on:** 082
+
+### What to do
+**Part A — TagBot.** Create `.github/workflows/TagBot.yml` with the standard Julia TagBot workflow. The canonical content is:
+
+```yaml
+name: TagBot
+on:
+  issue_comment:
+    types:
+      - created
+  workflow_dispatch:
+    inputs:
+      lookback:
+        default: "3"
+jobs:
+  TagBot:
+    if: github.event_name == 'workflow_dispatch' || github.actor == 'JuliaTagBot'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: JuliaRegistries/TagBot@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ssh: ${{ secrets.DOCUMENTER_KEY }}
+```
+
+**Part B — Codecov.** Add a coverage step to `.github/workflows/ci.yml`. After the existing `Run tests` step, add:
+```yaml
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+```
+Also change the test run step to generate coverage data by switching from `julia --project=. -e 'using Pkg; Pkg.test()'` to using `julia-actions/julia-runtest@v1` with `coverage: true`, or add `--code-coverage=user` to the existing command. Use whichever is cleaner given the current `ci.yml` shape.
+
+Add a Codecov badge to `README.md` immediately after the existing CI badge. The badge URL pattern is:
+`[![Coverage](https://codecov.io/gh/XerxesZorgon/FigureViews.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/XerxesZorgon/FigureViews.jl)`
+
+Do not push yet — just commit locally. (Codecov will only activate after the repo is connected at codecov.io, which John will do manually after this task.)
+
+Commit message: `ci: add TagBot workflow and Codecov coverage upload`
+
+### Files touched
+- `.github/workflows/TagBot.yml` — new file
+- `.github/workflows/ci.yml` — coverage step added
+- `README.md` — Codecov badge added
+
+### Acceptance Criterion
+`.github/workflows/TagBot.yml` exists and contains `JuliaRegistries/TagBot@v1`. `.github/workflows/ci.yml` contains `codecov-action`. `README.md` contains a Codecov badge URL. `git show --stat HEAD` lists all three files. Report back: `TASK 083 PASSED — TagBot and Codecov added, commit = [hash]`.
+
+### On Failure
+Report `TASK 083 FAILED — [which file missing or malformed]` with detail.
+
+---
+
+## Task 084: Add .julia_package_ignore to exclude internal artifacts from releases
+**Status:** [ ] Pending
+**Milestone:** P4
+**Depends on:** 083
+
+### What to do
+Create a file named `.julia_package_ignore` in the project root. This file lists paths that `Pkg.jl` excludes when building the package tarball for release (equivalent to `.npmignore`). Add the following entries, one per line:
+
+```
+tasks.md
+SESSION_LOG.md
+AGENTS.md
+INDEX.md
+spike/
+docs/PLAN.md
+docs/PLAN-v0.2.md
+docs/SDD.md
+docs/TEST_PLAN.md
+docs/adr/
+```
+
+The `docs/DESIGN.md` file is borderline — it contains architecture rationale that could be useful to contributors, so leave it included. `README.md`, `CHANGELOG.md`, `LICENSE`, and `Project.toml` must not be excluded.
+
+Commit message: `pkg: add .julia_package_ignore to exclude internal dev artifacts from releases`
+
+### Files touched
+- `.julia_package_ignore` — new file
+
+### Acceptance Criterion
+`.julia_package_ignore` exists and contains `tasks.md`, `SESSION_LOG.md`, `AGENTS.md`, `INDEX.md`, and `spike/`. `julia --project=. -e 'using Pkg; Pkg.test()'` still exits 0 (the ignore file does not affect local dev). Report back: `TASK 084 PASSED — .julia_package_ignore created, tests green, commit = [hash]`.
+
+### On Failure
+Report `TASK 084 FAILED — [file missing / tests broken]` with detail.
+
+---
+
+## Task 085: Push P4 and confirm CI green
+**Status:** [ ] Pending
+**Milestone:** P4
+**Depends on:** 084
+
+### What to do
+Push all P4 commits to `main`:
+```
+git push
+```
+Then report the GitHub Actions run URL and wait for CI to go green (both Julia 1.10 and 1.12 on Ubuntu). CI must pass before re-registration is attempted.
+
+Also update `tasks.md`: mark Tasks 081–084 `[x] Done` and this task `[x] Done` once CI is confirmed green.
+
+### Files touched
+- None (push only); `tasks.md` status updates
+
+### Acceptance Criterion
+`git push` succeeds. GitHub Actions CI run on `main` completes with 2/2 cells green. Report back: `TASK 085 PASSED — CI green, run = [URL or run id], P4 complete`.
+
+### On Failure
+Report `TASK 085 FAILED — [CI cell failed: Julia version / error summary]` and paste the first 20 lines of the failing log.
+
