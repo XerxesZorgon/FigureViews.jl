@@ -19,7 +19,7 @@ end
 """
     preferences_path() -> String
 
-Path to the user's preferences.toml inside the MakieViews Scratch space.
+Path to the user's preferences.toml inside the FigureViews Scratch space.
 """
 function preferences_path()::String
     dir = Scratch.@get_scratch!("preferences")

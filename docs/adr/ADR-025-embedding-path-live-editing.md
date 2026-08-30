@@ -7,7 +7,7 @@
 
 ## Decision
 
-**Retain the existing `GtkMakieWidget` embedding** (`src/MakieViews.jl`) as the v0.2 viewport host. No shell rewrite is required. The upstream instability described in JuliaGtk/Gtk4Makie.jl issue #14 does not reproduce under the correct threading configuration.
+**Retain the existing `GtkMakieWidget` embedding** (`src/FigureViews.jl`) as the v0.2 viewport host. No shell rewrite is required. The upstream instability described in JuliaGtk/Gtk4Makie.jl issue #14 does not reproduce under the correct threading configuration.
 
 ## Context
 
@@ -25,7 +25,7 @@ Three routes were on the table: (1) retain `GtkMakieWidget`, confirming or worki
 
 ## Consequences
 
-- **`src/MakieViews.jl` shell is unchanged.** No embedding migration required for M13.
+- **`src/FigureViews.jl` shell is unchanged.** No embedding migration required for M13.
 - **Confirmed delete! API for M13:** `GLMakie.delete!(ax, plot_handle)` removes a plot from an axis; `GLMakie.delete!(ax)` removes an axis. These are the signatures to use in the incremental renderer operations (`_remove_plot_handle!`, `_remove_axis!`).
 - **Interactive thread is mandatory.** The spike ran with `--threads 4,1`. Without an interactive thread the GLib loop starves. `makieviews()` must check for an interactive thread at startup and refuse with an actionable message if absent (ADR-024 constraint 1, carried into M13).
 - **Linux confirmation deferred to M13 CI.** The spike ran on Windows only. The `--threads N,1` fix is expected to be OS-agnostic (it operates at the Julia scheduler level, not the OS level), but the Ubuntu CI job for M13 is the formal confirmation. If M13's CI fails with a threading-related freeze on Ubuntu, this ADR will be amended with the correct Linux mitigation.

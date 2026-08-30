@@ -1,5 +1,5 @@
-using Test, MakieViews
-using MakieViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, DataRef, MainSource,
+using Test, FigureViews
+using FigureViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, DataRef, MainSource,
                   reset_to_preferences!, load_preferences, save_preferences, preferences_path
 using Colors
 

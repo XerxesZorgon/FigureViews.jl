@@ -16,7 +16,7 @@ If v0.1 does not reserve the schema slot for inline data now, v0.2's addition be
 - v0.1 **reserves** the sub-table name `data_inline` under `[[figure.axis.plot]]` in the documented schema. It is not written by v0.1 save code.
 - v0.1's loader **refuses** to open any `.mvz` file whose `[[figure.axis.plot]]` entries include a `data_inline` sub-table, with a **specific error message** (not a generic parse failure):
 
-  > `"This .mvz contains inline data (data_inline), which requires MakieViews v0.2 or later. Loading aborted."`
+  > `"This .mvz contains inline data (data_inline), which requires FigureViews v0.2 or later. Loading aborted."`
 
 - The error is caught at file-load time and surfaced via a Gtk4 message dialog naming the file path and the message above.
 - v0.2 will define `data_inline`'s TOML schema and enable both read and write.

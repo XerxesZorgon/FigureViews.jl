@@ -7,7 +7,7 @@
 
 ## Context
 
-DESIGN.md §5 describes the property-panel value flow as *"widget change → callback writes to `plot.attrs[name]` → observer re-renders the plot on the shared `Makie.Figure`"* and §8 mentions Makie's "Observable pipeline" without pinning the mechanism for MakieViews' own tree state. The choice of reactive mechanism is load-bearing: every M2+ code path that mutates a `Session`, `Figure`, `Axis`, or `Plot` node — property-panel edits, add/delete tree operations, data-source snapshot updates, preferences-reset actions, animation binding changes, pre-flight downsampling application — flows through it. Pinning it after M2 has begun would mean rework.
+DESIGN.md §5 describes the property-panel value flow as *"widget change → callback writes to `plot.attrs[name]` → observer re-renders the plot on the shared `Makie.Figure`"* and §8 mentions Makie's "Observable pipeline" without pinning the mechanism for FigureViews' own tree state. The choice of reactive mechanism is load-bearing: every M2+ code path that mutates a `Session`, `Figure`, `Axis`, or `Plot` node — property-panel edits, add/delete tree operations, data-source snapshot updates, preferences-reset actions, animation binding changes, pre-flight downsampling application — flows through it. Pinning it after M2 has begun would mean rework.
 
 Three realistic options were considered in the M2 pre-design pass (2026-08-24 chat session):
 
@@ -17,7 +17,7 @@ Three realistic options were considered in the M2 pre-design pass (2026-08-24 ch
 
 ## Decision
 
-MakieViews' tree state uses **`Observables.jl`** as its reactive layer, with node types declared as **`mutable struct`** and per-field `Observable` wrapping.
+FigureViews' tree state uses **`Observables.jl`** as its reactive layer, with node types declared as **`mutable struct`** and per-field `Observable` wrapping.
 
 Concretely, the node type shapes DESIGN.md §2.1 declares as `struct` become:
 
@@ -84,18 +84,18 @@ Debouncing at 60 Hz (DESIGN.md §5) is a `throttle(1/60, observable)` wrapper fr
 
 ## Alternatives Considered
 
-- **Hand-rolled callback lists (Option 2).** Rejected: reinvents Observables.jl with per-node boilerplate; loses "well-tested, mature exception-isolation semantics" that Observables provides for free; unfamiliar to Makie users reading MakieViews source. The only real gain would be zero external reactive library, which is moot because Observables.jl is already in our depot via Makie.
+- **Hand-rolled callback lists (Option 2).** Rejected: reinvents Observables.jl with per-node boilerplate; loses "well-tested, mature exception-isolation semantics" that Observables provides for free; unfamiliar to Makie users reading FigureViews source. The only real gain would be zero external reactive library, which is moot because Observables.jl is already in our depot via Makie.
 - **`Channel{Event}` + reader task (Option 3).** Rejected: adds a task, which fights Gtk4's main-thread-only mutation rule (DESIGN §9); introduces race conditions between main-thread widget callbacks and reader-thread event processing; overengineered for v0.1 use cases; the async debugging cost is not justified when undo/redo (its main future benefit) is v0.2 deferred anyway. If M9's preferences work or a later milestone genuinely requires event batching, a command pattern on top of Observables.jl (mutation-through-a-single-function that also appends to an undo stack) satisfies it without a channel.
 - **Immutable structs + top-level `Observable{SessionState}` with tree replacement (Redux-style).** Rejected as an alternative to per-field mutability: every attribute change (dragging a color picker at 60 Hz) would trigger a full-tree diff to identify what changed; performance concern for figures with many plots; alien to Julia GUI-state idiom; the undo/redo affordance it would provide is v0.2 work, not v0.1.
 
 ## Consequences
 
-- **Positive**: MakieViews' source reads like an extension of Makie rather than a foreign object grafted on. Any Makie user is fluent in the `x[]`, `on(x) do v ... end` pattern.
+- **Positive**: FigureViews' source reads like an extension of Makie rather than a foreign object grafted on. Any Makie user is fluent in the `x[]`, `on(x) do v ... end` pattern.
 - **Positive**: Layer 1 unit tests (per ADR-009 and TEST_PLAN.md §6) can drive the tree entirely through the reactive layer without any Gtk4 or GLMakie code, satisfying the "SessionState is a pure Julia object graph — no Gtk4 or GLMakie references" invariant declared in DESIGN.md §1.
 - **Positive**: Debouncing (60 Hz per DESIGN §5) is a one-line `throttle` from Observables.jl.
 - **Positive**: The Renderer (DESIGN §8) becomes a simple observer registration hub — no polling, no diffing.
 - **Negative**: `mutable struct` disables Julia's `==` value equality by default; equality now compares object identity. Any code that needs value equality on a node writes an explicit equality function (or the round-trip test at TEST_PLAN §3 compares serialized TOML forms, not Julia structs — which is what it already does).
-- **Negative**: Ties MakieViews' state model to `Observables.jl`'s API. Historically stable; if it breaks in a future release, migration effort is proportional to node type count (small in v0.1).
+- **Negative**: Ties FigureViews' state model to `Observables.jl`'s API. Historically stable; if it breaks in a future release, migration effort is proportional to node type count (small in v0.1).
 - **Negative**: Every mutation site must remember to `[] =` rather than `=`. Mitigation: convention documented in DESIGN.md §5 and §8; enforced by code review.
 
 ## Amendment to DESIGN.md
@@ -105,5 +105,5 @@ Sections §5 (property panel) and §8 (renderer) are amended to specify this dec
 ## References
 
 - Observables.jl: https://github.com/JuliaGizmos/Observables.jl
-- Makie's use of Observables (idiomatic pattern MakieViews mirrors): https://docs.makie.org/dev/explanations/observables
+- Makie's use of Observables (idiomatic pattern FigureViews mirrors): https://docs.makie.org/dev/explanations/observables
 - M2 pre-design chat session (this decision): 2026-08-24

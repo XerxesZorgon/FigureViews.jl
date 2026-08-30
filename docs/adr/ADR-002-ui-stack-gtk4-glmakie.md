@@ -7,7 +7,7 @@
 
 ## Context
 
-MakieViews needs:
+FigureViews needs:
 - A native desktop shell — window, menus, docked panels (tree, properties), file dialogs.
 - An embedded viewport that runs Makie's interactive backend, keeping full 3D and animation.
 - Reasonable cross-platform coverage: Windows, macOS, Linux.

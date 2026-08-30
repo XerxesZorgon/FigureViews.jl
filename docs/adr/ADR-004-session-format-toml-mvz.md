@@ -9,17 +9,17 @@
 
 Session files hold the tree (Session → Figure → Axis → Plot) plus enough state to reproduce the figure. Requirements:
 - Human-readable and diffable in Git.
-- Forward- and backward-compatible: MakieViews v0.2 must open a v0.1 file, and v0.1 must fail cleanly (not corrupt) on a v0.2 file.
+- Forward- and backward-compatible: FigureViews v0.2 must open a v0.1 file, and v0.1 must fail cleanly (not corrupt) on a v0.2 file.
 - Small enough to email; no binary bulk unless data is inlined (v0.1 stores references, not raw arrays).
 - Parseable by Julia's stdlib.
 
 ## Decision
 
 - Format: **TOML** (Tom's Obvious Minimal Language), Julia stdlib `TOML` module.
-- Extension: **`.mvz`** — distinct from generic `.toml` so OS file associations can route to MakieViews.
+- Extension: **`.mvz`** — distinct from generic `.toml` so OS file associations can route to FigureViews.
 - **Top-level `schema_version = "1.0"`** field, semver.
-- **Forward compatibility**: MakieViews v0.1 refuses to load a file whose `schema_version` major is higher than the loader's.
-- **Backward compatibility**: on load, MakieViews preserves unknown node types as opaque tables, renders them as placeholder tree entries, and round-trips them on save. (See SDD Forward-Looking Constraint and DESIGN.md §3.)
+- **Forward compatibility**: FigureViews v0.1 refuses to load a file whose `schema_version` major is higher than the loader's.
+- **Backward compatibility**: on load, FigureViews preserves unknown node types as opaque tables, renders them as placeholder tree entries, and round-trips them on save. (See SDD Forward-Looking Constraint and DESIGN.md §3.)
 
 ## Alternatives Considered
 

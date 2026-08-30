@@ -20,7 +20,7 @@ The failure is identical in shape on both OSes: GLMakie's `PrecompileTools` work
 Two pieces of empirical evidence confirm the failure is CI-environment-specific, not code-specific:
 
 1. **The identical test suite passes on John's Windows 11 development machine.** Tasks 004, 006, 008, and 010 — 7 tests, all green — ran the same GLMakie code on real Windows hardware with a real GPU. The bytes that fail on GitHub's Windows runner succeed on his.
-2. **Upstream Makie itself CI-tests GLMakie only on Ubuntu with `xvfb-run`.** The workflow at `MakieOrg/Makie.jl/.github/workflows/glmakie.yaml` runs a single OS. If the upstream Makie authors do not attempt Windows or macOS CI for GLMakie, MakieViews as a downstream Gtk4Makie + GLMakie consumer cannot reasonably succeed where they have not.
+2. **Upstream Makie itself CI-tests GLMakie only on Ubuntu with `xvfb-run`.** The workflow at `MakieOrg/Makie.jl/.github/workflows/glmakie.yaml` runs a single OS. If the upstream Makie authors do not attempt Windows or macOS CI for GLMakie, FigureViews as a downstream Gtk4Makie + GLMakie consumer cannot reasonably succeed where they have not.
 
 Also relevant to the reasoning: our current test suite (7 tests as of commit `a062cc1`) is entirely ADR-009's **Layer 3** (GUI smoke). Every test calls `makieviews()`, which opens a Gtk4 window and initializes GLMakie. ADR-009's Layers 1 (pure-Julia unit) and 2 (headless-safe integration via CairoMakie) are not yet exercised because M1's code is entirely "make a window appear" — no pure logic to unit-test, no CairoMakie fallback path in the source. Layers 1 and 2 will exist as testable code starting at M2 (tree model, schema-driven property panel) and M8 (CairoMakie static export).
 
@@ -28,7 +28,7 @@ Also relevant to the reasoning: our current test suite (7 tests as of commit `a0
 
 For v0.1 (M1 through M11), the CI matrix is **2 cells: `ubuntu-latest × {Julia 1.10, Julia 1.12}`**.
 
-Windows and macOS are removed from the CI matrix. They remain fully supported target platforms — MakieViews is expected to install and run on both — but that support is:
+Windows and macOS are removed from the CI matrix. They remain fully supported target platforms — FigureViews is expected to install and run on both — but that support is:
 
 - **Developer-machine-verified** by the maintainer on both a Windows 11 machine and a macOS machine available for pre-release manual checks.
 - **User-reported** via GitHub issues for edge cases not caught by the developer-machine checks.
@@ -58,6 +58,6 @@ ADR-009 §Decision, layer 3, contained the phrase *"On Linux, wrapped in `xvfb-r
 
 ## References
 
-- Failing CI run (evidence): https://github.com/XerxesZorgon/MakieViews/actions/runs/32780549703
+- Failing CI run (evidence): https://github.com/XerxesZorgon/FigureViews/actions/runs/32780549703
 - Upstream Makie GLMakie CI (Ubuntu-only precedent): https://github.com/MakieOrg/Makie.jl/blob/master/.github/workflows/glmakie.yaml
 - GLMakie README, "headless server" caveat: https://github.com/JuliaPlots/GLMakie.jl

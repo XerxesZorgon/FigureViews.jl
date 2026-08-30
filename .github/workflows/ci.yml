@@ -3,7 +3,7 @@
 # CI matrix: 2 cells (Julia {1.10, 1.12} × Ubuntu).
 # History:
 # - ADR-018 (2026-08-24): reduced from 6-cell {Ubuntu, Windows, macOS} to 2-cell Ubuntu-only for M0-M10.
-# - ADR-023 (2026-08-28): attempted macos-latest addition; confirmed infeasible — `using MakieViews`
+# - ADR-023 (2026-08-28): attempted macos-latest addition; confirmed infeasible — `using FigureViews`
 #   unconditionally loads GLMakie/Gtk4Makie which fail to precompile on headless Apple Silicon GHA VMs
 #   (NSGL FORMAT_UNAVAILABLE). Reverted to Ubuntu-only. macOS CI requires conditional backend loading
 #   (v0.2 backlog). Windows is validated manually before release (Task 072).

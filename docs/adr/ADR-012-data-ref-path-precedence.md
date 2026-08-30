@@ -10,7 +10,7 @@
 `.mvz` files reference data (CSV, HDF5) by path, not by inlined array (ADR-004, DESIGN.md §3.2). Two failure modes are common:
 
 1. **User emails a folder** containing `analysis.mvz` and `data/q3.csv` to a colleague. Absolute paths fail on the colleague's machine.
-2. **User keeps sessions on a workstation** and reopens `analysis.mvz` months later. Relative paths fail if they opened MakieViews from a different working directory.
+2. **User keeps sessions on a workstation** and reopens `analysis.mvz` months later. Relative paths fail if they opened FigureViews from a different working directory.
 
 Two-path storage handles both: absolute for the workstation case, relative-to-`.mvz` for the portable case.
 

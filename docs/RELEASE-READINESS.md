@@ -1,9 +1,9 @@
-# RELEASE-READINESS.md — MakieViews v0.1.0
+# RELEASE-READINESS.md — FigureViews v0.1.0
 
 **Status**: Metadata audit clear; ready for the M11 release execution once macOS/Windows QA (Tasks 072–074) is green.
 **Date**: 2026-08-28
 **Companion**: [ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md) (v0.1.0 scope); [ADR-020](adr/ADR-020-defer-fps-measurement-to-m11.md) updated 2026-08-28 (FPS measurement pass → v0.2); [ADR-023](adr/ADR-023-defer-interactive-macos-to-post-v0-1.md) (macOS verification split: headless CI + deferred interactive)
-**Repository**: [XerxesZorgon/MakieViews.jl](https://github.com/XerxesZorgon/MakieViews.jl) (public)
+**Repository**: [XerxesZorgon/FigureViews.jl](https://github.com/XerxesZorgon/FigureViews.jl) (public)
 
 ## Summary
 
@@ -18,14 +18,14 @@ Four decisions recorded (compat, version bump, LICENSE/README/semver, CHANGELOG 
 **Verified facts:**
 - Julia General AutoMerge accepts exact pins ([RegistryCI guidelines](https://juliaregistries.github.io/RegistryCI.jl/stable/guidelines/)): `"=X.Y.Z"` satisfies the "upper-bounded + finite breaking releases" criterion. No "overly-tight" flag exists in the checked criteria.
 - Makie 0.24.13 is the current latest release (July 7, 2026); the 0.24 line has been stable ~11 months with 13 patches. A v0.25.0 reference-images tag exists but no v0.25 release yet.
-- GLMakie 0.13.13 upstream-pins `Makie = "=0.24.13"`. CairoMakie 0.15.13 also upstream-pins Makie exactly. Loosening MakieViews' Makie compat therefore gives no immediate resolver freedom — the constraint is enforced upstream regardless.
+- GLMakie 0.13.13 upstream-pins `Makie = "=0.24.13"`. CairoMakie 0.15.13 also upstream-pins Makie exactly. Loosening FigureViews' Makie compat therefore gives no immediate resolver freedom — the constraint is enforced upstream regardless.
 
 **Rationale (first release, solo maintainer):**
 - Reproducibility over nimbleness: users of v0.1.0 get exactly the Makie + GLMakie pair the M10 spot-check calibrated on.
-- Deliberate retag over silent drift: when Makie 0.24.14 + GLMakie 0.13.14 ship (together, by upstream construction), MakieViews retags 0.1.1 after a quick sanity check. Clear signal: "this matched pair is what we tested."
+- Deliberate retag over silent drift: when Makie 0.24.14 + GLMakie 0.13.14 ship (together, by upstream construction), FigureViews retags 0.1.1 after a quick sanity check. Clear signal: "this matched pair is what we tested."
 
 **Trade-off accepted:**
-- Users cannot receive Makie 0.24.14 in a MakieViews environment until MakieViews 0.1.1 is tagged. Trigger is a manual maintainer step per Makie patch cycle (historically ~monthly). The mitigation is the follow-up in §Post-v0.1.0 (in-package update-check helper).
+- Users cannot receive Makie 0.24.14 in a FigureViews environment until FigureViews 0.1.1 is tagged. Trigger is a manual maintainer step per Makie patch cycle (historically ~monthly). The mitigation is the follow-up in §Post-v0.1.0 (in-package update-check helper).
 
 ---
 
@@ -59,13 +59,13 @@ At the release commit:
 
 ## 5. macOS verification (per ADR-023) — CI infeasible for v0.1.0
 
-**Final outcome (2026-08-28):** macOS CI dropped for v0.1.0. Two attempts (Tasks 073 and 073b) confirmed that `using MakieViews` unconditionally loads GLMakie and Gtk4Makie at `src/MakieViews.jl:3`, which fail to precompile on GHA Apple Silicon VMs (`NSGL: Failed to find a suitable pixel format`). A separate `test/runtests_cairo.jl` entry point also fails at `using MakieViews`. There is no way to run any MakieViews test on GHA macOS without conditional backend loading.
+**Final outcome (2026-08-28):** macOS CI dropped for v0.1.0. Two attempts (Tasks 073 and 073b) confirmed that `using FigureViews` unconditionally loads GLMakie and Gtk4Makie at `src/FigureViews.jl:3`, which fail to precompile on GHA Apple Silicon VMs (`NSGL: Failed to find a suitable pixel format`). A separate `test/runtests_cairo.jl` entry point also fails at `using FigureViews`. There is no way to run any FigureViews test on GHA macOS without conditional backend loading.
 
 **What ships for v0.1.0:** Ubuntu CI only (2 cells, 72 testsets, ~308 assertions). Windows validated manually (Task 072). macOS is untested — both headless and interactive. README and CHANGELOG reflect this accurately.
 
 **v0.2 backlog item:** Enable macOS CI via conditional backend loading (guard `GLMakie`/`Gtk4`/`Gtk4Makie` imports behind `ENV["MAKIEVIEWS_BACKEND"]` or `Preferences.jl`). This pairs naturally with the GUI/headless split already planned for v0.2. Interactive macOS verification (Task 073's original manual gate) also remains a v0.2 commitment (ADR-023).
 
-**Alternatives rejected** (full record in ADR-023): CairoMakie-only entry point (fails because `using MakieViews` loads GLMakie regardless), cloud Mac rental (disproportionate), browser-based simulators (cannot run Julia), local KVM/QEMU (EULA + no GPU).
+**Alternatives rejected** (full record in ADR-023): CairoMakie-only entry point (fails because `using FigureViews` loads GLMakie regardless), cloud Mac rental (disproportionate), browser-based simulators (cannot run Julia), local KVM/QEMU (EULA + no GPU).
 
 ---
 
@@ -81,10 +81,10 @@ At the release commit:
 + ## [0.1.0] — YYYY-MM-DD          # actual release date
 
 [CHANGELOG.md, bottom links]
-- [Unreleased]: https://github.com/PLACEHOLDER-USER/MakieViews.jl/compare/v0.1.0...HEAD
-- [0.1.0]: https://github.com/PLACEHOLDER-USER/MakieViews.jl/releases/tag/v0.1.0
-+ [Unreleased]: https://github.com/XerxesZorgon/MakieViews.jl/compare/v0.1.0...HEAD
-+ [0.1.0]: https://github.com/XerxesZorgon/MakieViews.jl/releases/tag/v0.1.0
+- [Unreleased]: https://github.com/PLACEHOLDER-USER/FigureViews.jl/compare/v0.1.0...HEAD
+- [0.1.0]: https://github.com/PLACEHOLDER-USER/FigureViews.jl/releases/tag/v0.1.0
++ [Unreleased]: https://github.com/XerxesZorgon/FigureViews.jl/compare/v0.1.0...HEAD
++ [0.1.0]: https://github.com/XerxesZorgon/FigureViews.jl/releases/tag/v0.1.0
 ```
 
 Plus the `[Unreleased]` restructuring per §4 step 2. Commit as `release: v0.1.0`, push, verify CI green, run Registrator dry-run, submit to General.
@@ -104,7 +104,7 @@ Plus the `[Unreleased]` restructuring per §4 step 2. Commit as `release: v0.1.0
 
 ## Post-v0.1.0 follow-ups
 
-- **In-package update-check helper (v0.2 candidate).** Idea captured 2026-08-28: add `MakieViews.check_updates()` or similar that queries the General registry for a newer MakieViews version and prints a one-line "an update is available (0.1.X); run `] up MakieViews`" hint at REPL startup (or on demand). Motivation: the exact-pin decision above puts responsibility on the user to run `] up` after MakieViews retags a compat refresh; a lightweight in-package check makes that discoverable. Not blocking v0.1.0.
+- **In-package update-check helper (v0.2 candidate).** Idea captured 2026-08-28: add `FigureViews.check_updates()` or similar that queries the General registry for a newer FigureViews version and prints a one-line "an update is available (0.1.X); run `] up FigureViews`" hint at REPL startup (or on demand). Motivation: the exact-pin decision above puts responsibility on the user to run `] up` after FigureViews retags a compat refresh; a lightweight in-package check makes that discoverable. Not blocking v0.1.0.
 - **FPS measurement pass** — three-OS reference table → `src/preflight/fps_lookup.jl`: v0.2 per ADR-020 updated 2026-08-28.
 - **Interactive macOS verification** — mouse-driven 3D rotation, live attribute editing, window dragging, `export_figure` from a displayed window: deferred to post-v0.1.0 per ADR-023 (committed before v0.2.0). Headless macOS CI (Task 073, `macos-latest × {Julia 1.10, 1.12}`) covers ~99% of what the manual gate would have exercised.
 - **`.mvz` data round-trip** (full save/reload including arrays via the reserved `data_inline` slot): v0.2 per ADR-017.

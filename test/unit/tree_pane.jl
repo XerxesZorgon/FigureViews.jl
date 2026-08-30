@@ -5,13 +5,13 @@
     _m = Module(:_T)
     Core.eval(_m, :(x = collect(1.0:5.0)))
     Core.eval(_m, :(y = collect(1.0:5.0)))
-    _src = MakieViews.MainSource(_m)
+    _src = FigureViews.MainSource(_m)
     snap_x = ingest!(s, _src, "x")
     snap_y = ingest!(s, _src, "y")
     add_plot!(ax2, :line, [DataRef(:x, snap_x, :main, "x"), DataRef(:y, snap_y, :main, "y")])
     ax3 = add_axis!(fig; kind = :axis3d, title = "A3D")
 
-    labels, ids = MakieViews._build_tree_rows(s)
+    labels, ids = FigureViews._build_tree_rows(s)
     @test length(labels) == 4
     @test length(ids) == 4
     @test labels[1] == "Figure: F1"

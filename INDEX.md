@@ -1,6 +1,6 @@
-# MakieViews — project index
+# FigureViews — project index
 
-**Purpose**: A Veusz-style desktop GUI over Makie for Julia scientific plotting. **Status**: v0.1 **M3 (remaining 2D plot types) COMPLETE 2026-08-24** — all five 2D plot types (line, scatter, bar, heatmap, contour) schema-registered, renderer-handled, CI 2/2 green. macOS QA deferred (hard gate at M11). **Docs location on device**: `C:\Users\johnx\Documents\WildPeaches\Projects\MakieViews\` *(WildPeaches path is authoritative)*
+**Purpose**: A Veusz-style desktop GUI over Makie for Julia scientific plotting. **Status**: v0.1 **M3 (remaining 2D plot types) COMPLETE 2026-08-24** — all five 2D plot types (line, scatter, bar, heatmap, contour) schema-registered, renderer-handled, CI 2/2 green. macOS QA deferred (hard gate at M11). **Docs location on device**: `C:\Users\johnx\Documents\WildPeaches\Projects\FigureViews\` *(WildPeaches path is authoritative)*
 
 ## Planning documents
 

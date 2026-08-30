@@ -1,5 +1,5 @@
-using Test, MakieViews, Makie, CairoMakie
-using MakieViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, DataRef,
+using Test, FigureViews, Makie, CairoMakie
+using FigureViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, DataRef,
                   MainSource, Renderer, export_figure
 
 function _make_export_session(plot_type::Symbol; deterministic::Bool=false)

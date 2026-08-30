@@ -1,4 +1,4 @@
-# DESIGN.md — MakieViews v0.1
+# DESIGN.md — FigureViews v0.1
 
 **Status**: Draft
 **Date**: 2026-08-24
@@ -233,7 +233,7 @@ on load(file):
   file_ver = parse(VersionNumber, s["schema_version"])
 
   if file_ver.major > loader_supported.major:
-      raise "This file requires MakieViews vX or newer. Please upgrade."
+      raise "This file requires FigureViews vX or newer. Please upgrade."
   end
   if file_ver > loader_supported and file_ver.major == loader_supported.major:
       warn "This file was saved by a newer minor version. Unknown fields will be preserved but may not render."
@@ -242,7 +242,7 @@ on load(file):
   # ADR-017: reserved slot check — v0.1 refuses inline data.
   for each plot in s.figure[*].axis[*].plot[*]:
       if "data_inline" in plot:
-          raise "This .mvz contains inline data (data_inline), which requires MakieViews v0.2 or later. Loading aborted."
+          raise "This .mvz contains inline data (data_inline), which requires FigureViews v0.2 or later. Loading aborted."
       end
   end
 
@@ -305,7 +305,7 @@ New sources (Parquet, Arrow, JSON, SQLite — deferred to v0.2 per ADR-007) impl
 
 ### 4.3 Reaching into the calling REPL's `Main` (with non-REPL detection — per ADR-011)
 
-`makieviews()` is called from the REPL as `using MakieViews; makieviews()`. Julia's `Main` module is a first-class value; anything defined at the REPL is a binding of `Main`.
+`makieviews()` is called from the REPL as `using FigureViews; makieviews()`. Julia's `Main` module is a first-class value; anything defined at the REPL is a binding of `Main`.
 
 ```julia
 function main_source()
@@ -318,7 +318,7 @@ end
 
 function makieviews()
     if !(isinteractive() && isdefined(Base, :active_repl))
-        @warn "MakieViews v0.1 reads variables from REPL Main. You appear to be running outside a REPL. " *
+        @warn "FigureViews v0.1 reads variables from REPL Main. You appear to be running outside a REPL. " *
               "Variables defined in this script/context so far are visible; variables you define later will not appear. " *
               "File loading (CSV / HDF5) works normally."
     end
@@ -383,7 +383,7 @@ Behavior:
 - **Load `.mvz`**: read `preferences_snapshot` back into the figure; the figure's plots use their own saved attributes (which were seeded from that snapshot originally); `preferences_disk` is not consulted. **The app never calls `set_theme!`.**
 - **"Reset selection to preferences"** menu action: walks selected tree nodes; for each `Plot`, iterates `PLOT_SCHEMAS[plot.type]` and overwrites `plot.attrs[name]` with the current preferences value (or the spec default if the preference does not declare that field).
 
-Preference migration (schema change to `preferences.toml` between MakieViews versions):
+Preference migration (schema change to `preferences.toml` between FigureViews versions):
 - `preferences.toml` also carries a `schema_version` at the top.
 - Loader reads it; unknown fields are preserved and passed through on the next save.
 - Missing fields resolve to the spec default.
@@ -525,13 +525,13 @@ The design above describes the *target* incremental renderer. **The v0.1 impleme
 
 A single `apply_structural!(session, op)` funnel branches on "is a window live?" so callers never choose between the direct and queued paths.
 
-> **Embedding risk (ADR-024 constraint 2).** `makieviews()` embeds the viewport via `Gtk4Makie.GtkMakieWidget` (`src/MakieViews.jl`), which Gtk4Makie documents as unstable, with open upstream issue #14 on *adding a plot to an existing widget* — the exact operation the incremental path needs. v0.2's first spike must resolve the embedding path (drive #14, switch to `GTKScreen`-in-grid, or `GLMakie.Screen(; window=…, start_renderloop=false)`) before any GUI task is committed. This gates the milestone.
+> **Embedding risk (ADR-024 constraint 2).** `makieviews()` embeds the viewport via `Gtk4Makie.GtkMakieWidget` (`src/FigureViews.jl`), which Gtk4Makie documents as unstable, with open upstream issue #14 on *adding a plot to an existing widget* — the exact operation the incremental path needs. v0.2's first spike must resolve the embedding path (drive #14, switch to `GTKScreen`-in-grid, or `GLMakie.Screen(; window=…, start_renderloop=false)`) before any GUI task is committed. This gates the milestone.
 
 ---
 
 ## 9. Threading & Event Loop
 
-Gtk4 requires all UI mutations to happen on its main thread. GLMakie renders on that thread too. MakieViews' choices:
+Gtk4 requires all UI mutations to happen on its main thread. GLMakie renders on that thread too. FigureViews' choices:
 
 - Data ingestion runs on a Julia task; the resulting snapshot is handed back to the main thread via `Gtk4.@idle_add` for insertion into `SessionState`.
 - Downsampling for large datasets runs on a worker task with progress reporting; on completion, apply on the main thread.
@@ -573,6 +573,6 @@ All seven v0.1 open design questions are resolved. Each is now an ADR (ADR-011..
 | ODQ-4 | Animation export runs modal on main thread for v0.1 with progress + cancel; snapshot at export-start. Background export deferred to v0.2. | [ADR-014](adr/ADR-014-animation-export-modal-v0-1.md) | §9 |
 | ODQ-5 | Pre-flight FPS: **resolved-with-fallback** (ADR-020, option C). v0.1 ships the coarse fallback formula + `user_scale` clamp (0.5 when VRAM undetectable; `REFERENCE_VRAM_BYTES = 8 GiB`); the measurement-driven lookup is deferred to v0.2 (ADR-020, updated 2026-08-28). | [ADR-015](adr/ADR-015-preflight-fps-formula-conservative.md), [ADR-020](adr/ADR-020-defer-fps-measurement-to-m11.md) | §7.2 |
 | ODQ-6 | `preferences.toml` and `.mvz` carry **independent** `schema_version` fields. | [ADR-016](adr/ADR-016-independent-schema-versions.md) | §3, §6 |
-| ODQ-7 | Reserve `[[figure.axis.plot.data_inline]]` in v0.1 schema. v0.1 loader refuses with specific message: `"This .mvz contains inline data (data_inline), which requires MakieViews v0.2 or later. Loading aborted."` v0.2 defines the sub-table. | [ADR-017](adr/ADR-017-reserve-data-inline-schema-slot.md) | §3.2, §3.3 |
+| ODQ-7 | Reserve `[[figure.axis.plot.data_inline]]` in v0.1 schema. v0.1 loader refuses with specific message: `"This .mvz contains inline data (data_inline), which requires FigureViews v0.2 or later. Loading aborted."` v0.2 defines the sub-table. | [ADR-017](adr/ADR-017-reserve-data-inline-schema-slot.md) | §3.2, §3.3 |
 
 No open design questions remain for v0.1. `tasks.md` writing is unblocked; M1 may begin per PLAN.md §5.

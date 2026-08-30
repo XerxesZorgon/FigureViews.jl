@@ -24,7 +24,7 @@ Prior art:
 Four test layers, gated in CI on all three OSes:
 
 1. **Unit tests** — pure-Julia logic (tree operations, schema derivation, TOML round-trip): no display required. Runs everywhere including headless without Xvfb.
-2. **Integration tests (headless-safe)** — build a `Figure` programmatically via MakieViews' internal API, exercise the tree/property/data-snapshot code paths, export via CairoMakie. **No Gtk4 window is opened.** Runs everywhere.
+2. **Integration tests (headless-safe)** — build a `Figure` programmatically via FigureViews' internal API, exercise the tree/property/data-snapshot code paths, export via CairoMakie. **No Gtk4 window is opened.** Runs everywhere.
 3. **GUI smoke tests** — open a Gtk4 window, close it. On Linux, wrapped in `xvfb-run`. **On Windows/macOS: not run in v0.1 CI — see ADR-018.** (Original intent was to run against the CI runner's display, but GitHub Actions Windows/macOS runners lack accessible OpenGL contexts, causing GLMakie precompilation to abort before tests can start.) Purpose: catch "the window doesn't open" regressions on Linux; on Windows/macOS, this coverage is delivered by maintainer pre-release manual QA per ADR-018.
 4. **Golden-image tests** — anchored on **CairoMakie** static export (not GLMakie framebuffer capture) because driver variation makes GL output unstable across runners. See TEST_PLAN.md §4.
 

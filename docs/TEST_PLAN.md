@@ -1,4 +1,4 @@
-# TEST_PLAN.md — MakieViews v0.1
+# TEST_PLAN.md — FigureViews v0.1
 
 **Status**: Draft
 **Date**: 2026-08-24
@@ -104,22 +104,22 @@ Fonts pinned; Cairo version pinned via `Cairo_jll` (transitive of CairoMakie); J
 **v0.1 CI (per ADR-018): Linux only.** Runs on both Julia versions in the 2-cell matrix, on a fresh runner (no cached Julia depot):
 
 ```yaml
-- run: julia -e 'using Pkg; Pkg.add("MakieViews")'
-- run: xvfb-run -a julia -e 'using MakieViews; open_and_close_blank()'
+- run: julia -e 'using Pkg; Pkg.add("FigureViews")'
+- run: xvfb-run -a julia -e 'using FigureViews; open_and_close_blank()'
 ```
 
 **Windows and macOS cross-OS install (v0.1): maintainer manual QA before each release.** Same commands, without `xvfb-run`:
 
 ```
-julia -e 'using Pkg; Pkg.add("MakieViews")'
-julia -e 'using MakieViews; open_and_close_blank()'
+julia -e 'using Pkg; Pkg.add("FigureViews")'
+julia -e 'using FigureViews; open_and_close_blank()'
 ```
 
 Maintainer records pass/fail per platform in the release-notes QA report per ADR-018 protocol.
 
-`open_and_close_blank()` is a MakieViews test helper that constructs the main window, verifies it is realized, and closes it. Exit code 0 = pass.
+`open_and_close_blank()` is a FigureViews test helper that constructs the main window, verifies it is realized, and closes it. Exit code 0 = pass.
 
-For the pre-registered branch (before we hit the General registry), the install step is `Pkg.add(url="https://github.com/XerxesZorgon/MakieViews.jl#main")`. After registration, it becomes `Pkg.add("MakieViews")` — same script, different target.
+For the pre-registered branch (before we hit the General registry), the install step is `Pkg.add(url="https://github.com/XerxesZorgon/FigureViews.jl#main")`. After registration, it becomes `Pkg.add("FigureViews")` — same script, different target.
 
 ---
 
@@ -141,8 +141,8 @@ For the pre-registered branch (before we hit the General registry), the install 
 **v0.1: Linux only in CI (per ADR-018).** Runs on both Julia versions with Xvfb:
 
 ```julia
-using MakieViews
-w = MakieViews._internal_open_window()
+using FigureViews
+w = FigureViews._internal_open_window()
 @assert Gtk4.is_realized(w)
 sleep(0.5)
 close(w)
@@ -167,7 +167,7 @@ Pre-flight tests live in layer 2 (headless-safe) — the dialog is a plain obser
 
 - **Seed new**: write `preferences.toml { default_linewidth = 3 }`; create a new line plot programmatically; assert `plot.attrs[:linewidth] == 3`.
 - **Load-does-not-override**: save an `.mvz` with `linewidth = 1`; overwrite `preferences.toml` to `default_linewidth = 5`; load the `.mvz`; assert `plot.attrs[:linewidth] == 1`.
-- **Reset action**: with same setup as above, call `MakieViews.reset_to_preferences!(plot)`; assert `plot.attrs[:linewidth] == 5`.
+- **Reset action**: with same setup as above, call `FigureViews.reset_to_preferences!(plot)`; assert `plot.attrs[:linewidth] == 5`.
 - **Never calls `set_theme!`**: use `Test.@test_throws` style with a shim on `Makie.set_theme!` that throws; run full test suite; assert no test triggered it (backing ADR-006 "MUST NOT call `set_theme!`").
 - **Preferences schema-version handling**: hand-craft a `preferences.toml` with a future minor version and an unknown field; assert the unknown field survives one round-trip through save.
 
@@ -177,8 +177,8 @@ Pre-flight tests live in layer 2 (headless-safe) — the dialog is a plain obser
 
 Excluded from CI gating (too noisy on shared runners), but tracked as a nightly benchmark on a dedicated self-hosted runner:
 
-- Cold: `] add MakieViews` → `using MakieViews` → `makieviews()` → first frame. Target ≤10 s after precompilation on a 2020-class laptop equivalent.
-- Warm: `using MakieViews` → `makieviews()` → first frame. Target ≤3 s.
+- Cold: `] add FigureViews` → `using FigureViews` → `makieviews()` → first frame. Target ≤10 s after precompilation on a 2020-class laptop equivalent.
+- Warm: `using FigureViews` → `makieviews()` → first frame. Target ≤3 s.
 
 Nightly failure emails; PR-time only if the M11 acceptance run flags it.
 

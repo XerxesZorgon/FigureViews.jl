@@ -7,7 +7,7 @@
 
 ## Context
 
-MakieViews wraps Makie, which is a Julia package. Any host language other than Julia would either reimplement Makie (impossible in scope) or drive it via inter-process calls (defeats the "first-class Julia package" goal). The only real choice is which Julia version to target.
+FigureViews wraps Makie, which is a Julia package. Any host language other than Julia would either reimplement Makie (impossible in scope) or drive it via inter-process calls (defeats the "first-class Julia package" goal). The only real choice is which Julia version to target.
 
 As of August 2026:
 - **Julia 1.10.11** is the current LTS (long-term support) branch — March 2026 patch.
@@ -26,7 +26,7 @@ All of Makie 0.24.13, GLMakie 0.13.13, CairoMakie 0.15.13, Gtk4.jl 0.7.12, Gtk4M
 
 - **Julia 1.10 LTS as primary target**: safer install base, but loses precompilation and language-feature improvements that landed in 1.11–1.12. Rejected because we still gate on the LTS in CI, which is enough insurance.
 - **Pin only to 1.12** (drop LTS support): would cut off users who have not moved off LTS. Rejected — v0.1 is meant to reach the widest audience.
-- **Any non-Julia host language**: would put an IPC boundary between MakieViews and Makie, degrading interactivity and defeating the "first-class Julia package for all users" goal. Rejected.
+- **Any non-Julia host language**: would put an IPC boundary between FigureViews and Makie, degrading interactivity and defeating the "first-class Julia package for all users" goal. Rejected.
 
 ## Consequences
 

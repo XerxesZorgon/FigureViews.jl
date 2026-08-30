@@ -1,12 +1,14 @@
-# MakieViews.jl
+# FigureViews.jl
 
 A Julia package for building, styling, exporting, and saving [Makie](https://docs.makie.org/) figures as reusable session specs — the REPL foundation of a forthcoming Veusz-style GUI over Makie.
 
-**Status**: v0.1 in development. Not yet registered. v0.1 ships a **REPL-driven core**; the interactive point-and-click GUI is planned for v0.2+ (see [ADR-022](docs/adr/ADR-022-v0-1-ships-repl-driven.md)).
+**Repository**: [https://github.com/XerxesZorgon/FigureViews.jl](https://github.com/XerxesZorgon/FigureViews.jl)
+
+**Status**: v0.1.0 — registration in progress. v0.1 ships a **REPL-driven core**; the interactive point-and-click GUI is planned for v0.2+ (see [ADR-022](docs/adr/ADR-022-v0-1-ships-repl-driven.md)).
 
 ---
 
-## What MakieViews is for
+## What FigureViews is for
 
 You have a Julia array, DataFrame, HDF5 file, or CSV, and you want a labeled 3D surface, a two-series scatter, or an animated heatmap that you can style, export for a paper, and reopen later — without re-deriving the plot each time.
 
@@ -14,12 +16,12 @@ You have a Julia array, DataFrame, HDF5 file, or CSV, and you want a labeled 3D 
 
 **The v0.2+ goal** is the full [Veusz](https://veusz.github.io/)-style GUI on top of this core: a data pane, a tree you build figures in by clicking, property and formatting panels, and a plot-type toolbar — exposing much of Makie's capability (and some of it beyond what Veusz offers) without writing code.
 
-MakieViews is a first-class Julia package. Everything lives inside your existing Julia environment — no Electron, no browser tab, no separate runtime.
+FigureViews is a first-class Julia package. Everything lives inside your existing Julia environment — no Electron, no browser tab, no separate runtime.
 
-## What MakieViews is not
+## What FigureViews is not
 
 - Not a Python replacement. If you already have a Makie pipeline in code and it works, keep it.
-- Not a data-analysis tool. Filter, fit, and transform in Julia. MakieViews plots what you hand it.
+- Not a data-analysis tool. Filter, fit, and transform in Julia. FigureViews plots what you hand it.
 - Not a collaborative editor. One user, one session.
 - Not (yet) a point-and-click GUI. v0.1 is REPL-driven; the interactive GUI is v0.2+ (ADR-022).
 - Not (yet) a plugin host. v0.1 supports the seven built-in plot types; user recipes are a v0.2 plan.
@@ -31,22 +33,22 @@ MakieViews is a first-class Julia package. Everything lives inside your existing
 Once v0.1.0 is registered:
 
 ```julia
-] add MakieViews
+] add FigureViews
 ```
 
-MakieViews requires Julia 1.10 or newer; v0.1 is developed and CI-verified on Julia 1.10 and 1.12.
+FigureViews requires Julia 1.10 or newer; v0.1 is developed and CI-verified on Julia 1.10 and 1.12.
 
 ## Quickstart (v0.1, REPL)
 
 Build a figure from data in your REPL, export it, and save the session. The builder functions `new_session` / `add_figure!` / `add_axis!` and the `Renderer` are internal in v0.1, so they're called module-qualified.
 
 ```julia
-using MakieViews
+using FigureViews
 
 # 1. Build a session: a figure with one 2D axis
-s   = MakieViews.new_session()
-fig = MakieViews.add_figure!(s; title = "My analysis")
-ax  = MakieViews.add_axis!(fig; kind = :axis2d, title = "Signal")
+s   = FigureViews.new_session()
+fig = FigureViews.add_figure!(s; title = "My analysis")
+ax  = FigureViews.add_axis!(fig; kind = :axis2d, title = "Signal")
 
 # 2. Ingest data from the REPL (Main). CSV / HDF5 use CsvSource / Hdf5Source.
 x = collect(0:0.01:2π)
@@ -60,7 +62,7 @@ add_plot!(ax, :line,
     [DataRef(:x, snapx, :main, "x"), DataRef(:y, snapy, :main, "y")])
 
 # 4. Render the session into a Makie figure and export it
-r = MakieViews.Renderer(s, MakieViews.Makie.Figure())
+r = FigureViews.Renderer(s, FigureViews.Makie.Figure())
 export_figure(r, "signal.png")       # or "signal.svg" / "signal.pdf"
 
 # 5. Save the session spec (tree + styling) as .mvz
@@ -71,7 +73,7 @@ For large arrays, use `add_plot_checked!` instead of `add_plot!` — see [Large 
 
 ## The demo window
 
-`makieviews()` opens the MakieViews desktop shell (1400×900, three panes: a tree pane and property pane on the left, an embedded GLMakie viewport on the right) populated with a built-in **demo** session — a 2D sine line + scatter and a 3D surface. It previews the GUI that v0.2 will build out. You can rotate the 3D axis and live-edit attributes (colors, titles, limits) on the demo. In v0.1 it displays the demo session only; displaying your own built session, and editing a displayed session's structure, arrive in v0.2 (ADR-022).
+`makieviews()` opens the FigureViews desktop shell (1400×900, three panes: a tree pane and property pane on the left, an embedded GLMakie viewport on the right) populated with a built-in **demo** session — a 2D sine line + scatter and a 3D surface. It previews the GUI that v0.2 will build out. You can rotate the 3D axis and live-edit attributes (colors, titles, limits) on the demo. In v0.1 it displays the demo session only; displaying your own built session, and editing a displayed session's structure, arrive in v0.2 (ADR-022).
 
 ## Supported plot types (v0.1)
 
@@ -89,7 +91,7 @@ Parquet, Arrow, JSON, and SQLite are on the v0.2 roadmap.
 
 ## Preferences
 
-Set default styling (font, line width, marker, palette, grid) once; MakieViews stores it per user via Scratch.jl (`load_preferences` / `save_preferences` / `preferences_path`). Preferences are **defaults-only**: they seed new plots. Opening a saved figure gives you the styling you saved. To restyle an existing plot to your current preferences, call `reset_to_preferences!(plot, prefs)`. See [ADR-006](docs/adr/ADR-006-preferences-defaults-only.md) for why we chose this over live theming.
+Set default styling (font, line width, marker, palette, grid) once; FigureViews stores it per user via Scratch.jl (`load_preferences` / `save_preferences` / `preferences_path`). Preferences are **defaults-only**: they seed new plots. Opening a saved figure gives you the styling you saved. To restyle an existing plot to your current preferences, call `reset_to_preferences!(plot, prefs)`. See [ADR-006](docs/adr/ADR-006-preferences-defaults-only.md) for why we chose this over live theming.
 
 ## Session files (`.mvz`)
 
@@ -116,7 +118,7 @@ Three algorithms are available: `UniformStride`, `MinMaxDecimation`, and `LTTB` 
 
 ## Platforms
 
-Developed on Windows; continuous integration runs on Linux (Ubuntu, Julia 1.10 + 1.12) headless under xvfb. Windows is validated manually before release (Task 072). **macOS is untested for v0.1.0** — GHA headless runners cannot initialize GLMakie (NSGL pixel-format failure on Apple Silicon; see [ADR-023](docs/adr/ADR-023-defer-interactive-macos-to-post-v0-1.md)); macOS CI requires conditional backend loading, a v0.2 backlog item. Interactive macOS verification (running `makieviews()` on a Mac) is also deferred to post-v0.1.0. Please report any macOS-specific issues via GitHub Issues. On Linux with Wayland or NVIDIA drivers, see [`docs/troubleshooting.md`](docs/troubleshooting.md) (Gtk4Makie inherits some upstream quirks in these configurations).
+Developed on Windows; continuous integration runs on Linux (Ubuntu, Julia 1.10 + 1.12) headless under xvfb. Windows is validated manually before release (Task 072). **macOS is untested for v0.1.0** — GHA headless runners cannot initialize GLMakie (NSGL pixel-format failure on Apple Silicon; see [ADR-023](docs/adr/ADR-023-defer-interactive-macos-to-post-v0-1.md)); macOS CI requires conditional backend loading, a v0.2 backlog item. Interactive macOS verification (running `makieviews()` on a Mac) is also deferred to post-v0.1.0. Please report any macOS-specific issues via [GitHub Issues](https://github.com/XerxesZorgon/FigureViews.jl/issues). On Linux with Wayland or NVIDIA drivers, Gtk4Makie inherits some upstream quirks in these configurations.
 
 ## Documentation
 
@@ -128,7 +130,7 @@ Developed on Windows; continuous integration runs on Linux (Ubuntu, Julia 1.10 +
 
 ## Contributing
 
-MakieViews follows a documents-first workflow. Before opening a PR that changes behavior, read the relevant ADR — decisions there are load-bearing. New architectural decisions land as new ADRs.
+FigureViews follows a documents-first workflow. Before opening a PR that changes behavior, read the relevant ADR — decisions there are load-bearing. New architectural decisions land as new ADRs.
 
 ## License
 

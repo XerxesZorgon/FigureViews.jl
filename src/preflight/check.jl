@@ -72,7 +72,7 @@ function add_plot_checked!(ax::Axis, plot_type::Symbol, data_refs::Vector{DataRe
     if downsample !== nothing
         apply_downsample!(session, plot, downsample)
     elseif dec.decision == :warn
-        @warn "MakieViews pre-flight: this $plot_type plot is large and may run slowly or freeze the GUI." estimated_MB = round(dec.est_bytes / 1e6; digits = 1) estimated_fps = round(dec.est_fps; digits = 1) reason = dec.reason tip = "pass downsample=LTTB(n) (or UniformStride / MinMaxDecimation) to reduce it"
+        @warn "FigureViews pre-flight: this $plot_type plot is large and may run slowly or freeze the GUI." estimated_MB = round(dec.est_bytes / 1e6; digits = 1) estimated_fps = round(dec.est_fps; digits = 1) reason = dec.reason tip = "pass downsample=LTTB(n) (or UniformStride / MinMaxDecimation) to reduce it"
     end
     return (plot = plot, decision = dec.decision, reason = dec.reason)
 end

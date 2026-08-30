@@ -1,4 +1,4 @@
-module MakieViews
+module FigureViews
 
 using Gtk4, Gtk4Makie, GLMakie, CairoMakie, Observables, Colors, UUIDs, TOML, Scratch
 
@@ -30,7 +30,7 @@ export makieviews, save_session, load_session,
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)
 
-module _MakieViewsDemo
+module _FigureViewsDemo
     x      = collect(1.0:100.0)
     y_line = sin.(collect(1.0:100.0) ./ 10)
     y_scat = cos.(collect(1.0:100.0) ./ 8) .+ 0.3 .* randn(100)
@@ -43,15 +43,15 @@ end
 """
     makieviews() -> Gtk4.GtkWindow
 
-Creates a MakieViews main window (1400×900) with a three-pane layout:
+Creates a FigureViews main window (1400×900) with a three-pane layout:
 tree pane and property pane on the left, and a Makie Figure viewport on the right.
 Auto-populates a demo session with a 2D axis and a sine wave line plot.
 
-Note: MakieViews v0.1 reads variables from REPL Main. If invoked outside a REPL, a warning is emitted and variables defined later in the script will not appear.
+Note: FigureViews v0.1 reads variables from REPL Main. If invoked outside a REPL, a warning is emitted and variables defined later in the script will not appear.
 """
 function makieviews()
     if !(isinteractive() && isdefined(Base, :active_repl))
-        @warn "MakieViews v0.1 reads variables from REPL Main. You appear to be running outside a REPL. Variables defined in this script/context so far are visible; variables you define later will not appear. File loading (CSV / HDF5) works normally."
+        @warn "FigureViews v0.1 reads variables from REPL Main. You appear to be running outside a REPL. Variables defined in this script/context so far are visible; variables you define later will not appear. File loading (CSV / HDF5) works normally."
     end
     if isempty(AXIS_SCHEMAS)
         _init_schemas()
@@ -60,7 +60,7 @@ function makieviews()
     session = new_session()
     fig_node = add_figure!(session; title = "Demo Figure")
 
-    _demo_src = MainSource(_MakieViewsDemo)
+    _demo_src = MainSource(_FigureViewsDemo)
 
     # 2D axis: line + scatter
     ax_node = add_axis!(fig_node; kind = :axis2d, title = "Sine wave")
@@ -84,7 +84,7 @@ function makieviews()
          DataRef(:y,      snap_ys3d, :main, "ys3d"),
          DataRef(:matrix, snap_zs3d, :main, "zs3d")])
 
-    w = GtkWindow("MakieViews", 1400, 900)
+    w = GtkWindow("FigureViews", 1400, 900)
 
     makie_fig = Makie.Figure()
     viewport_widget = Gtk4Makie.GtkMakieWidget()
@@ -119,4 +119,4 @@ function makieviews()
     return w
 end
 
-end # module MakieViews
+end # module FigureViews

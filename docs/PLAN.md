@@ -1,4 +1,4 @@
-# PLAN.md — MakieViews v0.1
+# PLAN.md — FigureViews v0.1
 
 **Status**: Draft **Date**: 2026-08-24 **Companion documents**: SDD.md, DESIGN.md, ADR-001..010, ADR-011..017, **ADR-018 (CI matrix reduction)**, **ADR-019 (reactive state model: Observables.jl)**, TEST_PLAN.md **Template basis**: Adapted from `.specify/templates/plan-template.md` (Spec Kit), with Summary / Technical Context / Structure retained and Milestones / Compat Pins added.
 
@@ -6,7 +6,7 @@
 
 ## 1. Summary
 
-Ship MakieViews v0.1.0 to Julia's General registry. MakieViews' goal is a Veusz-style desktop GUI over Makie for Julia scientific plotting, running on Windows, macOS, and Linux; **v0.1.0 delivers the REPL-driven core of that tool** — build, style, export, and save figures from the REPL — with the interactive point-and-click GUI arriving in v0.2+ ([ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md)). Eleven milestones (M1–M11) from empty shell to registered package. Test-first at every milestone per TEST_PLAN.md.
+Ship FigureViews v0.1.0 to Julia's General registry. FigureViews' goal is a Veusz-style desktop GUI over Makie for Julia scientific plotting, running on Windows, macOS, and Linux; **v0.1.0 delivers the REPL-driven core of that tool** — build, style, export, and save figures from the REPL — with the interactive point-and-click GUI arriving in v0.2+ ([ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md)). Eleven milestones (M1–M11) from empty shell to registered package. Test-first at every milestone per TEST_PLAN.md.
 
 ---
 
@@ -59,7 +59,7 @@ Scratch          = "1"                   # 1.3.0 current
 Colors           = "0.13"                # required by Gtk4Makie transitively
 ```
 
-Rationale for the caret-style entries: Julia's `[compat]` interprets a bare `"0.24"` as `>= 0.24.0, < 0.25.0`, which matches the release cadence of these packages (breaking changes on minor). Bumping past a minor version requires a coordinated MakieViews release — an explicit gate rather than a silent update.
+Rationale for the caret-style entries: Julia's `[compat]` interprets a bare `"0.24"` as `>= 0.24.0, < 0.25.0`, which matches the release cadence of these packages (breaking changes on minor). Bumping past a minor version requires a coordinated FigureViews release — an explicit gate rather than a silent update.
 
 Stdlib (no compat entry): `TOML`, `UUIDs`, `SHA`, `Test`, `Sys`, `LinearAlgebra`.
 
@@ -70,13 +70,13 @@ CI verification job runs `] up` in a scratch environment weekly and opens a PR i
 ## 4. Repository Structure
 
 ```
-MakieViews.jl/
+FigureViews.jl/
 ├── Project.toml
 ├── LICENSE                       # MIT (registry submission requirement)
 ├── README.md
 ├── CHANGELOG.md
 ├── src/
-│   ├── MakieViews.jl             # module root, exports makieviews()
+│   ├── FigureViews.jl             # module root, exports makieviews()
 │   ├── state/
 │   │   ├── nodes.jl              # Session, Figure, Axis, Plot, UnknownNode
 │   │   ├── schema.jl             # PLOT_SCHEMAS, AttrSpec
@@ -207,7 +207,7 @@ Registrator.jl submission dry-run; CI green on the 2-cell v0.1 matrix (per ADR-0
 
 ## 6. Constitution Check
 
-There is no formal constitution file for MakieViews (this is a new project). If one is later added to `.specify/memory/constitution.md` for MakieViews, re-run this gate at Phase 0 and Phase 1 per Spec Kit convention.
+There is no formal constitution file for FigureViews (this is a new project). If one is later added to `.specify/memory/constitution.md` for FigureViews, re-run this gate at Phase 0 and Phase 1 per Spec Kit convention.
 
 ---
 

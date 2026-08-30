@@ -7,7 +7,7 @@
 
 ## Context
 
-The SDD describes MakieViews as a Veusz-style GUI: a variable picker, an Add Plot menu, click-to-build figures, property-panel editing as the primary interaction, File→Save/Export dialogs, and a data pane (SDD §1, §4 User Stories 1–6, §5 FR-001…FR-026). That is the project's north star and remains so.
+The SDD describes FigureViews as a Veusz-style GUI: a variable picker, an Add Plot menu, click-to-build figures, property-panel editing as the primary interaction, File→Save/Export dialogs, and a data pane (SDD §1, §4 User Stories 1–6, §5 FR-001…FR-026). That is the project's north star and remains so.
 
 By the end of M10, what the code actually delivers is a **REPL API**, not that GUI:
 

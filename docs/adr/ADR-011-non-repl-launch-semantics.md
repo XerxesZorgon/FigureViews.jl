@@ -18,10 +18,10 @@ A silent behavior difference between contexts is exactly the confusion trap the 
 ## Decision
 
 - **v0.1 supports REPL launch as the tested happy path.**
-- At `makieviews()` entry, MakieViews detects whether it is running in an interactive REPL by inspecting `isinteractive()` and `Base.active_repl` availability.
-- On non-REPL launches, MakieViews **does not error** — it opens normally and emits a one-line warning explaining the semantic difference:
+- At `makieviews()` entry, FigureViews detects whether it is running in an interactive REPL by inspecting `isinteractive()` and `Base.active_repl` availability.
+- On non-REPL launches, FigureViews **does not error** — it opens normally and emits a one-line warning explaining the semantic difference:
 
-  > `MakieViews v0.1 reads variables from REPL Main. You appear to be running outside a REPL. Variables defined in this script/context so far are visible; variables you define later will not appear. File loading (CSV / HDF5) works normally.`
+  > `FigureViews v0.1 reads variables from REPL Main. You appear to be running outside a REPL. Variables defined in this script/context so far are visible; variables you define later will not appear. File loading (CSV / HDF5) works normally.`
 
 - A `source_module=` keyword argument to `makieviews()` is **explicitly deferred to v0.2** and not accepted in v0.1. (Silently accepting it now would create a documentation-lag risk.)
 

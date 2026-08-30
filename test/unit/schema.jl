@@ -1,4 +1,4 @@
-using MakieViews: AttrSpec, PLOT_SCHEMAS
+using FigureViews: AttrSpec, PLOT_SCHEMAS
 
 @testset "M2 schema — PLOT_SCHEMAS[:line] populated" begin
     @test haskey(PLOT_SCHEMAS, :line)

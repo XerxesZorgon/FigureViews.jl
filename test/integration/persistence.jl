@@ -1,5 +1,5 @@
-using Test, MakieViews
-using MakieViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, DataRef, MainSource,
+using Test, FigureViews
+using FigureViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, DataRef, MainSource,
                   save_session, load_session, UnknownNode
 using Colors
 import TOML
@@ -112,7 +112,7 @@ end
     s2  = load_session(tmp)
     rm(tmp)
     node = s2.figures[][1].axes[][1].plots[][1]
-    @test node isa MakieViews.UnknownNode
+    @test node isa FigureViews.UnknownNode
     @test node.original_type == "custom_recipe_xyz"
     # Re-save and confirm the type string survives
     tmp2     = tempname() * ".mvz"

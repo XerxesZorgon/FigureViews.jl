@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to MakieViews will be documented in this file.
+All notable changes to FigureViews will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
@@ -32,7 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Hash-verification testset re-renders each plot type with fill(1.0) arrays and checks exact SHA-256 match.
 - Note: hashes must be regenerated on Makie minor version bumps.
 - CairoMakie added as explicit direct dep (was transitive). SHA added to test extras.
-- Key learning: CairoMakie requires explicit `using CairoMakie` in MakieViews.jl even when already a transitive dep.
+- Key learning: CairoMakie requires explicit `using CairoMakie` in FigureViews.jl even when already a transitive dep.
 ### M7 — Animations (2026-08-26)
 - Added `AnimBinding` struct: snapshot_id, frame_count, fps, current_frame (immutable; time slider swaps via observable replacement).
 - Added `animate_plot!(session, plot_node, snapshot_id, frame_count; fps=30)` — validates 3D array A[x,y,t] and sets the animation binding observable.
@@ -102,5 +102,5 @@ Initial release scope. See `docs/SDD.md` §5 for the full requirement list and `
 - On Windows, a cosmetic `ModernGL.ContextNotAvailable` stacktrace appears at process exit after `Pkg.test()` (GLMakie/Gtk4Makie teardown ordering; no test is affected).
 - CairoMakie does not support volume rendering; volume PNG/SVG/PDF export produces a blank canvas (CairoMakie upstream limitation).
 
-[Unreleased]: https://github.com/XerxesZorgon/MakieViews.jl/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/XerxesZorgon/MakieViews.jl/releases/tag/v0.1.0
+[Unreleased]: https://github.com/XerxesZorgon/FigureViews.jl/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/XerxesZorgon/FigureViews.jl/releases/tag/v0.1.0

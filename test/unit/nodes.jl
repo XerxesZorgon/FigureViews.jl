@@ -1,4 +1,4 @@
-using MakieViews: Session, Figure, Axis, Plot, UnknownNode, LayoutSpec, CameraSpec, AnimBinding, DataRef
+using FigureViews: Session, Figure, Axis, Plot, UnknownNode, LayoutSpec, CameraSpec, AnimBinding, DataRef
 using Observables: Observable, on
 
 @testset "M2 nodes — Session construction" begin

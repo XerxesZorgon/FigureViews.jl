@@ -7,7 +7,7 @@
 
 ## Context
 
-When a dataset is too large for smooth interactive display, MakieViews offers to downsample before rendering. The choice of algorithms matters:
+When a dataset is too large for smooth interactive display, FigureViews offers to downsample before rendering. The choice of algorithms matters:
 - Different plot types need different algorithms.
 - The algorithm changes the visual character of the plot; users must know which one is running.
 

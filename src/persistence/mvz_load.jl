@@ -22,11 +22,11 @@ function _check_schema_version(raw::Dict)
     ver_str = get(raw, "schema_version", "1.0")
     file_ver = VersionNumber(ver_str)
     if file_ver.major > _LOADER_VERSION.major
-        error("This .mvz file requires MakieViews v$(file_ver.major).x or newer. " *
-              "Please upgrade MakieViews.")
+        error("This .mvz file requires FigureViews v$(file_ver.major).x or newer. " *
+              "Please upgrade FigureViews.")
     end
     if file_ver > _LOADER_VERSION && file_ver.major == _LOADER_VERSION.major
-        @warn "This .mvz was saved by a newer minor version of MakieViews. " *
+        @warn "This .mvz was saved by a newer minor version of FigureViews. " *
               "Unknown fields will be preserved but may not render."
     end
 end
@@ -37,7 +37,7 @@ function _reject_data_inline(raw::Dict)
             for plot in get(ax, "plot", [])
                 if haskey(plot, "data_inline")
                     error("This .mvz contains inline data (data_inline), which requires " *
-                          "MakieViews v0.2 or later. Loading aborted.")
+                          "FigureViews v0.2 or later. Loading aborted.")
                 end
             end
         end

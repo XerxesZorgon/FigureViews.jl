@@ -1,4 +1,4 @@
-# PLAN-v0.2.md — MakieViews v0.2
+# PLAN-v0.2.md — FigureViews v0.2
 
 **Status**: Draft
 **Date**: 2026-08-29
@@ -9,7 +9,7 @@
 
 ## 1. Summary
 
-v0.1.0 shipped the REPL-driven core (build → style → export → save from the REPL); `makieviews()` displays a canned demo only, and structural editing of a live window deadlocks (Bug F, [ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md)). **v0.2 turns MakieViews into the interactive Veusz-style tool the SDD describes**: a live window that displays a user-built session and accepts add / remove / reorder of figures, axes, and plots through the GUI.
+v0.1.0 shipped the REPL-driven core (build → style → export → save from the REPL); `makieviews()` displays a canned demo only, and structural editing of a live window deadlocks (Bug F, [ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md)). **v0.2 turns FigureViews into the interactive Veusz-style tool the SDD describes**: a live window that displays a user-built session and accepts add / remove / reorder of figures, axes, and plots through the GUI.
 
 The whole release hangs on one engineering problem. **Bug F ([ADR-024](adr/ADR-024-incremental-render-path-bug-f.md)) is the spine**: until structural mutation of a displayed window works, none of the GUI surface (variable picker, Add Plot menu, property-panel-as-primary flow, File menus, data pane) can become the primary interaction. So v0.2 is sequenced **spike → renderer → live GUI editing → GUI surface**, with three independent tracks (`.mvz` data round-trip, macOS CI, release-prep polish) that can run in parallel once the spine is underway.
 
@@ -23,7 +23,7 @@ Only what changes from PLAN.md §2 is listed here; everything unstated carries f
 
 **New hard prerequisite — interactive thread ([ADR-024](adr/ADR-024-incremental-render-path-bug-f.md) constraint 1).** Live structural editing requires Julia started with an interactive thread pool (`--threads N,1` or `JULIA_NUM_THREADS="N,1"`). Without it the GLib idle-drain has no thread to run on and the UI freezes; on Julia 1.11 the REPL freezes outright. v0.2 `makieviews()` gains a startup check that refuses to open a live window when no interactive thread is present, with an actionable message. Verified on both compat ends (Julia 1.10 LTS, 1.12).
 
-**Embedding path under review ([ADR-024](adr/ADR-024-incremental-render-path-bug-f.md) constraint 2).** v0.1 embeds the viewport via `Gtk4Makie.GtkMakieWidget` (`src/MakieViews.jl`), documented upstream as unstable with open issue JuliaGtk/Gtk4Makie.jl **#14** on *adding a plot to an existing widget* — exactly the operation v0.2 needs. M12 resolves this before any renderer work. The chosen path may change the shell's construction (`GTKScreen`-in-grid or a custom `GLMakie.Screen` window instead of the widget).
+**Embedding path under review ([ADR-024](adr/ADR-024-incremental-render-path-bug-f.md) constraint 2).** v0.1 embeds the viewport via `Gtk4Makie.GtkMakieWidget` (`src/FigureViews.jl`), documented upstream as unstable with open issue JuliaGtk/Gtk4Makie.jl **#14** on *adding a plot to an existing widget* — exactly the operation v0.2 needs. M12 resolves this before any renderer work. The chosen path may change the shell's construction (`GTKScreen`-in-grid or a custom `GLMakie.Screen` window instead of the widget).
 
 **New structural-mutation entry point.** A single `apply_structural!(session, op)` funnel becomes the only way to add/remove/reorder a node once a window is live. It branches on "is a window displayed?": headless → apply directly (v0.1 behavior, unchanged for REPL export/animation); live → post to a thread-safe queue drained on the main thread via `Gtk4.GLib.g_idle_add`.
 
@@ -97,7 +97,7 @@ Implement the reserved `data_inline` slot ([ADR-017](adr/ADR-017-reserve-data-in
 
 Enable macOS CI by guarding backend imports, per [ADR-023](adr/ADR-023-defer-interactive-macos-to-post-v0-1.md)'s v0.2 commitment.
 
-- Guard `GLMakie` / `Gtk4` / `Gtk4Makie` imports behind `ENV["MAKIEVIEWS_BACKEND"]` or `Preferences.jl`, so `using MakieViews` can load a data-only path without OpenGL (this is what blocked headless macOS CI in v0.1 — `using MakieViews` unconditionally loaded GLMakie and failed on GHA Apple Silicon).
+- Guard `GLMakie` / `Gtk4` / `Gtk4Makie` imports behind `ENV["MAKIEVIEWS_BACKEND"]` or `Preferences.jl`, so `using FigureViews` can load a data-only path without OpenGL (this is what blocked headless macOS CI in v0.1 — `using FigureViews` unconditionally loaded GLMakie and failed on GHA Apple Silicon).
 - Re-add the `macos-latest × {Julia 1.10, 1.12}` CI cells (matrix 2→4).
 - **Interactive macOS verification** (the manual gate deferred from v0.1 per ADR-023): mouse-driven 3D rotation, live attribute + structural editing, window dragging, `export_figure` from a displayed window — on a real Mac. This is a committed pre-v0.2.0 gate.
 
@@ -109,7 +109,7 @@ Fold in the remaining v0.1 carryovers and the release mechanics.
 
 - **FPS measurement pass** ([ADR-020](adr/ADR-020-defer-fps-measurement-to-m11.md), deferred from v0.1): three-OS reference table → `src/preflight/fps_lookup.jl`, replacing the coarse fallback formula. Now unblocked by macOS CI (M17) and the live viewport (M14).
 - **VRAM-parsing branch** verification on a real NVIDIA box (only the `nothing` fallback ran in v0.1 — no `nvidia-smi` on the dev machine).
-- **`MakieViews.check_updates()`** helper (RELEASE-READINESS §Post-v0.1.0): queries General for a newer MakieViews version, prints an update hint. Motivated by the exact-pin decision that puts `] up` responsibility on the user.
+- **`FigureViews.check_updates()`** helper (RELEASE-READINESS §Post-v0.1.0): queries General for a newer FigureViews version, prints an update hint. Motivated by the exact-pin decision that puts `] up` responsibility on the user.
 - **Additional plot types** from `docs/Makie_Functions.mdx` — *selected*, not wholesale. Candidate first tranche (record the selection as a short ADR): the statistical family (`hist`, `density`, `boxplot`) and `band`/`errorbars`, since they reuse the existing 2D axis + schema machinery. Each new type is register-schema + render-function only (DESIGN §2.3 dry-run), no UI change.
 - Compat pins refreshed; CHANGELOG `[0.2.0]`; semver bump; Registrator submission.
 

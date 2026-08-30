@@ -1,5 +1,5 @@
-using Test, MakieViews, Makie
-using MakieViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, DataRef,
+using Test, FigureViews, Makie
+using FigureViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, DataRef,
                   MainSource, animate_plot!, Renderer, render_animation, save_session, load_session
 
 function _make_anim_session()
@@ -23,7 +23,7 @@ end
 @testset "M7 AnimBinding — animate_plot! sets binding correctly" begin
     s, plot_node = _make_anim_session()
     b = plot_node.animation_binding[]
-    @test b isa MakieViews.AnimBinding
+    @test b isa FigureViews.AnimBinding
     @test b.frame_count == 5
     @test b.fps == 10
     @test b.current_frame == 1
@@ -38,7 +38,7 @@ end
     s2  = load_session(tmp)
     rm(tmp)
     b2  = s2.figures[][1].axes[][1].plots[][1].animation_binding[]
-    @test b2 isa MakieViews.AnimBinding
+    @test b2 isa FigureViews.AnimBinding
     @test b2.frame_count == 5
     @test b2.fps == 10
 end

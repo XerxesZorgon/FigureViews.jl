@@ -1,4 +1,4 @@
-using MakieViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, MainSource, DataRef
+using FigureViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, MainSource, DataRef
 using Observables: on
 
 @testset "M2 session — new_session is empty" begin
@@ -27,7 +27,7 @@ end
     _m = Module(:_T)
     Core.eval(_m, :(x = $x))
     Core.eval(_m, :(y = $y))
-    _src = MakieViews.MainSource(_m)
+    _src = FigureViews.MainSource(_m)
     snap_x = ingest!(s, _src, "x")
     snap_y = ingest!(s, _src, "y")
     plot = add_plot!(ax, :line,

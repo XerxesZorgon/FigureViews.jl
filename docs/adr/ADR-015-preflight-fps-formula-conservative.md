@@ -27,7 +27,7 @@ Two design principles apply:
 - Per-user scaling factor: `user_scale = clamp( user_gpu_score / reference_gpu_score, 0.1, 10.0 )` where `gpu_score` derives from detected VRAM and, if available, a driver-family label. If undetectable, `user_scale = 0.5` (**conservative bias**: assume half the reference GPU's speed).
 - `estimated_fps = fps_ref[plot_type][ceil(log10(n_points))] * user_scale`.
 - Warning threshold: `estimated_fps < 15` OR `estimated_bytes > 0.6 * detected_vram_bytes` (SDD FR-024). If VRAM is undetectable, only the fps criterion applies (SDD FR-026).
-- On M10 completion, DESIGN.md §7.2 is updated with the specific formula and constants. Until M10 ships, MakieViews falls back to a coarser heuristic (`estimated_fps = 60 / (n_points / 1e6)^0.5` for 2-D plot types; halve for 3-D) with the same conservative-bias scaling.
+- On M10 completion, DESIGN.md §7.2 is updated with the specific formula and constants. Until M10 ships, FigureViews falls back to a coarser heuristic (`estimated_fps = 60 / (n_points / 1e6)^0.5` for 2-D plot types; halve for 3-D) with the same conservative-bias scaling.
 
 ## Alternatives Considered
 

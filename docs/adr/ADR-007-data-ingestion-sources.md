@@ -13,7 +13,7 @@ Scientific data lives in many formats: CSV, HDF5, Parquet, Arrow, JSON, SQLite, 
 
 v0.1 supports three ingestion sources:
 
-1. **Julia REPL `Main` variables** — enumerated when MakieViews is launched as `makieviews()` from the REPL, filtered to array-like plottable types (`AbstractVector`, `AbstractMatrix`, `AbstractArray{<:Real, 3}`, `DataFrame`).
+1. **Julia REPL `Main` variables** — enumerated when FigureViews is launched as `makieviews()` from the REPL, filtered to array-like plottable types (`AbstractVector`, `AbstractMatrix`, `AbstractArray{<:Real, 3}`, `DataFrame`).
 2. **CSV files** via `CSV.jl` 0.10.x + `DataFrames.jl` 1.8.x.
 3. **HDF5 files** via `HDF5.jl` 0.18.x.
 

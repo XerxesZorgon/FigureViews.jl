@@ -1,8 +1,8 @@
 using Test
-using MakieViews
+using FigureViews
 using Gtk4
 using Makie
-using MakieViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, DataRef, MainSource, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, AXIS_SCHEMAS, CameraSpec, _current_session, _current_renderer, ValidationError
+using FigureViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, DataRef, MainSource, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, AXIS_SCHEMAS, CameraSpec, _current_session, _current_renderer, ValidationError
 
 include("unit/nodes.jl")
 include("unit/schema.jl")
@@ -11,21 +11,21 @@ include("unit/session.jl")
 include("unit/tree_pane.jl")
 
 @testset "M1 shell — module loads" begin
-    @test :makieviews in names(MakieViews)
+    @test :makieviews in names(FigureViews)
     w = makieviews()
     @test !isnothing(w)
     Gtk4.destroy(w)
 end
 
 @testset "M1 shell — non-REPL warning fires" begin
-    w = @test_logs (:warn, r"MakieViews v0.1 reads variables from REPL Main") match_mode=:any makieviews()
+    w = @test_logs (:warn, r"FigureViews v0.1 reads variables from REPL Main") match_mode=:any makieviews()
     Gtk4.destroy(w)
 end
 
 @testset "M1 shell — window properties" begin
     w = makieviews()
     sleep(0.2)  # let GTK settle before reading properties
-    @test w.title == "MakieViews"
+    @test w.title == "FigureViews"
     # Window size may be clamped by the display environment (e.g. xvfb defaults to 1280px wide).
     # Assert reasonable minimums rather than exact pixels — the app requests 1400x900 but CI
     # runners may constrain it. What matters is the window opened at a usable size.
@@ -57,7 +57,7 @@ end
     _m = Module(:_T)
     Core.eval(_m, :(x = $x))
     Core.eval(_m, :(y = $y))
-    _src = MakieViews.MainSource(_m)
+    _src = FigureViews.MainSource(_m)
     snap_x = ingest!(s, _src, "x")
     snap_y = ingest!(s, _src, "y")
     plot_node = add_plot!(ax_node, :line,
@@ -86,7 +86,7 @@ end
     _m = Module(:_T)
     Core.eval(_m, :(x = $x))
     Core.eval(_m, :(y = $y))
-    _src = MakieViews.MainSource(_m)
+    _src = FigureViews.MainSource(_m)
     snap_x = ingest!(s, _src, "x")
     snap_y = ingest!(s, _src, "y")
     plot_node = add_plot!(ax_node, :scatter,
@@ -122,7 +122,7 @@ end
     _m = Module(:_T)
     Core.eval(_m, :(x = $x))
     Core.eval(_m, :(y = $y))
-    _src = MakieViews.MainSource(_m)
+    _src = FigureViews.MainSource(_m)
     snap_x = ingest!(s, _src, "x")
     snap_y = ingest!(s, _src, "y")
     plot_node = add_plot!(ax_node, :bar,
@@ -141,7 +141,7 @@ end
     mat = [sin(i/5) * cos(j/5) for i in 1:20, j in 1:20]
     _m = Module(:_T)
     Core.eval(_m, :(mat = $mat))
-    _src = MakieViews.MainSource(_m)
+    _src = FigureViews.MainSource(_m)
     snap_mat = ingest!(s, _src, "mat")
     plot_node = add_plot!(ax_node, :heatmap,
         [DataRef(:matrix, snap_mat, :main, "mat")])
@@ -163,7 +163,7 @@ end
     Core.eval(_m, :(xs = $xs))
     Core.eval(_m, :(ys = $ys))
     Core.eval(_m, :(zs = $zs))
-    _src = MakieViews.MainSource(_m)
+    _src = FigureViews.MainSource(_m)
     snap_x = ingest!(s, _src, "xs")
     snap_y = ingest!(s, _src, "ys")
     snap_z = ingest!(s, _src, "zs")
@@ -184,7 +184,7 @@ end
     _m = Module(:_T)
     Core.eval(_m, :(x = $x))
     Core.eval(_m, :(y = sin.($x)))
-    _src = MakieViews.MainSource(_m)
+    _src = FigureViews.MainSource(_m)
     snap_x = ingest!(s, _src, "x")
     snap_y = ingest!(s, _src, "y")
     plot_node = add_plot!(ax_node, :line,
@@ -207,7 +207,7 @@ end
     _m = Module(:_T)
     Core.eval(_m, :(x = 1.0:10.0 |> collect))
     Core.eval(_m, :(y = zeros(10)))
-    _src = MakieViews.MainSource(_m)
+    _src = FigureViews.MainSource(_m)
     snap_x = ingest!(s, _src, "x")
     snap_y = ingest!(s, _src, "y")
     plot_node = add_plot!(ax_node, :line,
@@ -228,9 +228,9 @@ end
     # Validate function tests
     specs = PLOT_SCHEMAS[:line]
     @test validate(specs, :linewidth, 5.0) == 5.0
-    @test validate(specs, :linewidth, 100.0) isa MakieViews.ValidationError    # out of range
+    @test validate(specs, :linewidth, 100.0) isa FigureViews.ValidationError    # out of range
     @test validate(specs, :linestyle, :solid) == :solid
-    @test validate(specs, :linestyle, :bogus) isa MakieViews.ValidationError   # not in enum
+    @test validate(specs, :linestyle, :bogus) isa FigureViews.ValidationError   # not in enum
 end
 
 @testset "M2 end-to-end — makieviews() launches with demo tree and edit propagates" begin
@@ -239,8 +239,8 @@ end
     @test w !== nothing
 
     # Retrieve session + renderer from module-level refs
-    session = MakieViews._current_session[]
-    renderer = MakieViews._current_renderer[]
+    session = FigureViews._current_session[]
+    renderer = FigureViews._current_renderer[]
     @test length(session.figures[]) == 1
     fig_node = session.figures[][1]
     ax_node = fig_node.axes[][1]
@@ -289,7 +289,7 @@ end
     Core.eval(_m, :(xs = $xs))
     Core.eval(_m, :(ys = $ys))
     Core.eval(_m, :(zs = $zs))
-    _src = MakieViews.MainSource(_m)
+    _src = FigureViews.MainSource(_m)
     snap_x = ingest!(s, _src, "xs")
     snap_y = ingest!(s, _src, "ys")
     snap_z = ingest!(s, _src, "zs")
@@ -313,7 +313,7 @@ end
     vol = [exp(-((i-15)^2 + (j-15)^2 + (k-15)^2)/50) for i in 1:30, j in 1:30, k in 1:30]
     _m = Module(:_T)
     Core.eval(_m, :(vol = $vol))
-    _src = MakieViews.MainSource(_m)
+    _src = FigureViews.MainSource(_m)
     snap_vol = ingest!(s, _src, "vol")
     plot_node = add_plot!(ax_node, :volume,
         [DataRef(:volume, snap_vol, :main, "vol")])
@@ -338,7 +338,7 @@ end
     Core.eval(_m, :(xs = $xs))
     Core.eval(_m, :(ys = $ys))
     Core.eval(_m, :(zs = $zs))
-    _src = MakieViews.MainSource(_m)
+    _src = FigureViews.MainSource(_m)
     snap_x = ingest!(s, _src, "xs")
     snap_y = ingest!(s, _src, "ys")
     snap_z = ingest!(s, _src, "zs")
@@ -372,7 +372,7 @@ end
     _m = Module(:_T)
     Core.eval(_m, :(x = collect(1.0:100.0)))
     Core.eval(_m, :(y = sin.((1.0:100.0) ./ 10)))
-    _src = MakieViews.MainSource(_m)
+    _src = FigureViews.MainSource(_m)
     snap_x = ingest!(s, _src, "x")
     snap_y = ingest!(s, _src, "y")
     add_plot!(ax2, :line, [DataRef(:x, snap_x, :main, "x"), DataRef(:y, snap_y, :main, "y")])

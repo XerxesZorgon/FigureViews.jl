@@ -14,7 +14,7 @@
   }
 }
 ---
-# MakieViews — tasks.md
+# FigureViews — tasks.md
 
 Atomic execution list. One task per Antigravity instruction. Never advance
 to Task N+1 until Task N is confirmed green with the acceptance criterion
@@ -26,7 +26,7 @@ Task IDs are a global monotonic counter. `Milestone` is metadata.
 
 ## Milestone M1 — Shell
 
-**Exit criterion:** `julia --project=. -e 'using MakieViews; w = makieviews(); sleep(1); Gtk4.destroy(w)'` opens a 1024×768 window titled "MakieViews" containing an empty Makie Axis rendered via GLMakie, closes cleanly, and returns exit code 0. **CI verification (per ADR-018): both cells of the v0.1 CI matrix (`ubuntu-latest × {Julia 1.10, 1.12}`) green.** Windows and macOS coverage is developer-machine-verified (already confirmed on Windows during Tasks 004–010; macOS deferred to M11 pre-release manual QA).
+**Exit criterion:** `julia --project=. -e 'using FigureViews; w = makieviews(); sleep(1); Gtk4.destroy(w)'` opens a 1024×768 window titled "FigureViews" containing an empty Makie Axis rendered via GLMakie, closes cleanly, and returns exit code 0. **CI verification (per ADR-018): both cells of the v0.1 CI matrix (`ubuntu-latest × {Julia 1.10, 1.12}`) green.** Windows and macOS coverage is developer-machine-verified (already confirmed on Windows during Tasks 004–010; macOS deferred to M11 pre-release manual QA).
 
 ---
 
@@ -36,7 +36,7 @@ Task IDs are a global monotonic counter. `Milestone` is metadata.
 **Depends on:** —
 
 ### What to do
-Create `Project.toml` at the project root with: `name = "MakieViews"`, `authors = ["John Peach and contributors"]`, `version = "0.1.0-DEV"`, and a `uuid` generated fresh via `julia -e 'using UUIDs; println(uuid4())'` (the generated UUID is frozen for the lifetime of the package — do not regenerate on later tasks). Add `[deps]` entries for `Gtk4`, `Gtk4Makie`, `GLMakie`, **and `Makie`**, looking up each UUID from the package's upstream `Project.toml` on GitHub. Add a `[compat]` section with the exact pins from `docs/PLAN.md` §3: `julia = "1.10"` (compat range), `Gtk4 = "0.7.12"`, `Gtk4Makie = "0.3.9"`, `GLMakie = "=0.13.13"`, `Makie = "=0.24.13"` (exact-match, per the four-package lockstep noted in ADR-002).
+Create `Project.toml` at the project root with: `name = "FigureViews"`, `authors = ["John Peach and contributors"]`, `version = "0.1.0-DEV"`, and a `uuid` generated fresh via `julia -e 'using UUIDs; println(uuid4())'` (the generated UUID is frozen for the lifetime of the package — do not regenerate on later tasks). Add `[deps]` entries for `Gtk4`, `Gtk4Makie`, `GLMakie`, **and `Makie`**, looking up each UUID from the package's upstream `Project.toml` on GitHub. Add a `[compat]` section with the exact pins from `docs/PLAN.md` §3: `julia = "1.10"` (compat range), `Gtk4 = "0.7.12"`, `Gtk4Makie = "0.3.9"`, `GLMakie = "=0.13.13"`, `Makie = "=0.24.13"` (exact-match, per the four-package lockstep noted in ADR-002).
 
 ### Files touched
 - `Project.toml` — new file
@@ -89,19 +89,19 @@ Report the exact Julia error, including the list of missing entries from the `As
 
 ---
 
-## Task 004: Create src/MakieViews.jl module stub
+## Task 004: Create src/FigureViews.jl module stub
 **Status:** [x] Done — 2026-08-24, commit d08d1e2
 **Milestone:** M1
 **Depends on:** 001
 
 ### What to do
-Create `src/MakieViews.jl` containing a minimal module. The module must: (1) `using Gtk4, Gtk4Makie, GLMakie` at the top, (2) `export makieviews`, (3) define `makieviews()` as a placeholder function returning `nothing`, and (4) close with `end # module MakieViews`. No other behavior — this task exists only to make the package loadable and to establish the module skeleton.
+Create `src/FigureViews.jl` containing a minimal module. The module must: (1) `using Gtk4, Gtk4Makie, GLMakie` at the top, (2) `export makieviews`, (3) define `makieviews()` as a placeholder function returning `nothing`, and (4) close with `end # module FigureViews`. No other behavior — this task exists only to make the package loadable and to establish the module skeleton.
 
 ### Files touched
-- `src/MakieViews.jl` — new file
+- `src/FigureViews.jl` — new file
 
 ### Acceptance Criterion
-`julia --project=. -e 'using MakieViews; @assert :makieviews in names(MakieViews) "makieviews not exported"; @assert makieviews() === nothing "makieviews() did not return nothing"; println("module OK")'` exits 0 and prints `module OK`. Precompile output on first run is expected and not a failure.
+`julia --project=. -e 'using FigureViews; @assert :makieviews in names(FigureViews) "makieviews not exported"; @assert makieviews() === nothing "makieviews() did not return nothing"; println("module OK")'` exits 0 and prints `module OK`. Precompile output on first run is expected and not a failure.
 
 ### On Failure
 Report the exact `AssertionError` or `UndefVarError`, plus any precompile output that preceded it.
@@ -114,7 +114,7 @@ Report the exact `AssertionError` or `UndefVarError`, plus any precompile output
 **Depends on:** 004
 
 ### What to do
-Create `test/runtests.jl` containing `using Test, MakieViews` and one `@testset "M1 shell — module loads" begin ... end` block that asserts `isdefined(MakieViews, :makieviews)` and that `makieviews` is exported (`:makieviews in names(MakieViews)`).
+Create `test/runtests.jl` containing `using Test, FigureViews` and one `@testset "M1 shell — module loads" begin ... end` block that asserts `isdefined(FigureViews, :makieviews)` and that `makieviews` is exported (`:makieviews in names(FigureViews)`).
 
 ### Files touched
 - `test/runtests.jl` — new file
@@ -135,10 +135,10 @@ Report the full `Pkg.test` output including which assertion failed.
 ### What to do
 Two changes in one commit — code + its test, atomic:
 
-1. **Modify `src/MakieViews.jl`** so `makieviews()` begins with a non-REPL detection block. If `!(isinteractive() && isdefined(Base, :active_repl))`, emit `@warn` with the **exact** ADR-011 warning text (source of truth: `docs/adr/ADR-011-non-repl-launch-semantics.md`, verbatim, no paraphrasing):
+1. **Modify `src/FigureViews.jl`** so `makieviews()` begins with a non-REPL detection block. If `!(isinteractive() && isdefined(Base, :active_repl))`, emit `@warn` with the **exact** ADR-011 warning text (source of truth: `docs/adr/ADR-011-non-repl-launch-semantics.md`, verbatim, no paraphrasing):
 
    ```
-   MakieViews v0.1 reads variables from REPL Main. You appear to be running outside a REPL. Variables defined in this script/context so far are visible; variables you define later will not appear. File loading (CSV / HDF5) works normally.
+   FigureViews v0.1 reads variables from REPL Main. You appear to be running outside a REPL. Variables defined in this script/context so far are visible; variables you define later will not appear. File loading (CSV / HDF5) works normally.
    ```
 
    Preserve the function's existing `return nothing` at the end.
@@ -147,14 +147,14 @@ Two changes in one commit — code + its test, atomic:
 
    ```julia
    @testset "M1 shell — non-REPL warning fires" begin
-       @test_logs (:warn, r"MakieViews v0.1 reads variables from REPL Main") match_mode=:any makieviews()
+       @test_logs (:warn, r"FigureViews v0.1 reads variables from REPL Main") match_mode=:any makieviews()
    end
    ```
 
    `match_mode=:any` tolerates additional log lines (GLMakie precompile chatter, Gtk4 init messages).
 
 ### Files touched
-- `src/MakieViews.jl` — modified: prepend warning block to `makieviews()` body
+- `src/FigureViews.jl` — modified: prepend warning block to `makieviews()` body
 - `test/runtests.jl` — modified: append second testset
 
 ### Acceptance Criterion
@@ -182,25 +182,25 @@ Originally split "code change" (Task 006) from "test change" (Task 007). Merged 
 ### What to do
 Two changes in one commit — code + its test, atomic (same merge pattern as Task 006):
 
-1. **Modify `src/MakieViews.jl`** so `makieviews()`, after the ADR-011 warning block, creates a Gtk4 window titled `"MakieViews"` with default size `1024 × 768`, shows it, and **returns the window handle**. Do not run a nested blocking event loop — return the handle so the caller (REPL user, test) can inspect and destroy it.
+1. **Modify `src/FigureViews.jl`** so `makieviews()`, after the ADR-011 warning block, creates a Gtk4 window titled `"FigureViews"` with default size `1024 × 768`, shows it, and **returns the window handle**. Do not run a nested blocking event loop — return the handle so the caller (REPL user, test) can inspect and destroy it.
 
-   Look up the exact Gtk4.jl v0.7.12 API (constructor, size setter, title accessor, size accessor) from Gtk4.jl's current documentation — do not guess. Standard v0.7 pattern is likely `GtkWindow("MakieViews", 1024, 768)`, but property/size accessors vary; the ADR/design docs do not pin these because they are library API details.
+   Look up the exact Gtk4.jl v0.7.12 API (constructor, size setter, title accessor, size accessor) from Gtk4.jl's current documentation — do not guess. Standard v0.7 pattern is likely `GtkWindow("FigureViews", 1024, 768)`, but property/size accessors vary; the ADR/design docs do not pin these because they are library API details.
 
    Update the function's docstring to reflect the new return type (was `Nothing`, now the window type).
 
-2. **Modify `test/runtests.jl`.** Add `using Gtk4` alongside the existing `using Test, MakieViews`. Update all existing testsets that call `makieviews()` to capture the returned window and destroy it before the testset ends (otherwise windows leak between testsets and CI gets flaky). Concretely:
+2. **Modify `test/runtests.jl`.** Add `using Gtk4` alongside the existing `using Test, FigureViews`. Update all existing testsets that call `makieviews()` to capture the returned window and destroy it before the testset ends (otherwise windows leak between testsets and CI gets flaky). Concretely:
 
    - **`M1 shell — module loads`**: change `@test makieviews() === nothing` to something like `w = makieviews(); @test !isnothing(w); Gtk4.destroy(w)`.
-   - **`M1 shell — non-REPL warning fires`**: capture the value: `w = @test_logs (:warn, r"MakieViews v0.1 reads variables from REPL Main") match_mode=:any makieviews(); Gtk4.destroy(w)`.
+   - **`M1 shell — non-REPL warning fires`**: capture the value: `w = @test_logs (:warn, r"FigureViews v0.1 reads variables from REPL Main") match_mode=:any makieviews(); Gtk4.destroy(w)`.
 
-   Add a new third testset `M1 shell — window properties` that creates the window via `makieviews()`, sleeps briefly (~0.2s) to let GTK settle, asserts (a) the title equals `"MakieViews"` and (b) the default size is `(1024, 768)` (or the equivalent tuple/pair form the Gtk4.jl API returns), then destroys the window. Use whatever title/size accessors Gtk4.jl v0.7.12 exposes — report which ones you used.
+   Add a new third testset `M1 shell — window properties` that creates the window via `makieviews()`, sleeps briefly (~0.2s) to let GTK settle, asserts (a) the title equals `"FigureViews"` and (b) the default size is `(1024, 768)` (or the equivalent tuple/pair form the Gtk4.jl API returns), then destroys the window. Use whatever title/size accessors Gtk4.jl v0.7.12 exposes — report which ones you used.
 
 ### Files touched
-- `src/MakieViews.jl` — modified: add window-creation body, update docstring
+- `src/FigureViews.jl` — modified: add window-creation body, update docstring
 - `test/runtests.jl` — modified: `using Gtk4`, destroy calls in existing testsets, new window-properties testset
 
 ### Acceptance Criterion
-`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 and its output includes three testset names — `M1 shell — module loads`, `M1 shell — non-REPL warning fires`, `M1 shell — window properties` — with total `Pass` ≥ 5 and `Fail` = 0 in the final `Test Summary:` block. Additionally, `git log --oneline -1` shows the commit subject `feat: create Gtk4 window in makieviews() with title and default size`, and `git show --stat HEAD` reports exactly 3 files changed (src/MakieViews.jl, test/runtests.jl, tasks.md).
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 and its output includes three testset names — `M1 shell — module loads`, `M1 shell — non-REPL warning fires`, `M1 shell — window properties` — with total `Pass` ≥ 5 and `Fail` = 0 in the final `Test Summary:` block. Additionally, `git log --oneline -1` shows the commit subject `feat: create Gtk4 window in makieviews() with title and default size`, and `git show --stat HEAD` reports exactly 3 files changed (src/FigureViews.jl, test/runtests.jl, tasks.md).
 
 ### On Failure
 Report the full `Pkg.test()` output including which testset or assertion failed. If the failure is because the Gtk4.jl API name I guessed doesn't exist (e.g. `Gtk4.title` returns nothing, or `default_size` is not a symbol), quote the exact `UndefVarError` or `MethodError` and name which accessor you tried — that's the signal to look up a different accessor rather than a code bug.
@@ -224,11 +224,11 @@ Same merge pattern as Task 007 into Task 006: the atomic unit for the window-cre
 ### What to do
 Two changes in one commit — code + its test, atomic (same merge pattern as Tasks 006 and 008):
 
-1. **Modify `src/MakieViews.jl`** so `makieviews()`, after creating the Gtk4 window (Task 008's code), embeds a Gtk4Makie GLMakie viewport as the window's child, displaying an empty `Figure()` with a single empty `Axis`. The function still returns the window handle — not the Figure, not a tuple. Callers introspect through the widget tree if they need the Figure.
+1. **Modify `src/FigureViews.jl`** so `makieviews()`, after creating the Gtk4 window (Task 008's code), embeds a Gtk4Makie GLMakie viewport as the window's child, displaying an empty `Figure()` with a single empty `Axis`. The function still returns the window handle — not the Figure, not a tuple. Callers introspect through the widget tree if they need the Figure.
 
    Look up the actual Gtk4Makie.jl v0.3.9 API from its README and `examples/` directory — do not guess widget names. Likely candidates (verify one, don't assume): a widget type like `GtkGLMakie` or `GtkMakieCanvas` that takes a `Figure` and behaves as a Gtk4 widget; or a screen constructor like `GLMakie.Screen(figure; parent=window)`; or a helper that wraps both steps.
 
-   Overhaul the docstring — the current "Placeholder entry point... Behavior added in later tasks" wording is stale (the function now creates a real window with a real viewport). Rewrite it to accurately describe: creates a MakieViews main window, embeds an empty Figure with one Axis via Gtk4Makie, returns the window handle, warns per ADR-011 when non-REPL.
+   Overhaul the docstring — the current "Placeholder entry point... Behavior added in later tasks" wording is stale (the function now creates a real window with a real viewport). Rewrite it to accurately describe: creates a FigureViews main window, embeds an empty Figure with one Axis via Gtk4Makie, returns the window handle, warns per ADR-011 when non-REPL.
 
 2. **Extend `test/runtests.jl`** with a fourth testset `M1 shell — Figure attached`. Minimum assertion the test must make: after `makieviews()`, the window has at least one child widget (before Task 010, it has none). Stronger assertions to add if the Gtk4Makie API exposes them cleanly — report what you were able to check:
 
@@ -239,7 +239,7 @@ Two changes in one commit — code + its test, atomic (same merge pattern as Tas
    Destroy the window at the end of the testset (leak prevention).
 
 ### Files touched
-- `src/MakieViews.jl` — modified: add Figure/Axis embedding + docstring overhaul
+- `src/FigureViews.jl` — modified: add Figure/Axis embedding + docstring overhaul
 - `test/runtests.jl` — modified: append fourth testset
 
 ### Acceptance Criterion
@@ -346,7 +346,7 @@ Push: `git push`. Do NOT wait for the CI run to complete. Report back after push
 `.github/workflows/ci.yml` matches the exact content above. `git log --oneline -1` shows the commit subject `ci: reduce matrix to Ubuntu-only per ADR-018; document rationale`. `git show --stat HEAD` reports at least 6 files changed (the 5 doc/config files plus ci.yml; INDEX.md optionally 7th). `git push` completes without error. `git status` reports `Your branch is up to date with 'origin/main'`.
 
 ### Report back (post-push)
-On pass: `INSTRUCTION PASSED — ci.yml + doc amendments committed as <7-char SHA> and pushed to origin/main. New CI run should appear at https://github.com/XerxesZorgon/MakieViews/actions within ~30 seconds. Task 012 remains [ ] Pending until 2/2 green confirmed.`
+On pass: `INSTRUCTION PASSED — ci.yml + doc amendments committed as <7-char SHA> and pushed to origin/main. New CI run should appear at https://github.com/XerxesZorgon/FigureViews/actions within ~30 seconds. Task 012 remains [ ] Pending until 2/2 green confirmed.`
 On fail: `INSTRUCTION FAILED — [criterion] — [observed] — [error text]`
 
 ### On CI-run Failure (after push, if 2/2 not green)
@@ -460,7 +460,7 @@ end
 
 These are `struct` (not `mutable struct`) because they are value objects passed around by copy; only the *containing* nodes need to be mutable/observable.
 
-**3. Update `src/MakieViews.jl`** to `include("state/types.jl")` then `include("state/nodes.jl")`, and add `using Observables, Colors` alongside the existing `using` statements.
+**3. Update `src/FigureViews.jl`** to `include("state/types.jl")` then `include("state/nodes.jl")`, and add `using Observables, Colors` alongside the existing `using` statements.
 
 **4. Create `test/unit/nodes.jl`** with these Layer 1 testsets (all Julia, no Gtk4, no GLMakie):
 
@@ -502,7 +502,7 @@ end
 ### Files touched
 - `src/state/nodes.jl` — new
 - `src/state/types.jl` — new
-- `src/MakieViews.jl` — modified: add includes, add `using Observables, Colors`
+- `src/FigureViews.jl` — modified: add includes, add `using Observables, Colors`
 - `test/unit/nodes.jl` — new
 - `test/runtests.jl` — modified: `include("unit/nodes.jl")` line added
 
@@ -552,7 +552,7 @@ PLOT_SCHEMAS[:line] = [
 
 Use `RGB` from Colors.jl (added in Task 013). Do not add other plot types' schemas — those are M3 (2D) and M4 (3D).
 
-**2. Update `src/MakieViews.jl`** to `include("state/schema.jl")` after the nodes include.
+**2. Update `src/FigureViews.jl`** to `include("state/schema.jl")` after the nodes include.
 
 **3. Create `test/unit/schema.jl`** with iteration/lookup tests:
 
@@ -595,7 +595,7 @@ end
 
 ### Files touched
 - `src/state/schema.jl` — new
-- `src/MakieViews.jl` — modified: add include
+- `src/FigureViews.jl` — modified: add include
 - `test/unit/schema.jl` — new
 - `test/runtests.jl` — modified: add include
 
@@ -641,7 +641,7 @@ function _init_attrs(plot_type::Symbol)::Dict{Symbol, Observable{Any}}
 end
 ```
 
-**2. Update `src/MakieViews.jl`** to `include("state/session.jl")` and `using UUIDs` (stdlib, no Project.toml change).
+**2. Update `src/FigureViews.jl`** to `include("state/session.jl")` and `using UUIDs` (stdlib, no Project.toml change).
 
 **3. Create `test/unit/session.jl`** with tests:
 
@@ -674,8 +674,8 @@ end
     @test plot.type == :line
     @test plot.attrs[:linewidth][] == 1.5    # default from PLOT_SCHEMAS[:line]
     @test plot.attrs[:linestyle][] == :solid
-    @test haskey(MakieViews._DEMO_DATA, plot.id)
-    @test MakieViews._DEMO_DATA[plot.id].x == x
+    @test haskey(FigureViews._DEMO_DATA, plot.id)
+    @test FigureViews._DEMO_DATA[plot.id].x == x
 end
 
 @testset "M2 session — add_axis! rejects unknown kind" begin
@@ -689,7 +689,7 @@ end
 
 ### Files touched
 - `src/state/session.jl` — new
-- `src/MakieViews.jl` — modified: add include + `using UUIDs`
+- `src/FigureViews.jl` — modified: add include + `using UUIDs`
 - `test/unit/session.jl` — new
 - `test/runtests.jl` — modified: add include
 
@@ -736,7 +736,7 @@ And these functions:
 
 Structural observers (add/remove axis, add/remove plot) can be minimal for M2 — M3+ exercises them more. For M2, register an observer on `session.figures` and each `figure.axes` and each `axis.plots` that on structural change re-renders the affected subtree. Concretely: naive M2 implementation — wipe the Makie.Figure and rebuild from scratch. Not optimal but correct. Optimization deferred.
 
-**2. Update `src/MakieViews.jl`** to `include("render/renderer.jl")`.
+**2. Update `src/FigureViews.jl`** to `include("render/renderer.jl")`.
 
 **3. Extend `test/runtests.jl`** with a new testset `M2 renderer — programmatic line plot renders` under a new heading in the existing runtests file (not test/unit/, because this test uses GLMakie and requires the display — it's Layer 3):
 
@@ -766,7 +766,7 @@ end
 
 ### Files touched
 - `src/render/renderer.jl` — new
-- `src/MakieViews.jl` — modified: add include
+- `src/FigureViews.jl` — modified: add include
 - `test/runtests.jl` — modified: append renderer testset
 
 ### Acceptance Criterion
@@ -797,7 +797,7 @@ This task uses Gtk4.jl v0.7.12's modern list widgets. Read the Gtk4.jl "List and
 - Selection wiring: when the `GtkSingleSelection`'s selected index changes, look up the corresponding node in the model and write its id to `session.selection[]`. Use `Gtk4.selected` / `Gtk4.selected!` per the manual.
 - The tree pane also observes `session.figures` and each `axes` / `plots` Observable so that when the tree structure changes (Task 020 wires this via the app's demo-populate), the pane refreshes. For M2 the demo is populated once at launch, so the observers primarily guard against future changes.
 
-**2. Update `src/MakieViews.jl`** to `include("ui/tree_pane.jl")`.
+**2. Update `src/FigureViews.jl`** to `include("ui/tree_pane.jl")`.
 
 **3. Extend `test/runtests.jl`** with:
 
@@ -830,7 +830,7 @@ Report in the PASS message which Gtk4.jl API pattern was used and which assertio
 
 ### Files touched
 - `src/ui/tree_pane.jl` — new
-- `src/MakieViews.jl` — modified: add include
+- `src/FigureViews.jl` — modified: add include
 - `test/runtests.jl` — modified: append tree pane testset
 
 ### Acceptance Criterion
@@ -861,7 +861,7 @@ On fail: `TASK 018 FAILED — [criterion] — [Pkg.test output tail; if Gtk4 API
 - Apply `Observables.throttle(1/60, attr_observable)` at the widget-callback boundary per DESIGN.md §5 — not on every observation site.
 - Look up the exact Gtk4.jl v0.7.12 widget constructor names (`GtkSpinButton`, `GtkDropDown`, etc.) from the Gtk4.jl manual. Report which ones were used.
 
-**2. Update `src/MakieViews.jl`** to include the property pane file.
+**2. Update `src/FigureViews.jl`** to include the property pane file.
 
 **3. Extend `test/runtests.jl`** with:
 
@@ -887,15 +887,15 @@ On fail: `TASK 018 FAILED — [criterion] — [Pkg.test output tail; if Gtk4 API
     # Validate function tests
     specs = PLOT_SCHEMAS[:line]
     @test validate(specs, :linewidth, 5.0) == 5.0
-    @test validate(specs, :linewidth, 100.0) isa MakieViews.ValidationError    # out of range
+    @test validate(specs, :linewidth, 100.0) isa FigureViews.ValidationError    # out of range
     @test validate(specs, :linestyle, :solid) == :solid
-    @test validate(specs, :linestyle, :bogus) isa MakieViews.ValidationError   # not in enum
+    @test validate(specs, :linestyle, :bogus) isa FigureViews.ValidationError   # not in enum
 end
 ```
 
 ### Files touched
 - `src/ui/property_pane.jl` — new
-- `src/MakieViews.jl` — modified: add include
+- `src/FigureViews.jl` — modified: add include
 - `test/runtests.jl` — modified: append property pane testset
 
 ### Acceptance Criterion
@@ -919,12 +919,12 @@ On fail: `TASK 019 FAILED — [criterion] — [Pkg.test output tail]`
 ### What to do
 The M2 exit-criterion integration task. Restructures `makieviews()` from M1's single-viewport pattern to the M2 three-pane layout, wires everything together, auto-populates a demo Session, and verifies the end-to-end flow.
 
-**1. Restructure `src/MakieViews.jl`'s `makieviews()`** function:
+**1. Restructure `src/FigureViews.jl`'s `makieviews()`** function:
 
 ```julia
 function makieviews()
     if !(isinteractive() && isdefined(Base, :active_repl))
-        @warn "MakieViews v0.1 reads variables from REPL Main. You appear to be running outside a REPL. Variables defined in this script/context so far are visible; variables you define later will not appear. File loading (CSV / HDF5) works normally."
+        @warn "FigureViews v0.1 reads variables from REPL Main. You appear to be running outside a REPL. Variables defined in this script/context so far are visible; variables you define later will not appear. File loading (CSV / HDF5) works normally."
     end
 
     # Build the SessionState + demo content (M2 scaffolding; M3+ replaces the auto-populate with menu-driven creation)
@@ -936,7 +936,7 @@ function makieviews()
     plot_node = add_line_plot!(ax_node; x = x, y = y)
 
     # Build the Gtk4 window with three panes
-    w = GtkWindow("MakieViews", 1400, 900)   # wider than M1's 1024 to fit the panes
+    w = GtkWindow("FigureViews", 1400, 900)   # wider than M1's 1024 to fit the panes
 
     # Right pane: Gtk4Makie viewport hosting the shared Makie.Figure (M1's mechanism, reused)
     makie_fig = Makie.Figure()
@@ -983,8 +983,8 @@ Given the return-type question: **either** return just `w` and stash `session`/`
     @test w !== nothing
 
     # Retrieve session + renderer from module-level refs
-    session = MakieViews._current_session[]
-    renderer = MakieViews._current_renderer[]
+    session = FigureViews._current_session[]
+    renderer = FigureViews._current_renderer[]
     @test length(session.figures[]) == 1
     fig_node = session.figures[][1]
     ax_node = fig_node.axes[][1]
@@ -1004,7 +1004,7 @@ end
 ```
 
 ### Files touched
-- `src/MakieViews.jl` — modified: restructured `makieviews()` function; add module-level `_current_session::Ref{Union{Nothing,Session}}` and `_current_renderer::Ref{Union{Nothing,Renderer}}` refs
+- `src/FigureViews.jl` — modified: restructured `makieviews()` function; add module-level `_current_session::Ref{Union{Nothing,Session}}` and `_current_renderer::Ref{Union{Nothing,Renderer}}` refs
 - `test/runtests.jl` — modified: append end-to-end testset
 
 ### Acceptance Criterion
@@ -1019,7 +1019,7 @@ On pass: `TASK 020 PASSED — M2 end-to-end green (N tests total), <SHA>. M2 CI 
 On fail: `TASK 020 FAILED — [criterion] — [Pkg.test output tail + which step of the wire-up broke]`
 
 ### Post-task: push and verify CI
-After Task 020's local Pkg.test() is green: `git push`. Then open https://github.com/XerxesZorgon/MakieViews/actions and verify the 2-cell v0.1 matrix (Ubuntu × {Julia 1.10, 1.12}) shows both green. Report back to Claude Chat with `M2 CI RUN 2/2 GREEN` or the failing job's log tail.
+After Task 020's local Pkg.test() is green: `git push`. Then open https://github.com/XerxesZorgon/FigureViews/actions and verify the 2-cell v0.1 matrix (Ubuntu × {Julia 1.10, 1.12}) shows both green. Report back to Claude Chat with `M2 CI RUN 2/2 GREEN` or the failing job's log tail.
 
 ---
 
@@ -1384,10 +1384,10 @@ elseif plot.type == :contour
 end
 ```
 
-Also: after all four types are working, update `makieviews()` in `src/MakieViews.jl` to use `add_scatter_plot!` alongside the existing `add_line_plot!` demo (just add a second plot to `ax_node` so both line and scatter appear in the viewport at launch, demonstrating multi-plot capability). This is a small addition to the same commit.
+Also: after all four types are working, update `makieviews()` in `src/FigureViews.jl` to use `add_scatter_plot!` alongside the existing `add_line_plot!` demo (just add a second plot to `ax_node` so both line and scatter appear in the viewport at launch, demonstrating multi-plot capability). This is a small addition to the same commit.
 
 ### Files touched
-- `src/state/session.jl`, `src/render/renderer.jl`, `src/MakieViews.jl` (demo update), `test/runtests.jl`, `tasks.md`
+- `src/state/session.jl`, `src/render/renderer.jl`, `src/FigureViews.jl` (demo update), `test/runtests.jl`, `tasks.md`
 
 ### Acceptance Criterion
 `Pkg.test()` exits 0. All prior tests pass plus contour testset. `git show --stat HEAD` reports 5 files changed.
@@ -1857,14 +1857,14 @@ Verify `Makie.Axis3` exposes `azimuth` and `elevation` as settable Observables i
 end
 ```
 
-Also: after the camera path is working, update `makieviews()` in `src/MakieViews.jl` to add a second demo figure OR a second axis of kind `:axis3d` bearing a surface plot, so the launched app demonstrates a 3D axis alongside the existing 2D demo. Keep it to a small addition in the same commit (a few lines: one `add_axis!(...; kind=:axis3d)`, one `add_surface_plot!`), mirroring how Task 025 added a second demo plot. If adding it complicates the single-figure layout, instead add the 3D axis to the existing figure as a second axis position — whichever is the smaller change; note which you chose.
+Also: after the camera path is working, update `makieviews()` in `src/FigureViews.jl` to add a second demo figure OR a second axis of kind `:axis3d` bearing a surface plot, so the launched app demonstrates a 3D axis alongside the existing 2D demo. Keep it to a small addition in the same commit (a few lines: one `add_axis!(...; kind=:axis3d)`, one `add_surface_plot!`), mirroring how Task 025 added a second demo plot. If adding it complicates the single-figure layout, instead add the 3D axis to the existing figure as a second axis position — whichever is the smaller change; note which you chose.
 
 ### Files touched
 - `src/state/schema.jl` — modified: add `AXIS_SCHEMAS` + `[:axis3d]` entry
 - `src/ui/property_pane.jl` — modified: node-type dispatch, `_find_axis`, `_populate_for_axis!`
 - `src/render/renderer.jl` — modified: camera observer in `_register_axis_observer!`
 - `test/runtests.jl` — modified: append camera testset
-- `src/MakieViews.jl` — modified: 3D demo addition
+- `src/FigureViews.jl` — modified: 3D demo addition
 - `tasks.md` — modified
 
 ### Acceptance Criterion
@@ -1964,7 +1964,7 @@ Then in `build_tree_pane`, replace the inline loop with `labels, ids = _build_tr
     add_line_plot!(ax2; x = collect(1.0:5.0), y = collect(1.0:5.0))
     ax3 = add_axis!(fig; kind = :axis3d, title = "A3D")
 
-    labels, ids = MakieViews._build_tree_rows(s)
+    labels, ids = FigureViews._build_tree_rows(s)
     # Row count: 1 figure + 2 axes + 1 plot = 4
     @test length(labels) == 4
     @test length(ids) == 4
@@ -2009,9 +2009,9 @@ On fail: `TASK 032 FAILED — [criterion] — [Pkg.test tail; if a Gtk4 accessor
 **Depends on:** 032
 
 ### What to do
-Two changes in one commit — a code edit in `src/MakieViews.jl` and a docs edit in `docs/TEST_PLAN.md`. Stage explicitly. There is no headless test for the layout (it's GTK geometry on a real display); the acceptance evidence is the human manual launch described in the gate this task adds. So this task's automated criterion is only "Pkg.test still green + the file contains the required assignments"; the visual confirmation is John's, post-commit.
+Two changes in one commit — a code edit in `src/FigureViews.jl` and a docs edit in `docs/TEST_PLAN.md`. Stage explicitly. There is no headless test for the layout (it's GTK geometry on a real display); the acceptance evidence is the human manual launch described in the gate this task adds. So this task's automated criterion is only "Pkg.test still green + the file contains the required assignments"; the visual confirmation is John's, post-commit.
 
-**1. Fix the layout in `src/MakieViews.jl`.** Locate the viewport/paned construction block (currently builds `viewport_widget`, `left_column = GtkPaned(:v)`, `main_paned = GtkPaned(:h)`). Add, after `viewport_widget` is created and pushed, and after `main_paned` is assembled:
+**1. Fix the layout in `src/FigureViews.jl`.** Locate the viewport/paned construction block (currently builds `viewport_widget`, `left_column = GtkPaned(:v)`, `main_paned = GtkPaned(:h)`). Add, after `viewport_widget` is created and pushed, and after `main_paned` is assembled:
 ```julia
     viewport_widget.hexpand = true
     viewport_widget.vexpand = true
@@ -2029,16 +2029,16 @@ Keep the existing `left_column`/`main_paned` wiring otherwise unchanged. (Values
 - Note the gate cannot retroactively cover P1's own layout fix; the launch immediately following P1 is that fix's acceptance evidence.
 
 ### Files touched
-- `src/MakieViews.jl` — modified: viewport hexpand/vexpand + paned position
+- `src/FigureViews.jl` — modified: viewport hexpand/vexpand + paned position
 - `docs/TEST_PLAN.md` — modified: add "Manual GUI launch gate" subsection
 
 ### Acceptance Criterion
 `julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 (no regression). AND a source assertion:
-`julia -e 't = read("src/MakieViews.jl", String); @assert occursin("hexpand = true", t); @assert occursin("position = 300", t); p = read("docs/TEST_PLAN.md", String); @assert occursin("Manual GUI launch gate", p); println("P1 layout + gate OK")'` prints `P1 layout + gate OK`.
+`julia -e 't = read("src/FigureViews.jl", String); @assert occursin("hexpand = true", t); @assert occursin("position = 300", t); p = read("docs/TEST_PLAN.md", String); @assert occursin("Manual GUI launch gate", p); println("P1 layout + gate OK")'` prints `P1 layout + gate OK`.
 Final acceptance is John's manual launch (see gate) — Antigravity does NOT need to launch the GUI.
 
 ### Commit
-Stage explicitly: `git add src/MakieViews.jl docs/TEST_PLAN.md`
+Stage explicitly: `git add src/FigureViews.jl docs/TEST_PLAN.md`
 Subject: `fix: viewport layout — paned position + viewport hexpand/vexpand; add manual-launch gate (Tier 1)`
 Body: `Patch P1 Task 033. main_paned gave all width to the left column; viewport now sets hexpand/vexpand and main_paned.position=300 so the GLMakie canvas takes the majority width (probe-confirmed). Adds a Manual GUI launch gate to TEST_PLAN: headless CI is blind to the GUI layer, so every UI-touching milestone now requires a human makieviews() launch with a visual checklist, alongside the ADR-018 macOS gate. See docs/CHANGE-tree-pane-viewport-fix.md.`
 
@@ -2105,7 +2105,7 @@ Create `src/preflight/detect.jl` defining a `HostSpecs` struct and `detect_host_
 
 ### Files touched
 - `src/preflight/detect.jl` — new
-- `src/MakieViews.jl` — add `include("preflight/detect.jl")`
+- `src/FigureViews.jl` — add `include("preflight/detect.jl")`
 - `test/integration/preflight.jl` — new
 - `test/runtests.jl` — include the new file
 
@@ -2124,7 +2124,7 @@ Create `src/preflight/estimate.jl`: `estimate_footprint(a) = length(a)*sizeof(el
 
 ### Files touched
 - `src/preflight/estimate.jl` — new
-- `src/MakieViews.jl` — add `include("preflight/estimate.jl")` after detect
+- `src/FigureViews.jl` — add `include("preflight/estimate.jl")` after detect
 - `test/integration/preflight.jl` — append footprint + fps testsets
 
 ### Acceptance Criterion
@@ -2218,12 +2218,12 @@ function downsample(algo::LTTB, x::AbstractVector, y::AbstractVector)
 end
 ```
 
-No new imports (`floor`, `argmin`, `argmax`, `minmax`, `float` are Base). Add `include("preflight/downsample.jl")` to `src/MakieViews.jl` after the `include("preflight/estimate.jl")` line. No exports — tests qualify with `MakieViews.`. Create a **new** `test/unit/downsample.jl` (per TEST_PLAN §12) and include it from `test/runtests.jl`, matching how `test/unit/schema.jl` is already included:
+No new imports (`floor`, `argmin`, `argmax`, `minmax`, `float` are Base). Add `include("preflight/downsample.jl")` to `src/FigureViews.jl` after the `include("preflight/estimate.jl")` line. No exports — tests qualify with `FigureViews.`. Create a **new** `test/unit/downsample.jl` (per TEST_PLAN §12) and include it from `test/runtests.jl`, matching how `test/unit/schema.jl` is already included:
 
 ```julia
 @testset "M10 downsample — UniformStride" begin
     x = collect(1.0:100.0); y = x .^ 2
-    x2, y2 = MakieViews.downsample(MakieViews.UniformStride(10), x, y)
+    x2, y2 = FigureViews.downsample(FigureViews.UniformStride(10), x, y)
     @test x2[1] == 1.0 && x2[end] == 100.0
     @test issorted(x2)
     @test length(x2) == length(y2)
@@ -2234,7 +2234,7 @@ end
 @testset "M10 downsample — MinMaxDecimation" begin
     x = collect(1.0:1000.0); y = sin.(x ./ 10)
     nb = 50
-    x2, y2 = MakieViews.downsample(MakieViews.MinMaxDecimation(nb), x, y)
+    x2, y2 = FigureViews.downsample(FigureViews.MinMaxDecimation(nb), x, y)
     @test x2[1] == 1.0 && x2[end] == 1000.0
     @test issorted(x2)
     @test length(x2) == length(y2)
@@ -2246,29 +2246,29 @@ end
 @testset "M10 downsample — LTTB" begin
     x = collect(1.0:1000.0); y = sin.(x ./ 10)
     thr = 100
-    x2, y2 = MakieViews.downsample(MakieViews.LTTB(thr), x, y)
+    x2, y2 = FigureViews.downsample(FigureViews.LTTB(thr), x, y)
     @test length(x2) == thr
     @test length(y2) == thr
     @test x2[1] == 1.0 && x2[end] == 1000.0
     @test issorted(x2)
     xs = collect(1.0:10.0); ys = xs .^ 2       # n_target >= n returns original length
-    xo, yo = MakieViews.downsample(MakieViews.LTTB(50), xs, ys)
+    xo, yo = FigureViews.downsample(FigureViews.LTTB(50), xs, ys)
     @test length(xo) == 10
 end
 ```
 
 ### Files touched
 - `src/preflight/downsample.jl` — new: `DownsampleAlgorithm` + three algorithms + `downsample` methods
-- `src/MakieViews.jl` — modified: add `include("preflight/downsample.jl")` after estimate
+- `src/FigureViews.jl` — modified: add `include("preflight/downsample.jl")` after estimate
 - `test/unit/downsample.jl` — new: the three testsets above
 - `test/runtests.jl` — modified: include `unit/downsample.jl`, matching the existing unit-include pattern
 
 ### Acceptance Criterion
 `julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the three new testsets (`M10 downsample — UniformStride` = 5 assertions, `M10 downsample — MinMaxDecimation` = 6, `M10 downsample — LTTB` = 5) passing. Report the `Test Summary:` counts. AND a source assertion:
-`julia -e 't = read("src/preflight/downsample.jl", String); for s in ("UniformStride","MinMaxDecimation","LTTB","function downsample"); @assert occursin(s, t) "$s missing"; end; m = read("src/MakieViews.jl", String); @assert occursin("preflight/downsample.jl", m) "include not wired"; println("Task 063 source OK")'` exits 0 and prints `Task 063 source OK`.
+`julia -e 't = read("src/preflight/downsample.jl", String); for s in ("UniformStride","MinMaxDecimation","LTTB","function downsample"); @assert occursin(s, t) "$s missing"; end; m = read("src/FigureViews.jl", String); @assert occursin("preflight/downsample.jl", m) "include not wired"; println("Task 063 source OK")'` exits 0 and prints `Task 063 source OK`.
 
 ### Commit
-Stage explicitly: `git add src/preflight/downsample.jl src/MakieViews.jl test/unit/downsample.jl test/runtests.jl`
+Stage explicitly: `git add src/preflight/downsample.jl src/FigureViews.jl test/unit/downsample.jl test/runtests.jl`
 Subject: `feat: preflight/downsample.jl — UniformStride, MinMaxDecimation, LTTB (M10)`
 Body: `Task 063. Three ADR-010 / DESIGN §7.3 downsampling algorithms over 1-D (x,y): UniformStride (every k-th, first+last kept); MinMaxDecimation (per-bucket min-y/max-y, envelope-preserving); LTTB (Steinarsson 2013 largest-triangle-three-buckets, exactly n_target points). All preserve first/last and monotonic x. downsample(algo, x, y) -> (x', y'). Unit tests (test/unit/downsample.jl) cover length, endpoint preservation, monotonicity, subset (stride), envelope extremes (minmax), exact target length + n_target>=n passthrough (LTTB).`
 
@@ -2314,55 +2314,55 @@ function record_downsample!(plot::Plot, algo::DownsampleAlgorithm)
 end
 ```
 
-`check.jl` uses `HostSpecs` (detect.jl), `estimate_footprint`/`estimate_fps` (estimate.jl), `DownsampleAlgorithm` (downsample.jl), and `Plot`/`Observable` (state) — all already included before it. Add `include("preflight/check.jl")` to `src/MakieViews.jl` after the `include("preflight/downsample.jl")` line. No exports. **Append** two testsets to `test/integration/preflight.jl`:
+`check.jl` uses `HostSpecs` (detect.jl), `estimate_footprint`/`estimate_fps` (estimate.jl), `DownsampleAlgorithm` (downsample.jl), and `Plot`/`Observable` (state) — all already included before it. Add `include("preflight/check.jl")` to `src/FigureViews.jl` after the `include("preflight/downsample.jl")` line. No exports. **Append** two testsets to `test/integration/preflight.jl`:
 
 ```julia
 @testset "M10 preflight_decision — threshold logic" begin
-    host = MakieViews.HostSpecs(32 * 1024^3, 16, 8 * 1024^3, "GPU")  # 8 GiB VRAM
+    host = FigureViews.HostSpecs(32 * 1024^3, 16, 8 * 1024^3, "GPU")  # 8 GiB VRAM
 
-    d1 = MakieViews.preflight_decision(host, zeros(Float64, 1000), :line)
+    d1 = FigureViews.preflight_decision(host, zeros(Float64, 1000), :line)
     @test d1.decision == :accept
     @test d1.reason == :ok
 
-    d2 = MakieViews.preflight_decision(host, zeros(Float64, 100_000_000), :line)  # fps 6 < 15
+    d2 = FigureViews.preflight_decision(host, zeros(Float64, 100_000_000), :line)  # fps 6 < 15
     @test d2.decision == :warn
     @test d2.est_fps < 15
 
     # predicate directly (isolating the VRAM term from the fps term):
-    @test MakieViews.over_threshold(host, 5 * 1024^3, 60.0) == true    # bytes > 0.6*8GiB, fps ok
-    @test MakieViews.over_threshold(host, 1000, 60.0) == false         # both ok
+    @test FigureViews.over_threshold(host, 5 * 1024^3, 60.0) == true    # bytes > 0.6*8GiB, fps ok
+    @test FigureViews.over_threshold(host, 1000, 60.0) == false         # both ok
 
-    novram = MakieViews.HostSpecs(32 * 1024^3, 16, nothing, nothing)   # FR-026: fps-only
-    @test MakieViews.over_threshold(novram, 100 * 1024^3, 60.0) == false  # VRAM term ignored
-    @test MakieViews.over_threshold(novram, 100 * 1024^3, 10.0) == true   # fps < 15 → over
+    novram = FigureViews.HostSpecs(32 * 1024^3, 16, nothing, nothing)   # FR-026: fps-only
+    @test FigureViews.over_threshold(novram, 100 * 1024^3, 60.0) == false  # VRAM term ignored
+    @test FigureViews.over_threshold(novram, 100 * 1024^3, 10.0) == true   # fps < 15 → over
 end
 
 @testset "M10 record_downsample! — records algorithm in plot attrs" begin
-    s = MakieViews.new_session()
-    fig = MakieViews.add_figure!(s; title = "F")
-    ax = MakieViews.add_axis!(fig; kind = :axis2d, title = "A")
-    p = MakieViews.add_plot!(ax, :line,
-        [MakieViews.DataRef(:x, "s1", :main, "x"), MakieViews.DataRef(:y, "s2", :main, "y")])
+    s = FigureViews.new_session()
+    fig = FigureViews.add_figure!(s; title = "F")
+    ax = FigureViews.add_axis!(fig; kind = :axis2d, title = "A")
+    p = FigureViews.add_plot!(ax, :line,
+        [FigureViews.DataRef(:x, "s1", :main, "x"), FigureViews.DataRef(:y, "s2", :main, "y")])
     @test !haskey(p.attrs, :downsample_algorithm)
-    MakieViews.record_downsample!(p, MakieViews.LTTB(50))
+    FigureViews.record_downsample!(p, FigureViews.LTTB(50))
     @test haskey(p.attrs, :downsample_algorithm)
-    @test p.attrs[:downsample_algorithm][] == MakieViews.LTTB(50)
+    @test p.attrs[:downsample_algorithm][] == FigureViews.LTTB(50)
 end
 ```
 
-(The 4-arg `DataRef(role, snapshot_id, source, id)` form is the one used in `MakieViews.jl`'s demo; `LTTB(50) == LTTB(50)` holds because the algorithm structs are immutable.)
+(The 4-arg `DataRef(role, snapshot_id, source, id)` form is the one used in `FigureViews.jl`'s demo; `LTTB(50) == LTTB(50)` holds because the algorithm structs are immutable.)
 
 ### Files touched
 - `src/preflight/check.jl` — new: `over_threshold`, `preflight_decision`, `record_downsample!`
-- `src/MakieViews.jl` — modified: add `include("preflight/check.jl")` after downsample
+- `src/FigureViews.jl` — modified: add `include("preflight/check.jl")` after downsample
 - `test/integration/preflight.jl` — modified: append the two testsets above
 
 ### Acceptance Criterion
 `julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the two new testsets (`M10 preflight_decision — threshold logic` = 8 assertions, `M10 record_downsample! — records algorithm in plot attrs` = 3) passing. Report the `Test Summary:` counts. AND a source assertion:
-`julia -e 't = read("src/preflight/check.jl", String); for s in ("function over_threshold","function preflight_decision","function record_downsample!"); @assert occursin(s, t) "$s missing"; end; m = read("src/MakieViews.jl", String); @assert occursin("preflight/check.jl", m) "include not wired"; println("Task 064 source OK")'` exits 0 and prints `Task 064 source OK`.
+`julia -e 't = read("src/preflight/check.jl", String); for s in ("function over_threshold","function preflight_decision","function record_downsample!"); @assert occursin(s, t) "$s missing"; end; m = read("src/FigureViews.jl", String); @assert occursin("preflight/check.jl", m) "include not wired"; println("Task 064 source OK")'` exits 0 and prints `Task 064 source OK`.
 
 ### Commit
-Stage explicitly: `git add src/preflight/check.jl src/MakieViews.jl test/integration/preflight.jl` (do NOT touch tasks.md — per AGENTS.md).
+Stage explicitly: `git add src/preflight/check.jl src/FigureViews.jl test/integration/preflight.jl` (do NOT touch tasks.md — per AGENTS.md).
 Subject: `feat: preflight/check.jl — threshold decision + downsample recording (M10)`
 Body: `Task 064. Headless pre-flight decision: over_threshold(host, bytes, fps) = fps<15 OR bytes>0.6*VRAM (VRAM term skipped when undetectable, FR-026). preflight_decision(host, array, plot_type) returns (:accept|:warn, reason, est_fps, est_bytes). record_downsample!(plot, algo) records the chosen algorithm in plot.attrs[:downsample_algorithm] (DESIGN §7.3; .mvz serialization deferred to the persistence/docs task). The Gtk4 warning dialog + data-reduction apply are Task 064b (manual-gated). Tests cover accept/warn, the fps and VRAM terms in isolation, the FR-026 no-VRAM path, and the recording.`
 Then report `git show --stat --oneline -s HEAD`.
@@ -2379,7 +2379,7 @@ On fail: `TASK 064 FAILED — [criterion] — [Pkg.test tail; quote the failing 
 **Depends on:** 064
 
 ### What to do
-Append `apply_downsample!` and a private `_repoint` helper to `src/preflight/check.jl` (no new file, no MakieViews.jl change — check.jl is already included). This is the 1-D (x, y) downsample-apply path per DESIGN §7.1 "apply + hold full ref" and TEST_PLAN §8: it materializes the reduced arrays as new snapshots, repoints the plot's `:x`/`:y` refs to them, records the algorithm, and leaves the full arrays in `session.data_snapshots` (retained for a v0.2 full-resolution re-render). 2-D field stride (heatmap/surface/contour/volume) is a separate mechanism (ADR-010) and out of scope here — the function requires `:x` and `:y` refs and throws otherwise.
+Append `apply_downsample!` and a private `_repoint` helper to `src/preflight/check.jl` (no new file, no FigureViews.jl change — check.jl is already included). This is the 1-D (x, y) downsample-apply path per DESIGN §7.1 "apply + hold full ref" and TEST_PLAN §8: it materializes the reduced arrays as new snapshots, repoints the plot's `:x`/`:y` refs to them, records the algorithm, and leaves the full arrays in `session.data_snapshots` (retained for a v0.2 full-resolution re-render). 2-D field stride (heatmap/surface/contour/volume) is a separate mechanism (ADR-010) and out of scope here — the function requires `:x` and `:y` refs and throws otherwise.
 
 ```julia
 # Repoint an immutable DataRef to a new snapshot id, preserving all other fields.
@@ -2410,22 +2410,22 @@ function apply_downsample!(session::Session, plot::Plot, algo::DownsampleAlgorit
 end
 ```
 
-`uuid4()` is in scope (MakieViews `using UUIDs`; session.jl already uses `string(uuid4())`). **Append** this testset to `test/integration/preflight.jl`:
+`uuid4()` is in scope (FigureViews `using UUIDs`; session.jl already uses `string(uuid4())`). **Append** this testset to `test/integration/preflight.jl`:
 
 ```julia
 @testset "M10 apply_downsample! — reduces plot data, retains full" begin
-    s = MakieViews.new_session()
-    fig = MakieViews.add_figure!(s; title = "F")
-    ax = MakieViews.add_axis!(fig; kind = :axis2d, title = "A")
+    s = FigureViews.new_session()
+    fig = FigureViews.add_figure!(s; title = "F")
+    ax = FigureViews.add_axis!(fig; kind = :axis2d, title = "A")
     n = 10_000
     xfull = collect(1.0:n); yfull = sin.(xfull ./ 100)
     s.data_snapshots["xfull"] = xfull
     s.data_snapshots["yfull"] = yfull
-    p = MakieViews.add_plot!(ax, :line,
-        [MakieViews.DataRef(:x, "xfull", :main, "x"),
-         MakieViews.DataRef(:y, "yfull", :main, "y")])
+    p = FigureViews.add_plot!(ax, :line,
+        [FigureViews.DataRef(:x, "xfull", :main, "x"),
+         FigureViews.DataRef(:y, "yfull", :main, "y")])
 
-    MakieViews.apply_downsample!(s, p, MakieViews.LTTB(100))
+    FigureViews.apply_downsample!(s, p, FigureViews.LTTB(100))
 
     refs = p.data_refs[]
     xref = refs[findfirst(r -> r.role == :x, refs)]
@@ -2435,13 +2435,13 @@ end
     @test xref.snapshot_id != "xfull"                           # refs repointed
     @test haskey(s.data_snapshots, "xfull")                     # full retained (TEST_PLAN §8)
     @test length(s.data_snapshots["xfull"]) == n
-    @test p.attrs[:downsample_algorithm][] == MakieViews.LTTB(100)
+    @test p.attrs[:downsample_algorithm][] == FigureViews.LTTB(100)
 
     # 2-D field plot (no :x/:y) is rejected
-    ax3 = MakieViews.add_axis!(fig; kind = :axis3d, title = "S")
+    ax3 = FigureViews.add_axis!(fig; kind = :axis3d, title = "S")
     s.data_snapshots["m"] = rand(4, 4)
-    ps = MakieViews.add_plot!(ax3, :surface, [MakieViews.DataRef(:matrix, "m", :main, "m")])
-    @test_throws ArgumentError MakieViews.apply_downsample!(s, ps, MakieViews.UniformStride(2))
+    ps = FigureViews.add_plot!(ax3, :surface, [FigureViews.DataRef(:matrix, "m", :main, "m")])
+    @test_throws ArgumentError FigureViews.apply_downsample!(s, ps, FigureViews.UniformStride(2))
 end
 ```
 
@@ -2512,42 +2512,42 @@ function add_plot_checked!(ax::Axis, plot_type::Symbol, data_refs::Vector{DataRe
     if downsample !== nothing
         apply_downsample!(session, plot, downsample)
     elseif dec.decision == :warn
-        @warn "MakieViews pre-flight: this $plot_type plot is large and may run slowly or freeze the GUI." estimated_MB = round(dec.est_bytes / 1e6; digits = 1) estimated_fps = round(dec.est_fps; digits = 1) reason = dec.reason tip = "pass downsample=LTTB(n) (or UniformStride / MinMaxDecimation) to reduce it"
+        @warn "FigureViews pre-flight: this $plot_type plot is large and may run slowly or freeze the GUI." estimated_MB = round(dec.est_bytes / 1e6; digits = 1) estimated_fps = round(dec.est_fps; digits = 1) reason = dec.reason tip = "pass downsample=LTTB(n) (or UniformStride / MinMaxDecimation) to reduce it"
     end
     return (plot = plot, decision = dec.decision, reason = dec.reason)
 end
 ```
 
-Add `add_plot_checked!` to the `export` list in `src/MakieViews.jl` (right after `add_plot!`). `argmax(length, arrays)` (Julia ≥1.7) returns the longest array. **Append** this testset to `test/integration/preflight.jl`:
+Add `add_plot_checked!` to the `export` list in `src/FigureViews.jl` (right after `add_plot!`). `argmax(length, arrays)` (Julia ≥1.7) returns the longest array. **Append** this testset to `test/integration/preflight.jl`:
 
 ```julia
 @testset "M10 add_plot_checked! — pre-flight-aware add" begin
-    s = MakieViews.new_session()
-    fig = MakieViews.add_figure!(s; title = "F")
-    ax = MakieViews.add_axis!(fig; kind = :axis2d, title = "A")
-    host_big  = MakieViews.HostSpecs(32 * 1024^3, 16, 8 * 1024^3, "GPU")
-    host_tiny = MakieViews.HostSpecs(32 * 1024^3, 16, 1000, "TinyGPU")   # forces VRAM-over on any array
+    s = FigureViews.new_session()
+    fig = FigureViews.add_figure!(s; title = "F")
+    ax = FigureViews.add_axis!(fig; kind = :axis2d, title = "A")
+    host_big  = FigureViews.HostSpecs(32 * 1024^3, 16, 8 * 1024^3, "GPU")
+    host_tiny = FigureViews.HostSpecs(32 * 1024^3, 16, 1000, "TinyGPU")   # forces VRAM-over on any array
 
     s.data_snapshots["sx"] = collect(1.0:1000.0); s.data_snapshots["sy"] = sin.((1.0:1000.0) ./ 50)
-    r1 = MakieViews.add_plot_checked!(ax, :line,
-        [MakieViews.DataRef(:x, "sx", :main, "x"), MakieViews.DataRef(:y, "sy", :main, "y")];
+    r1 = FigureViews.add_plot_checked!(ax, :line,
+        [FigureViews.DataRef(:x, "sx", :main, "x"), FigureViews.DataRef(:y, "sy", :main, "y")];
         session = s, host = host_big)
     @test r1.decision == :accept
     @test r1.plot !== nothing
 
     s.data_snapshots["bx"] = collect(1.0:1000.0); s.data_snapshots["by"] = sin.((1.0:1000.0) ./ 50)
-    r2 = @test_logs (:warn, r"pre-flight") match_mode=:any MakieViews.add_plot_checked!(ax, :line,
-        [MakieViews.DataRef(:x, "bx", :main, "x"), MakieViews.DataRef(:y, "by", :main, "y")];
+    r2 = @test_logs (:warn, r"pre-flight") match_mode=:any FigureViews.add_plot_checked!(ax, :line,
+        [FigureViews.DataRef(:x, "bx", :main, "x"), FigureViews.DataRef(:y, "by", :main, "y")];
         session = s, host = host_tiny)
     @test r2.decision == :warn
     @test r2.plot !== nothing            # advisory: still added at full size
 
     s.data_snapshots["dx"] = collect(1.0:1000.0); s.data_snapshots["dy"] = sin.((1.0:1000.0) ./ 50)
-    r3 = MakieViews.add_plot_checked!(ax, :line,
-        [MakieViews.DataRef(:x, "dx", :main, "x"), MakieViews.DataRef(:y, "dy", :main, "y")];
-        session = s, host = host_tiny, downsample = MakieViews.LTTB(50))
+    r3 = FigureViews.add_plot_checked!(ax, :line,
+        [FigureViews.DataRef(:x, "dx", :main, "x"), FigureViews.DataRef(:y, "dy", :main, "y")];
+        session = s, host = host_tiny, downsample = FigureViews.LTTB(50))
     @test r3.plot !== nothing
-    @test r3.plot.attrs[:downsample_algorithm][] == MakieViews.LTTB(50)
+    @test r3.plot.attrs[:downsample_algorithm][] == FigureViews.LTTB(50)
     xref = r3.plot.data_refs[][findfirst(r -> r.role == :x, r3.plot.data_refs[])]
     @test length(s.data_snapshots[xref.snapshot_id]) == 50   # reduced on the downsample path
 end
@@ -2555,18 +2555,18 @@ end
 
 ### Files touched
 - `src/preflight/check.jl` — modified: append `add_plot_checked!`
-- `src/MakieViews.jl` — modified: add `add_plot_checked!` to the `export` list (after `add_plot!`)
+- `src/FigureViews.jl` — modified: add `add_plot_checked!` to the `export` list (after `add_plot!`)
 - `test/integration/preflight.jl` — modified: append the testset above
 
 ### Acceptance Criterion
 `julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the new `M10 add_plot_checked! — pre-flight-aware add` testset (8 assertions) passing. Report the `Test Summary:` counts. AND a source assertion:
-`julia -e 't = read("src/preflight/check.jl", String); @assert occursin("function add_plot_checked!", t) "add_plot_checked! missing"; m = read("src/MakieViews.jl", String); @assert occursin("add_plot_checked!", m) "not exported"; println("Task 064c source OK")'` exits 0 and prints `Task 064c source OK`.
+`julia -e 't = read("src/preflight/check.jl", String); @assert occursin("function add_plot_checked!", t) "add_plot_checked! missing"; m = read("src/FigureViews.jl", String); @assert occursin("add_plot_checked!", m) "not exported"; println("Task 064c source OK")'` exits 0 and prints `Task 064c source OK`.
 
 ### Manual launch (John, at M10 sign-off)
 In a REPL after `makieviews()`: build a large-ish x/y (e.g. `1e6` points), `ingest!` them, and call `add_plot_checked!(ax, :line, refs)` — confirm the `@warn` prints estimated MB/fps; then call again with `downsample=LTTB(1000)` and confirm no warning + a reduced plot.
 
 ### Commit
-Stage explicitly: `git add src/preflight/check.jl src/MakieViews.jl test/integration/preflight.jl` (do NOT touch tasks.md — per AGENTS.md).
+Stage explicitly: `git add src/preflight/check.jl src/FigureViews.jl test/integration/preflight.jl` (do NOT touch tasks.md — per AGENTS.md).
 Subject: `feat: add_plot_checked! — REPL pre-flight-aware add (M10, option C)`
 Body: `Task 064c. add_plot_checked!(ax, type, refs; session, host, downsample) wraps add_plot!: runs preflight_decision on the largest referenced array; on :warn without downsample=, emits an advisory @warn (est MB/fps/reason) and still adds the plot full (DESIGN §7.1 Accept/Override default); downsample=<algo> adds then applies apply_downsample!. Exported. v0.1 pre-flight surface per ADR-020 (option C) — no Gtk4 modal (deferred to v0.2). Tests: accept (silent), warn (advisory, full add), downsample (reduced, no warn).`
 Then report `git show --stat --oneline -s HEAD`.
@@ -2668,7 +2668,7 @@ Milestone frontier as of 2026-08-28. Per **ADR-022**, v0.1.0 ships the REPL-driv
 **Depends on:** —
 
 ### What to do
-Add an exported one-line helper `render_session(session) -> Renderer` to `src/render/renderer.jl` so headless export doesn't force users to touch `Makie` directly. Today a user must write `MakieViews.Renderer(s, MakieViews.Makie.Figure())`; `render_session` wraps that. Define it next to the `Renderer` constructor: build a fresh `Makie.Figure()` (accessible module-internally), pass it to the existing `Renderer(session, fig)` constructor (which renders synchronously via `_rebuild_from_session!`), and return the `Renderer`. Export `render_session` from `src/MakieViews.jl` (right after `export_figure`). Then create a new integration test file and include it from `runtests.jl`.
+Add an exported one-line helper `render_session(session) -> Renderer` to `src/render/renderer.jl` so headless export doesn't force users to touch `Makie` directly. Today a user must write `FigureViews.Renderer(s, FigureViews.Makie.Figure())`; `render_session` wraps that. Define it next to the `Renderer` constructor: build a fresh `Makie.Figure()` (accessible module-internally), pass it to the existing `Renderer(session, fig)` constructor (which renders synchronously via `_rebuild_from_session!`), and return the `Renderer`. Export `render_session` from `src/FigureViews.jl` (right after `export_figure`). Then create a new integration test file and include it from `runtests.jl`.
 
 ```julia
 """
@@ -2683,18 +2683,18 @@ render_session(session::Session) = Renderer(session, Makie.Figure())
 New file `test/integration/render_session.jl`:
 ```julia
 @testset "M11 render_session — headless render + export" begin
-    s = MakieViews.new_session()
-    fig = MakieViews.add_figure!(s; title = "F")
-    ax = MakieViews.add_axis!(fig; kind = :axis2d, title = "A")
+    s = FigureViews.new_session()
+    fig = FigureViews.add_figure!(s; title = "F")
+    ax = FigureViews.add_axis!(fig; kind = :axis2d, title = "A")
     s.data_snapshots["x"] = collect(1.0:50.0)
     s.data_snapshots["y"] = sin.((1.0:50.0) ./ 10)
-    MakieViews.add_plot!(ax, :line,
-        [MakieViews.DataRef(:x, "x", :main, "x"), MakieViews.DataRef(:y, "y", :main, "y")])
-    r = MakieViews.render_session(s)
-    @test r isa MakieViews.Renderer
+    FigureViews.add_plot!(ax, :line,
+        [FigureViews.DataRef(:x, "x", :main, "x"), FigureViews.DataRef(:y, "y", :main, "y")])
+    r = FigureViews.render_session(s)
+    @test r isa FigureViews.Renderer
     mktempdir() do dir
         out = joinpath(dir, "rs.png")
-        MakieViews.export_figure(r, out)
+        FigureViews.export_figure(r, out)
         @test isfile(out)
         @test filesize(out) > 0
     end
@@ -2704,18 +2704,18 @@ Add `include("integration/render_session.jl")` to `test/runtests.jl` alongside t
 
 ### Files touched
 - `src/render/renderer.jl` — append `render_session`
-- `src/MakieViews.jl` — export `render_session` (after `export_figure`)
+- `src/FigureViews.jl` — export `render_session` (after `export_figure`)
 - `test/integration/render_session.jl` — new: testset above
 - `test/runtests.jl` — include the new file
 
 ### Acceptance Criterion
 `julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all prior tests still green PLUS the new `M11 render_session — headless render + export` testset (3 assertions) passing. Report the `Test Summary:` counts. AND a source assertion:
-`julia -e 't = read("src/render/renderer.jl", String); @assert occursin("render_session", t) "render_session missing"; m = read("src/MakieViews.jl", String); @assert occursin("render_session", m) "not exported"; println("Task 068 source OK")'` exits 0 and prints `Task 068 source OK`.
+`julia -e 't = read("src/render/renderer.jl", String); @assert occursin("render_session", t) "render_session missing"; m = read("src/FigureViews.jl", String); @assert occursin("render_session", m) "not exported"; println("Task 068 source OK")'` exits 0 and prints `Task 068 source OK`.
 
 ### Commit
-Stage explicitly: `git add src/render/renderer.jl src/MakieViews.jl test/integration/render_session.jl test/runtests.jl` (do NOT touch tasks.md — per AGENTS.md).
+Stage explicitly: `git add src/render/renderer.jl src/FigureViews.jl test/integration/render_session.jl test/runtests.jl` (do NOT touch tasks.md — per AGENTS.md).
 Subject: `feat: render_session helper — headless render to Renderer (M11)`
-Body: `Task 068. render_session(session) -> Renderer wraps Renderer(session, Makie.Figure()) so headless export/animation doesn't require users to reach into MakieViews.Makie. Exported; matches the README v0.1 Quickstart. Test: build a line session, render_session, assert Renderer + non-empty PNG via export_figure.`
+Body: `Task 068. render_session(session) -> Renderer wraps Renderer(session, Makie.Figure()) so headless export/animation doesn't require users to reach into FigureViews.Makie. Exported; matches the README v0.1 Quickstart. Test: build a line session, render_session, assert Renderer + non-empty PNG via export_figure.`
 Then report `git show --stat --oneline -s HEAD`.
 
 ### Report back
@@ -2743,7 +2743,7 @@ ADR-020, DESIGN §11/§7.2, and PLAN M11 all state the FPS measurement pass is d
 ---
 
 ## Task 070: Release-readiness audit (Claude Chat + John)
-**Status:** [x] Done — 2026-08-28 (docs; no code). `docs/RELEASE-READINESS.md` authored. Decisions recorded: (1) compat pins — keep exact `Makie = "=0.24.13"` / `GLMakie = "=0.13.13"` (GLMakie upstream-pins Makie exactly, so loosening gives no immediate resolver freedom; AutoMerge accepts exact pins per RegistryCI guidelines; first-release reproducibility over nimbleness); (2) version — 0.1.0-DEV → 0.1.0 at Task 075; (3) LICENSE ✓ (MIT verified), README ✓ (reconciled ADR-022), CHANGELOG ✓ (Task 069); (4) CHANGELOG finalize plan — move dev history under new "Pre-release history" heading beneath [0.1.0], reset [Unreleased], swap PLACEHOLDER-USER → XerxesZorgon. Repo confirmed at [XerxesZorgon/MakieViews.jl](https://github.com/XerxesZorgon/MakieViews.jl) via user screenshot (my web_fetches were serving stale GitHub-cached HTML). Post-v0.1.0 follow-up captured: in-package update-check helper (v0.2 candidate). No blocking issues.
+**Status:** [x] Done — 2026-08-28 (docs; no code). `docs/RELEASE-READINESS.md` authored. Decisions recorded: (1) compat pins — keep exact `Makie = "=0.24.13"` / `GLMakie = "=0.13.13"` (GLMakie upstream-pins Makie exactly, so loosening gives no immediate resolver freedom; AutoMerge accepts exact pins per RegistryCI guidelines; first-release reproducibility over nimbleness); (2) version — 0.1.0-DEV → 0.1.0 at Task 075; (3) LICENSE ✓ (MIT verified), README ✓ (reconciled ADR-022), CHANGELOG ✓ (Task 069); (4) CHANGELOG finalize plan — move dev history under new "Pre-release history" heading beneath [0.1.0], reset [Unreleased], swap PLACEHOLDER-USER → XerxesZorgon. Repo confirmed at [XerxesZorgon/FigureViews.jl](https://github.com/XerxesZorgon/FigureViews.jl) via user screenshot (my web_fetches were serving stale GitHub-cached HTML). Post-v0.1.0 follow-up captured: in-package update-check helper (v0.2 candidate). No blocking issues.
 **Milestone:** M11
 **Depends on:** 068, 069
 
@@ -2794,15 +2794,15 @@ On the Windows 11 dev box: `julia --project=. -e 'using Pkg; Pkg.test()'`, then 
 
 ## Task 073: GHA macOS runner — headless full-suite CI on macos-latest (per ADR-023)
 **Status:** [x] Done (attempted + closed) — 2026-08-28. Two attempts confirmed macOS CI is infeasible for v0.1.0 without architectural changes:
-- Task 073: GHA macos-latest (Apple Silicon) fails at GLMakie precompilation with `NSGL FORMAT_UNAVAILABLE` — `using MakieViews` unconditionally loads GLMakie/Gtk4Makie which require a display context.
-- Task 073b: A separate `test/runtests_cairo.jl` entry point also fails — `using MakieViews` still loads GLMakie at `src/MakieViews.jl:3` before any test code runs.
+- Task 073: GHA macos-latest (Apple Silicon) fails at GLMakie precompilation with `NSGL FORMAT_UNAVAILABLE` — `using FigureViews` unconditionally loads GLMakie/Gtk4Makie which require a display context.
+- Task 073b: A separate `test/runtests_cairo.jl` entry point also fails — `using FigureViews` still loads GLMakie at `src/FigureViews.jl:3` before any test code runs.
 
 **Outcome:** CI matrix reverted to Ubuntu-only (2 cells). `test/runtests_cairo.jl` removed. `ci.yml` restored to the original 2-cell xvfb-run shape. CI #45 (commit `39ca32b`) 2/2 green, confirming the revert is clean. ADR-023 updated with both attempt outcomes. macOS CI requires conditional backend loading (guard GLMakie/Gtk4 imports behind env var or Preferences.jl) — v0.2 backlog item. See ADR-023 for full record.
 **Milestone:** M11
 **Depends on:** 071
 
 ### What to do
-Per ADR-023: extend the CI matrix to include `macos-latest × {Julia 1.10, 1.12}` alongside the existing `ubuntu-latest` cells. The full matrix becomes `{ubuntu-latest, macos-latest} × {"1.10", "1.12"}` (4 cells). No `xvfb-run` on macOS (native window server). Keep every existing Ubuntu step unchanged. Run the full `Pkg.test()` suite on macos-latest, exactly as on Ubuntu. If the Gtk4/GLMakie stack cannot initialize in the headless macOS runner (unproven pattern for MakieViews specifically — see ADR-023 fallback), report the specific error verbatim and stop; do NOT weaken the test scope without amending ADR-023. Do not touch anything outside `.github/workflows/`.
+Per ADR-023: extend the CI matrix to include `macos-latest × {Julia 1.10, 1.12}` alongside the existing `ubuntu-latest` cells. The full matrix becomes `{ubuntu-latest, macos-latest} × {"1.10", "1.12"}` (4 cells). No `xvfb-run` on macOS (native window server). Keep every existing Ubuntu step unchanged. Run the full `Pkg.test()` suite on macos-latest, exactly as on Ubuntu. If the Gtk4/GLMakie stack cannot initialize in the headless macOS runner (unproven pattern for FigureViews specifically — see ADR-023 fallback), report the specific error verbatim and stop; do NOT weaken the test scope without amending ADR-023. Do not touch anything outside `.github/workflows/`.
 
 This is an Antigravity task. Its instruction will be generated separately after Claude reads the current workflow file structure (`.github/workflows/*`) to write a delta-only instruction. Do not begin implementation until that instruction is generated.
 
@@ -2813,7 +2813,7 @@ This is an Antigravity task. Its instruction will be generated separately after 
 After the change is pushed, the next CI run on `main` is 4/4 cells green (`{ubuntu-latest, macos-latest} × {Julia 1.10, 1.12}`), running the full test suite. Report the run id and the test count per cell.
 
 ### On Failure
-Report the failing cell(s), grep the workflow log for `ERROR` / `FAIL`, and paste ~20 lines of context. Categorize the failure: (a) Gtk4/GLMakie init failure on macOS specifically (needs ADR-023 fallback), (b) a MakieViews test that fails on macOS (real macOS bug — good catch), or (c) transient CI issue (retry once, then escalate). Do NOT push a workaround; if the failure requires ADR-023's fallback plan, come back to Claude for ADR-023 amendment first.
+Report the failing cell(s), grep the workflow log for `ERROR` / `FAIL`, and paste ~20 lines of context. Categorize the failure: (a) Gtk4/GLMakie init failure on macOS specifically (needs ADR-023 fallback), (b) a FigureViews test that fails on macOS (real macOS bug — good catch), or (c) transient CI issue (retry once, then escalate). Do NOT push a workaround; if the failure requires ADR-023's fallback plan, come back to Claude for ADR-023 amendment first.
 
 ---
 
@@ -2841,7 +2841,7 @@ Two M10 carryovers (ADR-020 / 2026-08-27):
 - JuliaRegistrator installed via `https://github.com/JuliaRegistries/Registrator.jl` install button.
 - General registry PR: https://github.com/JuliaRegistries/General/pull/166500
 - AutoMerge: 3-day new-package waiting period. Will merge automatically if all checks pass (no naming objections, compat valid, LICENSE present). No action needed until merge.
-- On merge: confirm `] add MakieViews` resolves on a fresh environment → SC-001 met → mark [x] Done.
+- On merge: confirm `] add FigureViews` resolves on a fresh environment → SC-001 met → mark [x] Done.
 **Milestone:** M11
 **Depends on:** 072, 073, 074
 
@@ -2854,7 +2854,7 @@ Cut the release once the QA gate (072, 073, and 074's disposition) is green:
 5. After the registry PR merges: `git tag v0.1.0` + push the tag; attach the Windows/macOS QA report (072–074) to the release notes.
 
 ### Acceptance Criterion (M11 / SC-001 exit)
-MakieViews v0.1.0 is registered in General and resolves via `] add MakieViews` on a fresh environment; the `v0.1.0` tag exists; release notes include the pre-release manual QA report. Report: `v0.1.0 registered (<registry PR>), tagged, QA report attached` — SC-001 met.
+FigureViews v0.1.0 is registered in General and resolves via `] add FigureViews` on a fresh environment; the `v0.1.0` tag exists; release notes include the pre-release manual QA report. Report: `v0.1.0 registered (<registry PR>), tagged, QA report attached` — SC-001 met.
 
 ---
 
@@ -2893,7 +2893,7 @@ Before v0.2.0: perform the original ADR-018 manual gate on a macOS 12+ machine (
 
 ### What to do
 Create a scratch script `spike/m12_route1_widget.jl` (new directory `spike/` in the project root; nothing in it is part of the package). The script must:
-1. Build a minimal Gtk4 window with a `GtkMakieWidget` embedding a GLMakie figure — exactly the shape `src/MakieViews.jl` uses (`Gtk4Makie.GtkMakieWidget(); push!(viewport_widget, makie_fig)`).
+1. Build a minimal Gtk4 window with a `GtkMakieWidget` embedding a GLMakie figure — exactly the shape `src/FigureViews.jl` uses (`Gtk4Makie.GtkMakieWidget(); push!(viewport_widget, makie_fig)`).
 2. Display the window with `show(w); Gtk4.main()`.
 3. After display, attempt to add a second plot to an existing axis: `lines!(ax, rand(10))` issued from a `Threads.@spawn` block or a `Gtk4.GLib.g_idle_add` callback, whichever is most faithful to the upstream report.
 4. Record the outcome: does the window freeze, error, or succeed? If it succeeds, note exactly how.
@@ -2978,7 +2978,7 @@ Write `docs/adr/ADR-025-embedding-path-live-editing.md`. This is the M12 exit de
 1. States the **Decision**: which embedding route is chosen (Route 1 / 2 / 3) and why, OR records that no route was viable and v0.2 GUI scope must be re-planned.
 2. **Context**: one paragraph summarising the ADR-024 constraint 2 requirement (live plot-add without deadlock) and the three routes evaluated.
 3. **Evidence**: for each route, one sentence naming the spike script and its pass/fail outcome (from Tasks 076–078 header comments). No code blocks needed — prose is sufficient.
-4. **Consequences**: what changes in the production codebase for M13+ as a result of this choice (e.g. "`src/MakieViews.jl` shell switches from `GtkMakieWidget` to `GTKScreen`; `src/render/renderer.jl` incremental ops target the `GTKScreen` GLArea handle").
+4. **Consequences**: what changes in the production codebase for M13+ as a result of this choice (e.g. "`src/FigureViews.jl` shell switches from `GtkMakieWidget` to `GTKScreen`; `src/render/renderer.jl` incremental ops target the `GTKScreen` GLArea handle").
 5. Cross-references: ADR-024, the relevant upstream issue (#14 or GLMakie custom-window docs), and PLAN-v0.2.md M12.
 
 Do **not** commit the spike scripts (`spike/`) — they are throwaway. Do commit ADR-025 and mark M12 complete in tasks.md, then push. Do not begin M13 tasks until ADR-025 is written and committed.
@@ -2997,4 +2997,54 @@ Report `TASK 079 FAILED — [which section is missing / file not found / commit 
 
 ## Milestone M12 Complete — 2026-08-29
 **Exit deliverable:** ADR-025 written, committed, and pushed. Route 1 (`GtkMakieWidget` + `--threads 4,1`) confirmed viable for live structural editing. M13 incremental renderer implementation unblocked.
+
+---
+
+# Patch P3 — Package Rename: FigureViews → FigureViews
+
+> **Prerequisite (John, manual):** Before running Task 080, complete these three GitHub steps:
+> 1. Close registry PR #166500 with a comment explaining the rename.
+> 2. Rename the GitHub repo: Settings → Repository name → `FigureViews.jl`.
+> 3. Delete the `v0.1.0` tag: `git push origin --delete v0.1.0` (also required by Goerz review regardless of rename).
+> Then update the local remote: `git remote set-url origin https://github.com/XerxesZorgon/FigureViews.jl.git`
+
+---
+
+## Task 080: Rename package FigureViews → FigureViews throughout codebase
+**Status:** [ ] Pending
+**Milestone:** P3
+**Depends on:** John completes the three manual GitHub steps above before running this task.
+
+### What to do
+Rename the package from `FigureViews` to `FigureViews` throughout the codebase. This is a text-substitution task — no logic changes. Steps:
+
+1. **`Project.toml`**: change `name = "FigureViews"` to `name = "FigureViews"`.
+2. **`src/FigureViews.jl`**: rename the file to `src/FigureViews.jl`. Change the module declaration from `module FigureViews` to `module FigureViews`.
+3. **All source files** (`src/*.jl`, `src/**/*.jl`): replace every `using FigureViews` and `import FigureViews` with the `FigureViews` equivalent. Also replace any string literal `"FigureViews"` that refers to the package name.
+4. **`test/runtests.jl`** and any other test files: replace `using FigureViews` with `using FigureViews`.
+5. **`README.md`**: replace all occurrences of `FigureViews` with `FigureViews`; update the repo URL to `https://github.com/XerxesZorgon/FigureViews.jl`; fix the broken `docs/troubleshooting.md` link (remove or replace with a `#` anchor to a known section); update the status line from "Not yet registered / v0.1 in development" to "v0.1.0 — registration in progress".
+6. **`CHANGELOG.md`**: replace `FigureViews` with `FigureViews`.
+7. **`docs/` planning files** (`DESIGN.md`, `PLAN.md`, `PLAN-v0.2.md`, `SDD.md`, `TEST_PLAN.md`, `adr/*.md`): replace `FigureViews` with `FigureViews` throughout.
+8. **`AGENTS.md`, `SESSION_LOG.md`, `tasks.md`**: replace `FigureViews` with `FigureViews` throughout (these files are in the repo even if they will eventually be removed from the package).
+9. **`spike/`**: replace `FigureViews` with `FigureViews` in any spike scripts that reference the package name (they likely don’t, but check).
+
+After all substitutions, run `julia --project=. -e 'using Pkg; Pkg.test()'` to confirm the test suite still passes under the new name.
+
+Commit **only** the renamed/edited files (do not stage `spike/` scripts). Commit message: `rename: FigureViews → FigureViews throughout`.
+
+### Files touched
+- `Project.toml` — name field
+- `src/FigureViews.jl` — renamed to `src/FigureViews.jl`, module declaration updated
+- `src/*.jl`, `src/**/*.jl` — any `using`/`import FigureViews` references
+- `test/runtests.jl` — `using FigureViews` → `using FigureViews`
+- `README.md` — name, URL, broken link, status line
+- `CHANGELOG.md` — name
+- `docs/**/*.md` — name
+- `AGENTS.md`, `SESSION_LOG.md`, `tasks.md` — name
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all tests passing. `grep -r "FigureViews" src/ test/ Project.toml` returns no matches. `git show --stat HEAD` shows `src/FigureViews.jl` (not `src/FigureViews.jl`). Report back: `TASK 080 PASSED — rename complete, tests green, commit = [hash]`.
+
+### On Failure
+Report `TASK 080 FAILED — [grep hit / test failure / file not renamed]` with the failing output. Do not push a broken state; fix before committing.
 

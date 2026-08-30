@@ -1,4 +1,4 @@
-# Software Description Document: MakieViews
+# Software Description Document: FigureViews
 
 **Version**: v0.1 (initial release scope)
 **Created**: 2026-08-24
@@ -7,13 +7,13 @@
 
 ---
 
-> **v0.1.0 delivery scope.** MakieViews v0.1.0 ships a **REPL-driven core**, not the interactive GUI. The requirements below remain the project's target and describe the Veusz-style GUI that is the north star; they are **not** rewritten. Instead, each is marked with its v0.1 delivery status — **Delivered (v0.1)**, **Partial**, **Deferred (v0.2)**, or **Pending (M11)** — in §5.4 (functional/non-functional) and §8 (success criteria). The GUI affordances the requirements name (variable picker, Add Plot menu, property-panel-as-primary-flow, File dialogs, non-blocking warning dialog) are Deferred (v0.2); their underlying capabilities ship in v0.1 as REPL functions where noted. See [ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md).
+> **v0.1.0 delivery scope.** FigureViews v0.1.0 ships a **REPL-driven core**, not the interactive GUI. The requirements below remain the project's target and describe the Veusz-style GUI that is the north star; they are **not** rewritten. Instead, each is marked with its v0.1 delivery status — **Delivered (v0.1)**, **Partial**, **Deferred (v0.2)**, or **Pending (M11)** — in §5.4 (functional/non-functional) and §8 (success criteria). The GUI affordances the requirements name (variable picker, Add Plot menu, property-panel-as-primary-flow, File dialogs, non-blocking warning dialog) are Deferred (v0.2); their underlying capabilities ship in v0.1 as REPL functions where noted. See [ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md).
 
 ---
 
 ## 1. Problem Statement
 
-Julia's Makie ecosystem is the most capable scientific plotting library in Julia, but every plot requires code. Julia users who want interactive, exploratory plotting — the [Veusz](https://veusz.github.io/) workflow: click-to-build figures, live property editing, saveable sessions, 3D rotation — have no equivalent Julia-native tool. MakieViews closes this gap with a first-class Julia package: a Veusz-style GUI (graphical user interface) over Makie's public API, preserving GLMakie's full 3D and animation capability while eliminating the code-writing friction for standard plotting workflows. In v0.1, this capability is delivered through a REPL API (build → style → export → save); the click-to-build GUI described here is the v0.2+ target (see the v0.1.0 delivery-scope note above and [ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md)).
+Julia's Makie ecosystem is the most capable scientific plotting library in Julia, but every plot requires code. Julia users who want interactive, exploratory plotting — the [Veusz](https://veusz.github.io/) workflow: click-to-build figures, live property editing, saveable sessions, 3D rotation — have no equivalent Julia-native tool. FigureViews closes this gap with a first-class Julia package: a Veusz-style GUI (graphical user interface) over Makie's public API, preserving GLMakie's full 3D and animation capability while eliminating the code-writing friction for standard plotting workflows. In v0.1, this capability is delivered through a REPL API (build → style → export → save); the click-to-build GUI described here is the v0.2+ target (see the v0.1.0 delivery-scope note above and [ADR-022](adr/ADR-022-v0-1-ships-repl-driven.md)).
 
 ## 2. Primary Users
 
@@ -23,11 +23,11 @@ Julia users doing scientific plotting who want to reduce friction on exploratory
 
 - **GUI**: graphical user interface — the point-and-click desktop application.
 - **REPL**: read-eval-print loop — Julia's interactive command prompt.
-- **Makie**: the underlying Julia plotting engine that MakieViews drives.
+- **Makie**: the underlying Julia plotting engine that FigureViews drives.
 - **GLMakie**: Makie's OpenGL backend (interactive window, 3D, animation).
 - **CairoMakie**: Makie's Cairo backend (static export to PNG/SVG/PDF).
 - **Gtk4**: the GNOME toolkit version 4, used for the desktop shell (menus, docking, tree view, dialogs).
-- **`.mvz` file**: MakieViews' saved session format — a TOML (Tom's Obvious Minimal Language) document.
+- **`.mvz` file**: FigureViews' saved session format — a TOML (Tom's Obvious Minimal Language) document.
 - **LTTB**: largest-triangle-three-buckets, a line-plot downsampling algorithm that preserves visual shape.
 
 ---
@@ -38,16 +38,16 @@ Julia users doing scientific plotting who want to reduce friction on exploratory
 
 ### User Story 1 — Build and save a labeled 3D surface (Priority: P1)
 
-**Journey**: A user launches MakieViews from the Julia REPL, picks a matrix variable already in their session, chooses "Surface" from the Add Plot menu, edits title/axis labels/camera angle in the property panel, drags the plot to rotate it, saves the session as `analysis.mvz`, and exports a PNG.
+**Journey**: A user launches FigureViews from the Julia REPL, picks a matrix variable already in their session, chooses "Surface" from the Add Plot menu, edits title/axis labels/camera angle in the property panel, drags the plot to rotate it, saves the session as `analysis.mvz`, and exports a PNG.
 
-**Why this priority**: This is the atomic v0.1 success criterion. If a user cannot do this end-to-end, MakieViews has not shipped.
+**Why this priority**: This is the atomic v0.1 success criterion. If a user cannot do this end-to-end, FigureViews has not shipped.
 
 **Independent Test**: On a fresh install, launch → ingest a `Matrix{Float64}` from `Main` → build a surface plot with a title → save `.mvz` → export PNG. Verify PNG contents visually and `.mvz` round-trips.
 
 **Acceptance Scenarios**:
-1. **Given** the user runs `using MakieViews; makieviews()` in a REPL with `z = randn(50, 50)` defined, **When** they select `z` in the variable picker and click Add Plot → Surface, **Then** a 3D surface renders in the viewport.
+1. **Given** the user runs `using FigureViews; makieviews()` in a REPL with `z = randn(50, 50)` defined, **When** they select `z` in the variable picker and click Add Plot → Surface, **Then** a 3D surface renders in the viewport.
 2. **Given** a surface plot is selected, **When** the user edits the "Camera azimuth" numeric field to 45°, **Then** the viewport updates to that camera angle within one frame.
-3. **Given** the user clicks Save As → `analysis.mvz`, closes MakieViews, then reopens and loads `analysis.mvz`, **Then** the resulting figure is visually identical to the saved one.
+3. **Given** the user clicks Save As → `analysis.mvz`, closes FigureViews, then reopens and loads `analysis.mvz`, **Then** the resulting figure is visually identical to the saved one.
 
 ### User Story 2 — Build 2D exploratory plots from a CSV (Priority: P1)
 
@@ -66,7 +66,7 @@ Julia users doing scientific plotting who want to reduce friction on exploratory
 
 **Journey**: A user loads an HDF5 dataset with a time axis, binds the time slider to the time index, previews the animation in the viewport, and exports `.mp4`.
 
-**Why this priority**: Animations are a Makie strength; keeping them GUI-accessible in v0.1 differentiates MakieViews from any code-free alternative that lacks them.
+**Why this priority**: Animations are a Makie strength; keeping them GUI-accessible in v0.1 differentiates FigureViews from any code-free alternative that lacks them.
 
 **Independent Test**: Load a 3D array `f[x, y, t]` from HDF5 → build a heatmap of `f[:, :, t]` → bind t to the time slider (1..T) → play → export MP4 → verify MP4 duration matches T/fps.
 
@@ -90,7 +90,7 @@ Julia users doing scientific plotting who want to reduce friction on exploratory
 
 ### User Story 5 — Large-dataset pre-flight warns and offers downsampling (Priority: P2)
 
-**Journey**: A user loads a 10-million-point scatter dataset. MakieViews estimates GPU memory and frame rate, raises a non-blocking warning, and offers three downsampling options with previews of resulting point count.
+**Journey**: A user loads a 10-million-point scatter dataset. FigureViews estimates GPU memory and frame rate, raises a non-blocking warning, and offers three downsampling options with previews of resulting point count.
 
 **Why this priority**: Protects against the "GUI hangs and I can't recover" experience that would kill trust on first use. Frames the trade-off explicitly and lets the user override.
 
@@ -103,25 +103,25 @@ Julia users doing scientific plotting who want to reduce friction on exploratory
 
 ### User Story 6 — Fresh Windows/macOS/Linux install works (Priority: P1)
 
-**Journey**: A new user on any of the three supported OSes runs `] add MakieViews`, then `using MakieViews; makieviews()`, and sees a blank MakieViews window within a minute of package precompilation.
+**Journey**: A new user on any of the three supported OSes runs `] add FigureViews`, then `using FigureViews; makieviews()`, and sees a blank FigureViews window within a minute of package precompilation.
 
 **Why this priority**: If installation is broken on any platform, no other story matters for that user.
 
-**Independent Test**: On a clean CI runner for each of Windows, macOS, and Linux (headless Linux under xvfb), `] add MakieViews` and launch to a blank session. No manual steps.
+**Independent Test**: On a clean CI runner for each of Windows, macOS, and Linux (headless Linux under xvfb), `] add FigureViews` and launch to a blank session. No manual steps.
 
 **Acceptance Scenarios**:
-1. **Given** a clean Julia 1.12 install, **When** the user runs `] add MakieViews`, **Then** the package resolves and precompiles without error.
-2. **Given** MakieViews is installed, **When** the user runs `makieviews()`, **Then** a Gtk4 window opens with an embedded (empty) Makie viewport.
+1. **Given** a clean Julia 1.12 install, **When** the user runs `] add FigureViews`, **Then** the package resolves and precompiles without error.
+2. **Given** FigureViews is installed, **When** the user runs `makieviews()`, **Then** a Gtk4 window opens with an embedded (empty) Makie viewport.
 
 ---
 
 ### Edge Cases
 
 - **Empty `Main`**: user launches with no variables defined → variable picker shows an explicit empty state, not an error.
-- **REPL variable renamed/deleted between load and re-render**: MakieViews holds a snapshot of the data at ingest time; a later change in `Main` does not silently mutate the plot.
+- **REPL variable renamed/deleted between load and re-render**: FigureViews holds a snapshot of the data at ingest time; a later change in `Main` does not silently mutate the plot.
 - **HDF5 file contains non-numeric datasets** (strings, compound types): picker lists them but greys them out with an explanatory tooltip; user cannot accidentally load an unplottable dataset.
 - **CSV with mixed types in a column** (e.g., `"1", "2", "n/a"`): CSV.jl types the column as `String`; the picker greys it out for numeric plots and offers a note about cleaning in Julia.
-- **Session file from a future schema version**: on load, MakieViews inspects `schema_version` and refuses with a clear message ("this file was saved by MakieViews vX.Y, please upgrade") rather than best-effort loading.
+- **Session file from a future schema version**: on load, FigureViews inspects `schema_version` and refuses with a clear message ("this file was saved by FigureViews vX.Y, please upgrade") rather than best-effort loading.
 - **Session file with unknown node type** (e.g., a future custom recipe): the tree preserves the node as an opaque record with a "cannot render — unknown type" placeholder, and the file round-trips without dropping it.
 - **GPU driver crash while resizing viewport**: the app catches the OpenGL context loss and offers a "restart viewport" action rather than dying.
 - **User exports to a directory they cannot write**: caught before rendering; error dialog names the path.
@@ -135,15 +135,15 @@ Julia users doing scientific plotting who want to reduce friction on exploratory
 
 #### Data ingestion (v0.1 sources)
 
-- **FR-001**: MakieViews MUST enumerate variables in the calling Julia session's `Main` namespace when launched as `makieviews()` from the REPL, filtering to array-like types plottable by Makie (`AbstractVector`, `AbstractMatrix`, `AbstractArray{<:Real, 3}`, `DataFrame`).
-- **FR-002**: MakieViews MUST support loading CSV files via CSV.jl + DataFrames.jl, with the resulting columns appearing as selectable variables.
-- **FR-003**: MakieViews MUST support loading HDF5 files via HDF5.jl, with datasets appearing as selectable variables preserving their group path.
-- **FR-004**: On ingest, MakieViews MUST snapshot the data by copy — later mutations of the underlying variable in `Main` do not affect already-plotted data.
+- **FR-001**: FigureViews MUST enumerate variables in the calling Julia session's `Main` namespace when launched as `makieviews()` from the REPL, filtering to array-like types plottable by Makie (`AbstractVector`, `AbstractMatrix`, `AbstractArray{<:Real, 3}`, `DataFrame`).
+- **FR-002**: FigureViews MUST support loading CSV files via CSV.jl + DataFrames.jl, with the resulting columns appearing as selectable variables.
+- **FR-003**: FigureViews MUST support loading HDF5 files via HDF5.jl, with datasets appearing as selectable variables preserving their group path.
+- **FR-004**: On ingest, FigureViews MUST snapshot the data by copy — later mutations of the underlying variable in `Main` do not affect already-plotted data.
 
 #### Plot types (v0.1)
 
-- **FR-005**: MakieViews MUST support the following seven plot types, each configurable through the GUI without writing code: line, scatter, bar, heatmap, contour, surface (3D), volume (3D).
-- **FR-006**: MakieViews MUST allow the user to add, delete, reorder, and rename plots and axes through the tree view.
+- **FR-005**: FigureViews MUST support the following seven plot types, each configurable through the GUI without writing code: line, scatter, bar, heatmap, contour, surface (3D), volume (3D).
+- **FR-006**: FigureViews MUST allow the user to add, delete, reorder, and rename plots and axes through the tree view.
 
 #### Property editing
 
@@ -153,7 +153,7 @@ Julia users doing scientific plotting who want to reduce friction on exploratory
 
 #### Tree model
 
-- **FR-010**: MakieViews MUST maintain a tree with node types Session, Figure, Axis, Plot (with subtypes for the seven plot types).
+- **FR-010**: FigureViews MUST maintain a tree with node types Session, Figure, Axis, Plot (with subtypes for the seven plot types).
 - **FR-011**: The tree node schema MUST generalize to additional node types in later versions without a redesign (see §7).
 
 #### 3D interaction
@@ -162,39 +162,39 @@ Julia users doing scientific plotting who want to reduce friction on exploratory
 
 #### Animation
 
-- **FR-013**: MakieViews MUST allow binding a time slider to any numeric attribute or data slice through the GUI.
-- **FR-014**: MakieViews MUST export animations to `.mp4` and `.gif` at a user-specified frame rate.
+- **FR-013**: FigureViews MUST allow binding a time slider to any numeric attribute or data slice through the GUI.
+- **FR-014**: FigureViews MUST export animations to `.mp4` and `.gif` at a user-specified frame rate.
 
 #### Session persistence
 
-- **FR-015**: MakieViews MUST save sessions as a `.mvz` TOML file including a top-level `schema_version` field.
-- **FR-016**: MakieViews MUST reload a saved `.mvz` and produce a figure tree visually identical to the one saved.
-- **FR-017**: MakieViews MUST reject `.mvz` files whose `schema_version` is higher than the loader's supported version, with a clear error naming the required version.
-- **FR-018**: MakieViews MUST preserve unknown-node-type entries when loading a `.mvz` file from a future compatible version, rendering them as opaque placeholders and round-tripping them on save (see §7).
+- **FR-015**: FigureViews MUST save sessions as a `.mvz` TOML file including a top-level `schema_version` field.
+- **FR-016**: FigureViews MUST reload a saved `.mvz` and produce a figure tree visually identical to the one saved.
+- **FR-017**: FigureViews MUST reject `.mvz` files whose `schema_version` is higher than the loader's supported version, with a clear error naming the required version.
+- **FR-018**: FigureViews MUST preserve unknown-node-type entries when loading a `.mvz` file from a future compatible version, rendering them as opaque placeholders and round-tripping them on save (see §7).
 
 #### Static export
 
-- **FR-019**: MakieViews MUST export the current figure to PNG, SVG, and PDF via CairoMakie.
+- **FR-019**: FigureViews MUST export the current figure to PNG, SVG, and PDF via CairoMakie.
 
 #### Preferences
 
-- **FR-020**: MakieViews MUST persist user preferences (font family/size, line width, marker types, color palette, grid defaults) in a per-user TOML file managed via Scratch.jl.
+- **FR-020**: FigureViews MUST persist user preferences (font family/size, line width, marker types, color palette, grid defaults) in a per-user TOML file managed via Scratch.jl.
 - **FR-021**: Preferences MUST seed new figures only — existing figures load with their saved styling untouched.
-- **FR-022**: MakieViews MUST provide a "Reset selection to preferences" action that applies current preferences to selected tree nodes on demand.
+- **FR-022**: FigureViews MUST provide a "Reset selection to preferences" action that applies current preferences to selected tree nodes on demand.
 
 #### Pre-flight dataset check
 
-- **FR-023**: On dataset load, MakieViews MUST inspect host specs (`Sys.total_memory()`, GPU VRAM if detectable, CPU count) and estimate memory footprint and expected frame rate.
-- **FR-024**: If the estimate exceeds a threshold (>60% of available VRAM, or estimated <15 fps sustained over a 2-second window), MakieViews MUST raise a non-blocking warning showing the estimate and offering Accept / Downsample / Override.
+- **FR-023**: On dataset load, FigureViews MUST inspect host specs (`Sys.total_memory()`, GPU VRAM if detectable, CPU count) and estimate memory footprint and expected frame rate.
+- **FR-024**: If the estimate exceeds a threshold (>60% of available VRAM, or estimated <15 fps sustained over a 2-second window), FigureViews MUST raise a non-blocking warning showing the estimate and offering Accept / Downsample / Override.
 - **FR-025**: Downsampling options MUST include uniform stride, min/max decimation, and LTTB (for line plots only).
-- **FR-026**: If GPU VRAM cannot be detected, MakieViews MUST fall back to the message "GPU unknown, proceeding without VRAM estimate" and permit loading without blocking.
+- **FR-026**: If GPU VRAM cannot be detected, FigureViews MUST fall back to the message "GPU unknown, proceeding without VRAM estimate" and permit loading without blocking.
 
 ### 5.2 Non-Functional Requirements
 
 - **NFR-001** (Forward compatibility of session format): The `.mvz` schema MUST use a versioned schema and MUST reserve unknown-node-type handling on load. See §7.
 - **NFR-002** (Schema-driven UI): The property panel's implementation MUST NOT branch on hard-coded plot-type names. See §7 and FR-009.
 - **NFR-003** (Cross-platform): The v0.1 release MUST install and launch to a blank session on Windows, macOS, and Linux (Linux headless via xvfb for CI).
-- **NFR-004** (Distribution): The v0.1 release MUST be installable via `] add MakieViews` from Julia's General registry.
+- **NFR-004** (Distribution): The v0.1 release MUST be installable via `] add FigureViews` from Julia's General registry.
 - **NFR-005** (Startup): First launch after precompilation MUST reach a blank interactive window in under 10 seconds on a laptop-class machine (2020 or newer).
 
 ### 5.3 Key Entities
@@ -276,8 +276,8 @@ These constraints are referenced from ADR-004 (session format), ADR-006 (propert
 
 ### Measurable Outcomes (v0.1)
 
-- **SC-001** (Registered): MakieViews is registered in Julia's General registry as v0.1.0; `] add MakieViews` resolves without error on Windows, macOS, and Linux with Julia 1.12.
-- **SC-002** (Blank session): A new user on any of the three OSes reaches a blank interactive MakieViews window within one minute of `] add MakieViews` completing (excluding first-time precompilation).
+- **SC-001** (Registered): FigureViews is registered in Julia's General registry as v0.1.0; `] add FigureViews` resolves without error on Windows, macOS, and Linux with Julia 1.12.
+- **SC-002** (Blank session): A new user on any of the three OSes reaches a blank interactive FigureViews window within one minute of `] add FigureViews` completing (excluding first-time precompilation).
 - **SC-003** (End-to-end atomic test): A new user can ingest a matrix from either the REPL or a CSV/HDF5 file and produce, save, and reload a labeled 3D surface plot with a rotated camera and PNG/SVG/PDF export — without writing any plotting code.
 - **SC-004** (Round-trip fidelity): Session round-trip (save → close → reopen) produces a figure that passes a golden-image test against the original at pixel-hash equality via CairoMakie static export.
 - **SC-005** (Seven plot types): All seven plot types (line, scatter, bar, heatmap, contour, surface, volume) can be created through the GUI, styled through the property panel, and exported statically.
