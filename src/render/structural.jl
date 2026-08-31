@@ -16,14 +16,36 @@ struct RemoveAxisOp
     ax_id::String
 end
 
-# Returns true when a makieviews() window is displayed and the live-queued branch is active.
-# Task 090 replaces this stub with the real flag check.
-_window_is_live(renderer::Renderer) = false
+_window_is_live(renderer::Renderer) = renderer.viewport_widget !== nothing
+
+function _post_to_queue!(renderer::Renderer, op)
+    lock(renderer._queue_lock) do
+        push!(renderer._mutation_queue, op)
+    end
+    # Arm a one-shot g_idle_add drain (fires on main thread at next GLib idle).
+    # Captures renderer and viewport_widget by reference in the closure.
+    widget = renderer.viewport_widget
+    Gtk4.GLib.g_idle_add() do
+        # Drain all pending ops on the main thread.
+        ops = lock(renderer._queue_lock) do
+            ops = copy(renderer._mutation_queue)
+            empty!(renderer._mutation_queue)
+            ops
+        end
+        for op in ops
+            _apply_structural_direct!(renderer, op)
+        end
+        # Single queue_render after all ops applied.
+        if widget !== nothing
+            Gtk4.queue_render(widget)
+        end
+        return false  # one-shot: do not re-arm automatically
+    end
+end
 
 function apply_structural!(renderer::Renderer, op)
     if _window_is_live(renderer)
-        # Task 090: live-queued branch attaches here
-        error("live-queued branch not yet implemented (Task 090)")
+        _post_to_queue!(renderer, op)
     else
         _apply_structural_direct!(renderer, op)
     end

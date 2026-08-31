@@ -3,10 +3,14 @@ mutable struct Renderer
     session::Session
     axis_handles::Dict{String, Any}
     plot_handles::Dict{String, Any}
+    _plot_axis::Dict{String, String}
     _plot_observers::Dict{String, Vector{Any}}
     _axis_observers::Dict{String, Vector{Any}}
     _structural_observers::Vector{Any}
-    _plot_axis::Dict{String, String}
+    # Live-window state (set by makieviews() after show(w); nothing = headless)
+    viewport_widget::Union{Nothing, Any}   # GtkMakieWidget handle
+    _mutation_queue::Vector{Any}           # pending structural ops, drained on main thread
+    _queue_lock::ReentrantLock             # guards _mutation_queue
 end
 
 function Renderer(session::Session, fig::Makie.Figure)
@@ -15,17 +19,22 @@ function Renderer(session::Session, fig::Makie.Figure)
         session,
         Dict{String, Any}(),
         Dict{String, Any}(),
+        Dict{String, String}(),
         Dict{String, Vector{Any}}(),
         Dict{String, Vector{Any}}(),
         Any[],
-        Dict{String, String}()
+        nothing,
+        Any[],
+        ReentrantLock()
     )
     
     _rebuild_from_session!(renderer)
     
     h = on(session.figures) do _
-        empty!(renderer.fig)
-        _rebuild_from_session!(renderer)
+        if !_window_is_live(renderer)
+            empty!(renderer.fig)
+            _rebuild_from_session!(renderer)
+        end
     end
     push!(renderer._structural_observers, h)
     
@@ -50,14 +59,20 @@ function _rebuild_from_session!(renderer::Renderer)
             _render_axis!(renderer, renderer.fig, ax_node, renderer.fig[axis_index, 1])
             
             h = on(ax_node.plots) do _
-                empty!(renderer.fig)
-                _rebuild_from_session!(renderer)
+                if !_window_is_live(renderer)
+                    empty!(renderer.fig)
+                    _rebuild_from_session!(renderer)
+                end
+                # In live mode, structural changes arrive via apply_structural!/queue — no rebuild here.
             end
             push!(renderer._structural_observers, h)
         end
         h = on(fig_node.axes) do _
-            empty!(renderer.fig)
-            _rebuild_from_session!(renderer)
+            if !_window_is_live(renderer)
+                empty!(renderer.fig)
+                _rebuild_from_session!(renderer)
+            end
+            # In live mode, structural changes arrive via apply_structural!/queue — no rebuild here.
         end
         push!(renderer._structural_observers, h)
     end

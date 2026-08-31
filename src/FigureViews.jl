@@ -133,6 +133,14 @@ window will deadlock. See ADR-024 for details.
     w[] = main_paned
     show(w)
 
+    # Ensure the GLib main loop is running (required for g_idle_add drain).
+    # Gtk4.__init__ starts it only in interactive sessions; makieviews() may be
+    # called from Pkg.test() or a script where isinteractive() == false.
+    Gtk4.GLib.start_main_loop()
+
+    # Activate live-queued structural-mutation path (ADR-024 Part A).
+    renderer.viewport_widget = viewport_widget
+
     _current_session[] = session
     _current_renderer[] = renderer
 
