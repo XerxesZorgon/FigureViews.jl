@@ -10,6 +10,7 @@ include("unit/downsample.jl")
 include("unit/session.jl")
 include("unit/tree_pane.jl")
 include("unit/incremental_ops.jl")
+include("unit/thread_check.jl")
 
 @testset "M1 shell — module loads" begin
     @test :makieviews in names(FigureViews)

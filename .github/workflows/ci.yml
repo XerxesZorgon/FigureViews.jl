@@ -47,7 +47,7 @@ jobs:
         uses: julia-actions/julia-buildpkg@v1
 
       - name: Run tests (under xvfb)
-        run: xvfb-run -a julia --project=. --code-coverage=user -e 'using Pkg; Pkg.test()'
+        run: xvfb-run -a julia --threads 4,1 --project=. --code-coverage=user -e 'using Pkg; Pkg.test()'
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
