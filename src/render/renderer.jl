@@ -272,3 +272,38 @@ function _remove_plot_handle!(renderer::Renderer, plot_id::String)
     delete!(renderer.plot_handles, plot_id)
     return
 end
+
+function _add_axis!(renderer::Renderer, fig_node::Figure, ax_node::Axis)
+    N = length(renderer.axis_handles) + 1
+    _render_axis!(renderer, renderer.fig, ax_node, renderer.fig[N, 1])
+end
+
+function _remove_axis!(renderer::Renderer, ax_id::String)
+    if !haskey(renderer.axis_handles, ax_id)
+        return
+    end
+
+    # 1. Remove all plots belonging to this axis
+    plot_ids_to_remove = [pid for (pid, aid) in renderer._plot_axis if aid == ax_id]
+    for pid in plot_ids_to_remove
+        _remove_plot_handle!(renderer, pid)
+    end
+
+    # 2. Call delete! to remove the Makie axis
+    makie_ax = renderer.axis_handles[ax_id]
+    Makie.delete!(makie_ax)
+
+    # 3. off() each observer in _axis_observers
+    if haskey(renderer._axis_observers, ax_id)
+        for h in renderer._axis_observers[ax_id]
+            off(h)
+        end
+    end
+
+    # M13 interim constraint: one-row-per-axis layout leaves a gap at row N when an axis is removed.
+    # General layout reflow is deferred with LayoutSpec placement (PLAN-v0.2.md M14+).
+    delete!(renderer._axis_observers, ax_id)
+    delete!(renderer.axis_handles, ax_id)
+    return
+end
+
