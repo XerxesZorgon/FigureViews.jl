@@ -9,6 +9,7 @@ include("unit/schema.jl")
 include("unit/downsample.jl")
 include("unit/session.jl")
 include("unit/tree_pane.jl")
+include("unit/incremental_ops.jl")
 
 @testset "M1 shell — module loads" begin
     @test :makieviews in names(FigureViews)
@@ -68,7 +69,8 @@ end
 
     @test haskey(renderer.axis_handles, ax_node.id)
     @test haskey(renderer.plot_handles, plot_node.id)
-    @test length(renderer._observer_handles) >= 1
+    @test haskey(renderer._plot_observers, plot_node.id)
+    @test !isempty(renderer._plot_observers[plot_node.id])
 
     # Trigger attribute change and verify Makie plot handle updates
     plot_node.attrs[:linewidth][] = 5.0

@@ -3,11 +3,23 @@ mutable struct Renderer
     session::Session
     axis_handles::Dict{String, Any}
     plot_handles::Dict{String, Any}
-    _observer_handles::Vector{Any}
+    _plot_observers::Dict{String, Vector{Any}}
+    _axis_observers::Dict{String, Vector{Any}}
+    _structural_observers::Vector{Any}
+    _plot_axis::Dict{String, String}
 end
 
 function Renderer(session::Session, fig::Makie.Figure)
-    renderer = Renderer(fig, session, Dict{String, Any}(), Dict{String, Any}(), Any[])
+    renderer = Renderer(
+        fig,
+        session,
+        Dict{String, Any}(),
+        Dict{String, Any}(),
+        Dict{String, Vector{Any}}(),
+        Dict{String, Vector{Any}}(),
+        Any[],
+        Dict{String, String}()
+    )
     
     _rebuild_from_session!(renderer)
     
@@ -15,7 +27,7 @@ function Renderer(session::Session, fig::Makie.Figure)
         empty!(renderer.fig)
         _rebuild_from_session!(renderer)
     end
-    push!(renderer._observer_handles, h)
+    push!(renderer._structural_observers, h)
     
     return renderer
 end
@@ -41,13 +53,13 @@ function _rebuild_from_session!(renderer::Renderer)
                 empty!(renderer.fig)
                 _rebuild_from_session!(renderer)
             end
-            push!(renderer._observer_handles, h)
+            push!(renderer._structural_observers, h)
         end
         h = on(fig_node.axes) do _
             empty!(renderer.fig)
             _rebuild_from_session!(renderer)
         end
-        push!(renderer._observer_handles, h)
+        push!(renderer._structural_observers, h)
     end
 end
 
@@ -67,6 +79,7 @@ function _render_axis!(renderer::Renderer, fig::Makie.Figure, ax::Axis, position
     _register_axis_observer!(renderer, ax)
     
     for plot in ax.plots[]
+        renderer._plot_axis[plot.id] = ax.id
         _render_plot!(renderer, makie_ax, plot)
     end
     
@@ -78,6 +91,13 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
     function arr(role::Symbol)
         ref = only(r for r in plot.data_refs[] if r.role == role)
         return renderer.session.data_snapshots[ref.snapshot_id]
+    end
+
+    for (aid, h) in renderer.axis_handles
+        if h === makie_ax
+            renderer._plot_axis[plot.id] = aid
+            break
+        end
     end
 
     if plot.type == :line
@@ -155,6 +175,7 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
 end
 
 function _register_axis_observer!(renderer::Renderer, ax::Axis)
+    obs_list = get!(() -> Any[], renderer._axis_observers, ax.id)
     makie_ax = renderer.axis_handles[ax.id]
     h1 = on(ax.title) do t; makie_ax.title[] = t; end
     h2 = on(ax.xlabel) do t; makie_ax.xlabel[] = t; end
@@ -166,14 +187,14 @@ function _register_axis_observer!(renderer::Renderer, ax::Axis)
         h5 = on(ax.ylim) do lim; if lim !== nothing makie_ax.limits[] = (makie_ax.limits[][1], makie_ax.limits[][2], lim[1], lim[2]) end; end
     end
     
-    push!(renderer._observer_handles, h1)
-    push!(renderer._observer_handles, h2)
-    push!(renderer._observer_handles, h3)
+    push!(obs_list, h1)
+    push!(obs_list, h2)
+    push!(obs_list, h3)
     if h4 !== nothing
-        push!(renderer._observer_handles, h4)
+        push!(obs_list, h4)
     end
     if h5 !== nothing
-        push!(renderer._observer_handles, h5)
+        push!(obs_list, h5)
     end
 
     if ax.kind == :axis3d && makie_ax isa Makie.Axis3
@@ -184,11 +205,12 @@ function _register_axis_observer!(renderer::Renderer, ax::Axis)
                 # zoom: Axis3 has no scalar zoom Observable; azimuth/elevation are the tested path.
             end
         end
-        push!(renderer._observer_handles, hc)
+        push!(obs_list, hc)
     end
 end
 
 function _register_plot_observer!(renderer::Renderer, plot::Plot)
+    obs_list = get!(() -> Any[], renderer._plot_observers, plot.id)
     for (name, obs) in plot.attrs
         # :shading live-mutation needs shading_map translation; deferred to M5
         if name == :shading
@@ -198,7 +220,7 @@ function _register_plot_observer!(renderer::Renderer, plot::Plot)
             handle = renderer.plot_handles[plot.id]
             handle[name] = val
         end
-        push!(renderer._observer_handles, h)
+        push!(obs_list, h)
     end
 
     # Animation binding observer: swap frame data when current_frame changes
@@ -215,5 +237,38 @@ function _register_plot_observer!(renderer::Renderer, plot::Plot)
             handle.color[] = mat_t
         end
     end
-    push!(renderer._observer_handles, hb)
+    push!(obs_list, hb)
+end
+
+function _add_plot_handle!(renderer::Renderer, ax_node::Axis, plot::Plot)
+    makie_ax = get(renderer.axis_handles, ax_node.id, nothing)
+    if makie_ax === nothing
+        throw(ArgumentError("axis handle not found for ax_node.id=$(ax_node.id)"))
+    end
+    renderer._plot_axis[plot.id] = ax_node.id
+    _render_plot!(renderer, makie_ax, plot)
+end
+
+function _remove_plot_handle!(renderer::Renderer, plot_id::String)
+    if !haskey(renderer.plot_handles, plot_id)
+        return
+    end
+
+    handle = renderer.plot_handles[plot_id]
+    ax_id = get(renderer._plot_axis, plot_id, nothing)
+    makie_ax = ax_id !== nothing ? get(renderer.axis_handles, ax_id, nothing) : nothing
+    if makie_ax !== nothing
+        Makie.delete!(makie_ax, handle)
+    end
+    delete!(renderer._plot_axis, plot_id)
+
+    if haskey(renderer._plot_observers, plot_id)
+        for h in renderer._plot_observers[plot_id]
+            off(h)
+        end
+        delete!(renderer._plot_observers, plot_id)
+    end
+
+    delete!(renderer.plot_handles, plot_id)
+    return
 end
