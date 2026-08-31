@@ -403,6 +403,7 @@ end
 
 include("integration/data_sources.jl")
 include("integration/persistence.jl")
+include("integration/mvz_roundtrip_generic.jl")
 include("integration/animation.jl")
 include("integration/export.jl")
 include("integration/preferences.jl")

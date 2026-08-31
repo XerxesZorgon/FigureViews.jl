@@ -56,14 +56,54 @@ function _axis_to_dict(ax::Axis)::Dict{String,Any}
         cam = ax.camera[]
         d["camera"] = Dict{String,Any}("azimuth" => cam.azimuth, "elevation" => cam.elevation, "zoom" => cam.zoom)
     end
-    d["plot"] = [_plot_to_dict(p) for p in ax.plots[]]
+    d["plot"] = [_plot_to_dict(p, ax.id) for p in ax.plots[]]
     return d
 end
 
-function _plot_to_dict(plot::Plot)::Dict{String,Any}
+function _typed_value_to_dict(tv::TypedValue)::Dict{String,Any}
+    val = if tv.type == :DataRef && tv.value isa DataRef
+        _dataref_to_dict(tv.value)
+    elseif tv.value isa Colors.Colorant
+        "#" * Colors.hex(tv.value)
+    elseif tv.value isa Symbol
+        string(tv.value)
+    elseif tv.value isa Tuple
+        collect(tv.value)
+    else
+        tv.value
+    end
+    return Dict{String,Any}(
+        "type" => string(tv.type),
+        "value" => val
+    )
+end
+_typed_value_to_dict(v) = _typed_value_to_dict(typed_value(v))
+
+function _plot_to_dict(plot::Plot, target::String = "")::Dict{String,Any}
     d = Dict{String,Any}()
-    d["id"]   = plot.id
-    d["type"] = string(plot.type)
+    d["id"]     = plot.id
+    d["target"] = !isempty(plot.target) ? plot.target : target
+    d["func"]   = string(plot.func)
+    d["type"]   = string(plot.type)
+    d["api"]    = Dict{String,Any}(
+        "makie_major" => plot.api.makie_major,
+        "makie_minor" => plot.api.makie_minor
+    )
+    d["meta"]   = Dict{String,Any}(
+        "schema_version" => string(plot.meta.schema_version),
+        "status"         => string(plot.meta.status)
+    )
+
+    # Sync attrs to kwargs to ensure latest values are serialized
+    for (k, obs) in plot.attrs
+        plot.kwargs[k] = typed_value(obs[])
+    end
+    if !isempty(plot.data_refs[])
+        plot.args = Any[typed_value(r) for r in plot.data_refs[]]
+    end
+
+    d["args"]      = [_typed_value_to_dict(a) for a in plot.args]
+    d["kwargs"]    = Dict{String,Any}(string(k) => _typed_value_to_dict(v) for (k, v) in plot.kwargs)
     d["data_refs"] = [_dataref_to_dict(r) for r in plot.data_refs[]]
     attrs = Dict{String,Any}()
     for (k, obs) in plot.attrs
@@ -89,17 +129,21 @@ function _plot_to_dict(plot::Plot)::Dict{String,Any}
     return d
 end
 
-function _plot_to_dict(node::UnknownNode)::Dict{String,Any}
+function _plot_to_dict(node::UnknownNode, target::String = "")::Dict{String,Any}
     d = copy(node.payload)
     d["type"] = node.original_type
+    if !haskey(d, "target") && !isempty(target)
+        d["target"] = target
+    end
     return d
 end
 
 function _dataref_to_dict(ref::DataRef)::Dict{String,Any}
     d = Dict{String,Any}()
-    d["role"]   = string(ref.role)
-    d["source"] = string(ref.source)
-    d["label"]  = ref.label
+    d["role"]        = string(ref.role)
+    d["snapshot_id"] = ref.snapshot_id
+    d["source"]      = string(ref.source)
+    d["label"]       = ref.label
     if ref.absolute_path !== nothing; d["absolute_path"] = ref.absolute_path; end
     if ref.relative_path !== nothing; d["relative_path"] = ref.relative_path; end
     if ref.column        !== nothing; d["column"]        = ref.column;        end

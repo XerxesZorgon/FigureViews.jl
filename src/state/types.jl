@@ -45,6 +45,9 @@ struct TypedValue
     value::Any
 end
 
+Base.:(==)(a::TypedValue, b::TypedValue) = a.type == b.type && a.value == b.value
+Base.hash(tv::TypedValue, h::UInt) = hash(tv.type, hash(tv.value, h))
+
 function typed_value(v)
     if v isa TypedValue
         return v
@@ -52,14 +55,14 @@ function typed_value(v)
         return TypedValue(:Colorant, "#" * Colors.hex(v))
     elseif v isa Symbol
         return TypedValue(:Symbol, string(v))
+    elseif v isa Bool
+        return TypedValue(:Bool, v)
     elseif v isa Integer
         return TypedValue(:Int, Int64(v))
     elseif v isa Real
         return TypedValue(:Real, Float64(v))
     elseif v isa String
         return TypedValue(:String, v)
-    elseif v isa Bool
-        return TypedValue(:Bool, v)
     elseif v isa Tuple
         return TypedValue(:Tuple, collect(v))
     elseif v isa DataRef
@@ -73,11 +76,15 @@ end
 
 function decode_typed_value(tv::TypedValue)
     if tv.type == :Colorant
-        return parse(Colors.RGB, tv.value)
+        if tv.value isa Colors.Colorant
+            return Colors.RGB{Float64}(tv.value)
+        else
+            return Colors.RGB{Float64}(parse(Colors.RGB, tv.value))
+        end
     elseif tv.type == :Symbol
-        return Symbol(tv.value)
+        return tv.value isa Symbol ? tv.value : Symbol(tv.value)
     elseif tv.type == :Int
-        return Int(tv.value)
+        return Int64(tv.value)
     elseif tv.type == :Real
         return Float64(tv.value)
     elseif tv.type == :String
@@ -85,7 +92,7 @@ function decode_typed_value(tv::TypedValue)
     elseif tv.type == :Bool
         return Bool(tv.value)
     elseif tv.type == :Tuple
-        return Tuple(tv.value)
+        return tv.value isa Tuple ? tv.value : Tuple(tv.value)
     elseif tv.type == :DataRef
         return tv.value
     else
