@@ -4,9 +4,22 @@ All notable changes to FigureViews will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] — v0.2 development
 
-*No changes yet.*
+### Added
+- **Incremental renderer (Bug F fix):** Replaced the v0.1 full-figure-rebuild observers
+  with targeted incremental ops (`_add_plot_handle!`, `_remove_plot_handle!`, `_add_axis!`,
+  `_remove_axis!`). Structural edits now mutate only the changed node's Makie handle,
+  preserving camera and interaction state on unaffected axes.
+- **Live structural editing:** `apply_structural!` funnel with a thread-safe mutation queue
+  drained on the GLib main thread via `g_idle_add`. Adding or removing plots and axes on a
+  displayed `makieviews()` window no longer deadlocks.
+- **Interactive-thread startup check:** `makieviews()` now errors with an actionable message
+  if Julia was not started with `--threads N,1`. The GLib main loop is started explicitly
+  in `makieviews()` so the drain fires in non-interactive contexts (e.g. `Pkg.test()`).
+- **Observer leak fix:** Per-node observer storage (`_plot_observers`, `_axis_observers`)
+  replaces the v0.1 flat `_observer_handles` vector. Observers are `off()`'d when a node
+  is removed, closing the v0.1 handle-accumulation leak.
 
 ## Pre-release development history (M1–M11)
 ### M11 — Pre-tag docs reconciliation (2026-08-28)
