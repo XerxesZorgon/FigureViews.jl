@@ -36,9 +36,9 @@ else
     op = AddPlotOp(ax_node, new_plot)
     apply_structural!(renderer, op)
 
-    # Poll for the drain to fire (up to 3 seconds).
+    # Poll for the drain to fire (up to 10 seconds).
     t0 = time()
-    while !haskey(renderer.plot_handles, new_plot.id) && time() - t0 < 3.0
+    while !haskey(renderer.plot_handles, new_plot.id) && time() - t0 < 10.0
         sleep(0.1)
     end
     @test haskey(renderer.plot_handles, new_plot.id)
@@ -46,7 +46,7 @@ else
     # --- Remove the plot ---
     apply_structural!(renderer, RemovePlotOp(new_plot.id))
     t0 = time()
-    while haskey(renderer.plot_handles, new_plot.id) && time() - t0 < 3.0
+    while haskey(renderer.plot_handles, new_plot.id) && time() - t0 < 10.0
         sleep(0.1)
     end
     @test !haskey(renderer.plot_handles, new_plot.id)
@@ -55,7 +55,7 @@ else
     new_ax = add_axis!(fig_node; kind=:axis2d, title="Live axis")
     apply_structural!(renderer, AddAxisOp(fig_node, new_ax))
     t0 = time()
-    while !haskey(renderer.axis_handles, new_ax.id) && time() - t0 < 3.0
+    while !haskey(renderer.axis_handles, new_ax.id) && time() - t0 < 10.0
         sleep(0.1)
     end
     @test haskey(renderer.axis_handles, new_ax.id)

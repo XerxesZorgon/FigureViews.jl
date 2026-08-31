@@ -10,10 +10,28 @@ end
 
 mutable struct Plot <: Node
     id::String                                       # immutable
-    type::Symbol                                     # :line | :scatter | :bar | :heatmap | :contour | :surface | :volume, immutable
-    data_refs::Observable{Vector{DataRef}}           # e.g. [DataRef(:x), DataRef(:y)]
-    attrs::Dict{Symbol, Observable{Any}}             # one Observable per attribute; keys match PLOT_SCHEMAS[type]; validated at every set
+    target::String                                   # owning axis id (ADR-026)
+    func::Symbol                                     # canonical plot function, e.g. :scatter, :line (ADR-026)
+    args::Vector{Any}                                # ordered, typed positional arguments (ADR-026)
+    kwargs::Dict{Symbol, Any}                        # attribute name => typed value (ADR-026)
+    api::NamedTuple                                  # (makie_major=0, makie_minor=24) (ADR-026)
+    meta::PlotMeta                                   # schema_version + status (:valid, etc.) (ADR-026)
+    type::Symbol                                     # alias to func for backward compatibility
+    data_refs::Observable{Vector{DataRef}}           # reactive data refs
+    attrs::Dict{Symbol, Observable{Any}}             # reactive attributes
     animation_binding::Observable{Union{Nothing, AnimBinding}}
+end
+
+# Backward-compatible 5-argument constructor
+function Plot(id::String, type::Symbol, data_refs::Observable{Vector{DataRef}},
+              attrs::Dict{Symbol, Observable{Any}},
+              anim_binding::Observable{Union{Nothing, AnimBinding}};
+              target::String = "",
+              api = (makie_major = 0, makie_minor = 24),
+              meta = PlotMeta(v"1.0.0", :valid))
+    args = Any[typed_value(r) for r in data_refs[]]
+    kwargs = Dict{Symbol, Any}(k => typed_value(obs[]) for (k, obs) in attrs)
+    Plot(id, target, type, args, kwargs, api, meta, type, data_refs, attrs, anim_binding)
 end
 
 mutable struct Axis <: Node

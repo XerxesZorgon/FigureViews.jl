@@ -51,22 +51,23 @@ end
 Return the seed value for one attr: the matching preference if present, else spec.default.
 Convention: `default_<attr>` seeds `<attr>`; `palette` seeds `:color` cyclically.
 """
-function _seed_attr_from_prefs(spec::AttrSpec, prefs::Dict{String,Any}, palette_index::Int)
-    if spec.name == :color && haskey(prefs, "palette")
+function _seed_attr_from_prefs(name::Symbol, spec::AttrSpec, prefs::Dict{String,Any}, palette_index::Int)
+    if name == :color && haskey(prefs, "palette")
         pal = prefs["palette"]
         if pal isa AbstractVector && !isempty(pal)
             hex = pal[mod1(palette_index, length(pal))]
             return parse(Colors.RGB, hex)
         end
     end
-    key = "default_" * string(spec.name)
+    key = "default_" * string(name)
     if haskey(prefs, key)
         v = prefs[key]
-        if spec.kind == :color && v isa String
+        kind = spec.type
+        if kind in (:color, :Colorant) && v isa String
             return parse(Colors.RGB, v)
-        elseif spec.kind == :enum
+        elseif kind in (:enum, :Symbol)
             return Symbol(v)
-        elseif spec.kind == :number
+        elseif kind in (:number, :Real, :Int)
             return Float64(v)
         else
             return v
@@ -75,12 +76,23 @@ function _seed_attr_from_prefs(spec::AttrSpec, prefs::Dict{String,Any}, palette_
     return spec.default
 end
 
+_seed_attr_from_prefs(spec::AttrSpec, prefs::Dict{String,Any}, palette_index::Int) =
+    _seed_attr_from_prefs(spec.name, spec, prefs, palette_index)
+
 function _init_attrs(plot_type::Symbol; prefs::Union{Nothing,Dict{String,Any}} = nothing,
                      palette_index::Int = 1)::Dict{Symbol, Observable{Any}}
     d = Dict{Symbol, Observable{Any}}()
-    for spec in PLOT_SCHEMAS[plot_type]
-        val = prefs === nothing ? spec.default : _seed_attr_from_prefs(spec, prefs, palette_index)
-        d[spec.name] = Observable{Any}(val)
+    if haskey(REGISTRY, plot_type)
+        entry = REGISTRY[plot_type]
+        for (name, spec) in entry.attributes
+            val = prefs === nothing ? spec.default : _seed_attr_from_prefs(name, spec, prefs, palette_index)
+            d[name] = Observable{Any}(val)
+        end
+    elseif haskey(PLOT_SCHEMAS, plot_type)
+        for spec in PLOT_SCHEMAS[plot_type]
+            val = prefs === nothing ? spec.default : _seed_attr_from_prefs(spec.name, spec, prefs, palette_index)
+            d[spec.name] = Observable{Any}(val)
+        end
     end
     return d
 end
@@ -92,9 +104,17 @@ Overwrite each of `plot`'s attrs with the preference value (or spec default if t
 preference does not declare it). Fires each attr observable so the renderer updates.
 """
 function reset_to_preferences!(plot::Plot, prefs::Dict{String,Any}; palette_index::Int = 1)
-    for spec in PLOT_SCHEMAS[plot.type]
-        haskey(plot.attrs, spec.name) || continue
-        plot.attrs[spec.name][] = _seed_attr_from_prefs(spec, prefs, palette_index)
+    if haskey(REGISTRY, plot.func)
+        entry = REGISTRY[plot.func]
+        for (name, spec) in entry.attributes
+            haskey(plot.attrs, name) || continue
+            plot.attrs[name][] = _seed_attr_from_prefs(name, spec, prefs, palette_index)
+        end
+    elseif haskey(PLOT_SCHEMAS, plot.type)
+        for spec in PLOT_SCHEMAS[plot.type]
+            haskey(plot.attrs, spec.name) || continue
+            plot.attrs[spec.name][] = _seed_attr_from_prefs(spec.name, spec, prefs, palette_index)
+        end
     end
     return plot
 end
@@ -168,8 +188,21 @@ function add_plot!(ax::Axis, plot_type::Symbol, data_refs::Vector{DataRef};
             a[k][] = v
         end
     end
-    plot = Plot(plot_id, plot_type, Observable(data_refs), a,
+    api = haskey(REGISTRY, plot_type) ? REGISTRY[plot_type].api : (makie_major = 0, makie_minor = 24)
+    status = haskey(REGISTRY, plot_type) ? REGISTRY[plot_type].status : :valid
+    args = Any[typed_value(r) for r in data_refs]
+    kwargs = Dict{Symbol, Any}(k => typed_value(obs[]) for (k, obs) in a)
+    plot = Plot(plot_id, ax.id, plot_type, args, kwargs, api, PlotMeta(v"1.0.0", status),
+                plot_type, Observable(data_refs), a,
                 Observable{Union{Nothing,AnimBinding}}(nothing))
+    for (k, obs) in a
+        on(obs) do val
+            plot.kwargs[k] = typed_value(val)
+        end
+    end
+    on(plot.data_refs) do refs
+        plot.args = Any[typed_value(r) for r in refs]
+    end
     ax.plots[] = [ax.plots[]..., plot]
     return plot
 end

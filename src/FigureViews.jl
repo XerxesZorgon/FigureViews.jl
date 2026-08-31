@@ -8,6 +8,7 @@ include("data/csv_source.jl")
 include("data/hdf5_source.jl")
 include("state/types.jl")
 include("state/nodes.jl")
+include("state/registry.jl")
 include("state/schema.jl")
 include("state/session.jl")
 include("render/renderer.jl")
@@ -27,7 +28,8 @@ export makieviews, save_session, load_session,
        add_plot!, add_plot_checked!, ingest!, build_dataref, animate_plot!, render_animation, export_figure, render_session,
        apply_structural!, AddPlotOp, RemovePlotOp, AddAxisOp, RemoveAxisOp,
        DataRef, MainSource, CsvSource, Hdf5Source, DataVar, AnimBinding,
-       load_preferences, save_preferences, preferences_path, reset_to_preferences!
+       load_preferences, save_preferences, preferences_path, reset_to_preferences!,
+       REGISTRY, PlotTypeEntry, AttrSpec, TypedValue, PlotMeta
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)

@@ -1,13 +1,5 @@
 # src/state/schema.jl
-
-struct AttrSpec
-    name::Symbol
-    kind::Symbol       # :color | :number | :int | :enum | :bool | :string | :vec2 | :vec3
-    default::Any
-    range::Any         # nothing, or (lo, hi), or Vector for :enum
-    label::String
-    tooltip::String
-end
+# Note: AttrSpec is defined in src/state/registry.jl
 
 const PLOT_SCHEMAS = Dict{Symbol, Vector{AttrSpec}}()
 

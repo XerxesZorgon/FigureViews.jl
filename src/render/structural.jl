@@ -25,22 +25,27 @@ function _post_to_queue!(renderer::Renderer, op)
     # Arm a one-shot g_idle_add drain (fires on main thread at next GLib idle).
     # Captures renderer and viewport_widget by reference in the closure.
     widget = renderer.viewport_widget
-    Gtk4.GLib.g_idle_add() do
-        # Drain all pending ops on the main thread.
-        ops = lock(renderer._queue_lock) do
-            ops = copy(renderer._mutation_queue)
-            empty!(renderer._mutation_queue)
-            ops
-        end
-        for op in ops
-            _apply_structural_direct!(renderer, op)
-        end
-        # Single queue_render after all ops applied.
-        if widget !== nothing
-            Gtk4.queue_render(widget)
+    Gtk4.GLib.g_idle_add(Gtk4.GLib.PRIORITY_DEFAULT) do
+        try
+            # Drain all pending ops on the main thread.
+            ops = lock(renderer._queue_lock) do
+                ops = copy(renderer._mutation_queue)
+                empty!(renderer._mutation_queue)
+                ops
+            end
+            for op in ops
+                _apply_structural_direct!(renderer, op)
+            end
+            # Single queue_render after all ops applied.
+            if widget !== nothing
+                Gtk4.queue_render(widget)
+            end
+        catch err
+            @error "g_idle_add drain failed" exception=(err, catch_backtrace())
         end
         return false  # one-shot: do not re-arm automatically
     end
+    ccall((:g_main_context_wakeup, Gtk4.GLib.libglib), Cvoid, (Ptr{Cvoid},), C_NULL)
 end
 
 function apply_structural!(renderer::Renderer, op)

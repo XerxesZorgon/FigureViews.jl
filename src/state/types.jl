@@ -34,3 +34,62 @@ end
 # Convenience constructor for M5 in-memory use (no persistence fields yet)
 DataRef(role::Symbol, snapshot_id::String, source::Symbol, label::String) =
     DataRef(role, snapshot_id, source, label, nothing, nothing, nothing, nothing, nothing)
+
+struct PlotMeta
+    schema_version::VersionNumber
+    status::Symbol                      # :valid | :unresolved | :needs_review
+end
+
+struct TypedValue
+    type::Symbol                        # :Colorant, :Real, :Int, :Symbol, :String, :Bool, :Vector, :DataRef, etc.
+    value::Any
+end
+
+function typed_value(v)
+    if v isa TypedValue
+        return v
+    elseif v isa Colors.Colorant
+        return TypedValue(:Colorant, "#" * Colors.hex(v))
+    elseif v isa Symbol
+        return TypedValue(:Symbol, string(v))
+    elseif v isa Integer
+        return TypedValue(:Int, Int64(v))
+    elseif v isa Real
+        return TypedValue(:Real, Float64(v))
+    elseif v isa String
+        return TypedValue(:String, v)
+    elseif v isa Bool
+        return TypedValue(:Bool, v)
+    elseif v isa Tuple
+        return TypedValue(:Tuple, collect(v))
+    elseif v isa DataRef
+        return TypedValue(:DataRef, v)
+    elseif v isa AbstractVector
+        return TypedValue(:Vector, collect(v))
+    else
+        return TypedValue(:Any, v)
+    end
+end
+
+function decode_typed_value(tv::TypedValue)
+    if tv.type == :Colorant
+        return parse(Colors.RGB, tv.value)
+    elseif tv.type == :Symbol
+        return Symbol(tv.value)
+    elseif tv.type == :Int
+        return Int(tv.value)
+    elseif tv.type == :Real
+        return Float64(tv.value)
+    elseif tv.type == :String
+        return string(tv.value)
+    elseif tv.type == :Bool
+        return Bool(tv.value)
+    elseif tv.type == :Tuple
+        return Tuple(tv.value)
+    elseif tv.type == :DataRef
+        return tv.value
+    else
+        return tv.value
+    end
+end
+decode_typed_value(x) = x

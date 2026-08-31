@@ -6,6 +6,7 @@ using FigureViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, Data
 
 include("unit/nodes.jl")
 include("unit/schema.jl")
+include("unit/registry.jl")
 include("unit/downsample.jl")
 include("unit/session.jl")
 include("unit/tree_pane.jl")
