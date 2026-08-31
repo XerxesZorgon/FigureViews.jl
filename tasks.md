@@ -3243,3 +3243,234 @@ Also update `tasks.md`: mark Tasks 081–084 `[x] Done` and this task `[x] Done`
 ### On Failure
 Report `TASK 085 FAILED — [CI cell failed: Julia version / error summary]` and paste the first 20 lines of the failing log.
 
+---
+
+# Milestone M13 — Incremental Renderer (Bug F fix)
+
+> **Spine milestone — the highest-risk feature work in v0.2.** Replaces the v0.1 full-rebuild
+> observers (`empty!(fig)` + `_rebuild_from_session!` on every structural change) with the
+> incremental path from ADR-024, on the Route 1 (`GtkMakieWidget`) embedding confirmed by M12.
+>
+> **Decisions locked (2026-08-30, John):**
+> - The flat `Renderer._observer_handles::Vector{Any}` is refactored to per-node observer
+>   storage so a removed node's observers can be `off()`'d individually (closes the v0.1
+>   handle-accumulation leak). This refactor lands in Task 086.
+> - The v0.1 one-row-per-axis layout rule (`fig[N, 1]`) is carried forward into M13 as an
+>   explicit interim constraint. General `rows×cols` `LayoutSpec` placement is deferred.
+>
+> **Sequencing rationale:** incremental renderer ops (086–088) are built and tested headless
+> first, before the threading layer (090). If the queue/drain hits trouble in 090, we know the
+> renderer ops are already proven correct and the fault is isolated to the queue.
+>
+> Tasks 086–091 run in order; each gates the next. Exit is Task 091 (xvfb GUI smoke test + CHANGELOG).
+
+---
+
+## Task 086: Incremental plot ops — `_add_plot_handle!`, `_remove_plot_handle!` + observer-storage refactor
+**Status:** [ ] Pending
+**Milestone:** M13
+**Depends on:** 085 (P4 complete) and ADR-025 (Route 1 confirmed)
+
+### What to do
+Two changes in `src/render/renderer.jl`, both headless-testable (no window involved).
+
+**Change 1 — refactor observer storage to per-node.** The current `Renderer` stores all observer handles in a single flat `_observer_handles::Vector{Any}`, which makes it impossible to remove just one node's observers. Replace that field with two per-node dicts:
+- `_plot_observers::Dict{String, Vector{Any}}` — keyed by `plot.id`
+- `_axis_observers::Dict{String, Vector{Any}}` — keyed by `ax.id`
+
+Keep a `_structural_observers::Vector{Any}` for the figure-level and axis-level structural observers (the `on(fig_node.axes)` and `on(ax_node.plots)` handlers) so those can still be cleaned up. Update `_register_plot_observer!` and `_register_axis_observer!` to push into the per-node vectors instead of the flat list. Update the `Renderer` constructor and `_rebuild_from_session!` accordingly. The existing `_rebuild_from_session!` full-rebuild path must still work after this refactor — all current tests must stay green.
+
+**Change 2 — add the two incremental plot ops:**
+
+- `_add_plot_handle!(renderer, ax_node::Axis, plot::Plot)` — look up the existing `Makie.Axis`/`Axis3` handle for `ax_node` from `renderer.axis_handles[ax_node.id]`, render `plot` into it by calling the existing `_render_plot!(renderer, makie_ax, plot)` (which already stores the handle and registers attribute observers), with NO figure teardown. Precondition: the axis handle must already exist; if `ax_node.id` is not in `renderer.axis_handles`, throw an `ArgumentError` with a clear message.
+
+- `_remove_plot_handle!(renderer, plot_id::String)` — look up the Makie plot handle from `renderer.plot_handles[plot_id]`, call `GLMakie.delete!(makie_ax, handle)` to remove it from its axis (the confirmed Makie 0.24 API from ADR-025 — you will need to find the owning `makie_ax`; store an axis-id alongside the plot handle if needed, or search the axis handles). Then `off()` every observer in `renderer._plot_observers[plot_id]`, delete that dict entry, and delete `renderer.plot_handles[plot_id]`. If `plot_id` is not found, return without error (idempotent removal).
+
+Do NOT wire these into the session observers yet — that is Task 088. This task only defines the ops and proves they work when called directly.
+
+**Test:** add a new test file `test/unit/incremental_ops.jl` and `include` it in `test/runtests.jl`. Test headless (build a `Renderer` over a session with a `Makie.Figure()`, no window):
+1. Build a session with one figure, one 2D axis, one line plot. Construct a `Renderer`.
+2. Call `_add_plot_handle!` to add a scatter plot to the same axis. Assert `renderer.plot_handles` now has 2 entries and the axis still renders (no error).
+3. Call `_remove_plot_handle!` on the scatter plot's id. Assert `renderer.plot_handles` has 1 entry, the removed id is gone from both `plot_handles` and `_plot_observers`, and the original line plot handle is untouched.
+4. Assert `_remove_plot_handle!` on a nonexistent id is a no-op (no throw).
+
+### Files touched
+- `src/render/renderer.jl` — observer-storage refactor + two new ops
+- `test/unit/incremental_ops.jl` — new test file
+- `test/runtests.jl` — add the include
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 with all existing tests still green AND the new `incremental_ops` testset passing. `grep -n "_observer_handles" src/render/renderer.jl` returns no matches (the flat field is fully replaced). Report back: `TASK 086 PASSED — incremental plot ops + observer refactor, tests green, commit = [hash]` with the new testset's Test Summary line.
+
+### On Failure
+Report `TASK 086 FAILED — [what failed: existing test regressed / new op errored / delete! API wrong]` with the full error and the Test Summary line.
+
+---
+
+## Task 087: Incremental axis ops — `_add_axis!`, `_remove_axis!`
+**Status:** [ ] Pending
+**Milestone:** M13
+**Depends on:** 086
+
+### What to do
+Add two more incremental ops to `src/render/renderer.jl`, following the same pattern as Task 086. Both headless-testable.
+
+- `_add_axis!(renderer, fig_node::Figure, ax_node::Axis)` — determine the next layout row using the carried-forward one-row-per-axis rule: the new axis goes at `renderer.fig[N, 1]` where `N` is the current count of already-rendered axes across all figures + 1 (mirror the `axis_index` counting in `_rebuild_from_session!`). Call the existing `_render_axis!(renderer, renderer.fig, ax_node, renderer.fig[N, 1])` to build the Makie axis, store its handle, register its observers, and render any plots it already contains. No figure teardown, no rebuilding of sibling axes.
+
+- `_remove_axis!(renderer, ax_id::String)` — look up the Makie axis handle from `renderer.axis_handles[ax_id]`. First remove all plots belonging to that axis by calling `_remove_plot_handle!` for each plot handle owned by the axis (track ownership so this is possible — you may add an axis-id field to the plot-handle bookkeeping in Task 086's design, or maintain a `Dict{String, Vector{String}}` of axis-id → plot-ids in the Renderer). Then call `GLMakie.delete!(makie_ax)` (the confirmed Makie 0.24 axis-deletion API from ADR-025). Then `off()` every observer in `renderer._axis_observers[ax_id]`, delete that entry, and delete `renderer.axis_handles[ax_id]`. Idempotent: nonexistent `ax_id` is a no-op.
+
+**Interim-constraint note:** because of the one-row-per-axis rule, removing an axis leaves a gap in the row sequence. For M13, do NOT attempt to reflow remaining axes into the vacated row — a gap is acceptable and documented. General layout reflow is deferred with the general `LayoutSpec` work. Add a comment in `_remove_axis!` recording this.
+
+**Test:** extend `test/unit/incremental_ops.jl`:
+1. Build a session with one figure, one 2D axis. Construct a `Renderer`.
+2. Call `_add_axis!` to add a 3D axis. Assert `renderer.axis_handles` has 2 entries and the new handle is a `Makie.Axis3`.
+3. Add a surface plot to the 3D axis via `_add_plot_handle!`. Assert it renders.
+4. Call `_remove_axis!` on the 3D axis id. Assert `axis_handles` has 1 entry, the removed axis id is gone from `axis_handles` and `_axis_observers`, all its plots are gone from `plot_handles`, and the original 2D axis handle is untouched.
+5. Assert `_remove_axis!` on a nonexistent id is a no-op.
+
+### Files touched
+- `src/render/renderer.jl` — two new axis ops + ownership bookkeeping
+- `test/unit/incremental_ops.jl` — extended tests
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests green, the extended `incremental_ops` testset passing including the Axis3 type assertion and the plot-cleanup-on-axis-removal assertion. Report back: `TASK 087 PASSED — incremental axis ops, tests green, commit = [hash]` with the Test Summary line.
+
+### On Failure
+Report `TASK 087 FAILED — [what failed]` with the full error and Test Summary line. If `GLMakie.delete!(makie_ax)` errors, paste the MethodError and try `Makie.delete!(makie_ax)` before reporting.
+
+---
+
+## Task 088: `apply_structural!` funnel — headless-direct branch
+**Status:** [ ] Pending
+**Milestone:** M13
+**Depends on:** 087
+
+### What to do
+Introduce the single structural-mutation funnel from ADR-024's Consequences section, but implement ONLY the headless-direct branch in this task (the live-queued branch is Task 090). This keeps callers from ever choosing between direct and queued paths.
+
+Define an operation representation and the funnel. In `src/render/renderer.jl` (or a new `src/render/structural.jl` included after `renderer.jl` — your choice, but keep it in the render layer):
+
+1. Define a lightweight op type or tagged tuple for the four structural operations: add-plot (carries `ax_node`, `plot`), remove-plot (carries `plot_id`), add-axis (carries `fig_node`, `ax_node`), remove-axis (carries `ax_id`). A small set of structs (`AddPlotOp`, `RemovePlotOp`, `AddAxisOp`, `RemoveAxisOp`) is cleanest.
+
+2. Define `apply_structural!(renderer, op)` that dispatches on the op type and calls the matching incremental op from Tasks 086/087. This is the headless-direct branch: it runs the mutation synchronously, immediately, in the caller's context. This is correct for the headless REPL path (no window) exactly as v0.1 behaves.
+
+3. Define the "is a window live?" predicate now, even though both branches are not yet built: `_window_is_live(renderer)` returning `false` for M13 until Task 090 wires the live state. For this task it always returns `false`, so `apply_structural!` always takes the headless-direct branch. Leave a clearly-marked `# Task 090: live-queued branch attaches here` seam.
+
+Do NOT change `add_plot!`/`add_axis!` in `session.jl` to call the funnel yet — the session-level API still mutates the observables directly, and the existing full-rebuild observers still fire in headless mode. The funnel is exercised directly by tests in this task; wiring the session API to prefer the funnel (and disabling the full-rebuild observers for the live path) is part of Task 090 where the live branch exists. Rationale: until the live branch and queue exist, switching the session API over would remove the working headless path with nothing incremental replacing it in the live case.
+
+**Test:** extend `test/unit/incremental_ops.jl`:
+1. Build a session + `Renderer` headless.
+2. Construct an `AddPlotOp` and call `apply_structural!(renderer, op)`. Assert the plot handle appears.
+3. Construct a `RemovePlotOp` and apply it. Assert the handle is gone.
+4. Same for `AddAxisOp` / `RemoveAxisOp`.
+5. Assert `_window_is_live(renderer) == false` in this milestone.
+
+### Files touched
+- `src/render/renderer.jl` or new `src/render/structural.jl` (+ include in `FigureViews.jl` if new)
+- `test/unit/incremental_ops.jl` — extended tests
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all tests green, the funnel testset passing for all four op types via `apply_structural!`. Report back: `TASK 088 PASSED — apply_structural! headless branch, tests green, commit = [hash]` with the Test Summary line.
+
+### On Failure
+Report `TASK 088 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 089: Interactive-thread startup check in `makieviews()`
+**Status:** [ ] Pending
+**Milestone:** M13
+**Depends on:** 088
+
+### What to do
+ADR-024 constraint 1: the `g_idle_add` drain only works if Julia was started with an interactive thread pool (`--threads N,1`). Without it, live editing deadlocks. `makieviews()` must detect the absence of an interactive thread and refuse with an actionable message rather than deadlock.
+
+In `src/FigureViews.jl`, at the very top of `makieviews()` (before any window construction), add a check:
+
+1. Query the interactive thread pool size. The Julia API is `Threads.nthreads(:interactive)` (available on 1.10+). If it returns 0, there is no interactive thread.
+2. If there is no interactive thread AND the caller intends a live window (which `makieviews()` always does), emit a clear error via `error(...)` (not just `@warn`) with an actionable message: name the cause (no interactive thread), the fix (`julia --threads 4,1` or set `JULIA_NUM_THREADS=4,1`), and the consequence (live structural editing will deadlock without it). Do NOT open the window if the check fails.
+
+Make the check itself a small testable helper: `_has_interactive_thread()::Bool` returning `Threads.nthreads(:interactive) > 0`. `makieviews()` calls it and errors if false.
+
+**Important — do not break existing tests.** The CI test suite runs under `xvfb-run` and constructs `makieviews()` windows in several M1 testsets. Those CI runs must have an interactive thread, OR the check must be structured so tests can bypass it. Check whether the CI invocation (`.github/workflows/ci.yml`) starts Julia with `--threads`. If it does not, add `--threads 4,1` to the CI test command so the interactive-thread check passes under CI. Confirm the M1 `makieviews()` testsets still pass under the new invocation.
+
+**Test:** add to `test/unit/` (new `test/unit/thread_check.jl`, included in runtests):
+1. Test `_has_interactive_thread()` returns a `Bool`.
+2. If `Threads.nthreads(:interactive) > 0` in the test session, assert `_has_interactive_thread() == true` and assert `makieviews()` opens a window (existing M1 behavior).
+3. Document (comment) that the false-branch error path is verified manually by launching without `--threads` (cannot be tested in-process without restarting Julia).
+
+### Files touched
+- `src/FigureViews.jl` — startup check + `_has_interactive_thread()` helper
+- `.github/workflows/ci.yml` — add `--threads 4,1` to the test invocation if not present
+- `test/unit/thread_check.jl` — new test file
+- `test/runtests.jl` — add the include
+
+### Acceptance Criterion
+`_has_interactive_thread()` exists and returns `Bool`. `makieviews()` errors (does not open a window) when no interactive thread is present, with a message naming `--threads`. CI `ci.yml` test command includes `--threads 4,1`. Under `xvfb-run ... --threads 4,1`, all existing tests including M1 `makieviews()` testsets pass. Report back: `TASK 089 PASSED — interactive-thread check, tests green, commit = [hash]`.
+
+### On Failure
+Report `TASK 089 FAILED — [what failed: nthreads API / M1 tests broke / CI invocation]` with the error. Note the Julia version if `Threads.nthreads(:interactive)` is unavailable.
+
+---
+
+## Task 090: Mutation queue + `g_idle_add` drain — live-queued branch
+**Status:** [ ] Pending
+**Milestone:** M13
+**Depends on:** 089
+
+### What to do
+Build ADR-024 Part A (the main-thread-drained mutation queue) and wire it into the `apply_structural!` live branch. This is the highest-risk task in M13 — the threading layer.
+
+Per ADR-024 alternative (a), a per-mutation `g_idle_add` first cut is acceptable to de-risk, converging on a real queue. Implement the real queue since the ops are already proven (086–088):
+
+1. **Queue + drain.** Add a thread-safe queue (a `Channel{Any}` or a `Vector` guarded by a `ReentrantLock`) to the `Renderer` or the module-level live state. When a window is live, `apply_structural!(renderer, op)` posts `op` to the queue instead of running it directly, then arms a `g_idle_add` drain (if not already armed). The drain callback runs on the main thread: it pops all pending ops, runs each via the headless-direct dispatch (the same `apply_structural!` op-dispatch from Task 088, but executed on the main thread), coalesces into a single `Gtk4.queue_render(viewport_widget)` at the end, and returns `false` (one-shot; re-armed on next post). Use `Gtk4.GLib.g_idle_add` (the documented thread-safe primitive).
+
+2. **Live-state wiring.** `_window_is_live(renderer)` must now return `true` once `makieviews()` has shown the window. Set a flag on the Renderer (or use `_current_renderer[]` presence + a `live::Bool` field) when `show(w)` completes in `makieviews()`. The viewport widget handle must be reachable from the drain so it can call `queue_render` — store it on the Renderer.
+
+3. **Disable the full-rebuild observers for the live path.** The v0.1 `on(fig_node.axes)`/`on(ax_node.plots)` observers call `empty!(fig)` + full rebuild. Once live, structural changes must go through the queue/incremental path instead. Change the session-level `add_plot!`/`add_axis!` (or the structural observers) so that when a window is live, the structural mutation routes through `apply_structural!` → queue, and the full-rebuild observer does NOT also fire (or is a no-op in live mode). In headless mode, behavior is unchanged (direct + existing rebuild path, since headless has no incremental requirement — though you may route headless through `apply_structural!` direct too, if cleaner). Preserve the v0.1 attribute-edit path completely unchanged — attribute observers stay direct.
+
+**Test:** this needs a live window, so it is an `xvfb`-gated smoke test. Add `test/integration/live_structural.jl`, included in runtests but guarded so it only runs when a display is available (check for `DISPLAY` env var or wrap in a try/catch that skips with `@info` if no window can open). In the smoke test:
+1. Under an interactive thread, open a window via `makieviews()`.
+2. Post an add-plot op through the live path; drain; assert no deadlock (the test completes) and the plot handle appears in the renderer within a timeout.
+3. Post a remove-plot and an add-axis; assert they apply.
+4. Assert an attribute edit (e.g. change a plot color) still works on the live window.
+Keep the test's total wall time bounded (timeouts, then `Gtk4.destroy(w)`).
+
+### Files touched
+- `src/render/renderer.jl` / `structural.jl` — queue, drain, live branch
+- `src/FigureViews.jl` — set live flag + store viewport widget on renderer after `show(w)`
+- `test/integration/live_structural.jl` — new xvfb-gated smoke test
+- `test/runtests.jl` — add the include
+
+### Acceptance Criterion
+Headless: `julia --project=. --threads 4,1 -e 'using Pkg; Pkg.test()'` exits 0 with all existing tests green. The `live_structural` smoke test either passes (adds plot/axis, removes plot, attribute edit works, no deadlock) or skips cleanly with `@info` when no display is present — it must never hang. Report back: `TASK 090 PASSED — mutation queue + live branch, tests green (smoke: [passed/skipped]), commit = [hash]` with the Test Summary line.
+
+### On Failure
+Report `TASK 090 FAILED — [what failed: deadlock / drain not firing / rebuild observer still firing / attribute path regressed]`. If it deadlocks, note where (which op) and whether the test had an interactive thread. Do NOT push a state where the suite hangs. Claude will diagnose — this is the task most likely to need a design conversation.
+
+---
+
+## Task 091: M13 exit — xvfb GUI smoke on CI + CHANGELOG; close Bug F
+**Status:** [ ] Pending
+**Milestone:** M13
+**Depends on:** 090
+
+### What to do
+The M13 exit gate per PLAN-v0.2.md: an automated test (xvfb GUI-smoke on Linux CI) that opens a window, adds a plot, removes a plot, and adds an axis AFTER display, with no deadlock and the correct final figure; the v0.1 attribute-edit path still passes; interactive-thread check verified on Julia 1.10 and 1.12.
+
+1. Ensure the `live_structural` smoke test from Task 090 runs under CI: confirm `.github/workflows/ci.yml` runs it under `xvfb-run` with `--threads 4,1` on both Julia 1.10 and 1.12. If the smoke test currently self-skips when no display is present, verify that under `xvfb-run` a display IS present so it actually executes on CI (not skips).
+2. Add a `CHANGELOG.md` entry under a new `## [Unreleased]` / v0.2 section describing: incremental renderer (Bug F fixed), live structural editing (add/remove plot, add axis on a displayed window), interactive-thread requirement + startup check.
+3. Push and confirm CI green (2/2 cells) with the smoke test executing (not skipping) on CI.
+4. Update `tasks.md`: mark Tasks 086–091 Done. Update `SESSION_LOG.md` with M13 completion and the next milestone (M14).
+
+### Files touched
+- `.github/workflows/ci.yml` — ensure smoke test runs under xvfb on CI (if not already)
+- `CHANGELOG.md` — v0.2 / Bug F entry
+- `tasks.md`, `SESSION_LOG.md` — status
+
+### Acceptance Criterion
+CI run on `main` is green on both cells (Julia 1.10 + 1.12 × Ubuntu) AND the CI log shows the `live_structural` smoke test executed (an add-plot/remove-plot/add-axis assertion ran, not a skip). `CHANGELOG.md` has a v0.2 entry naming Bug F. Report back: `TASK 091 PASSED — M13 complete, Bug F closed, CI green, run = [URL]`.
+
+### On Failure
+Report `TASK 091 FAILED — [CI cell / smoke skipped instead of ran / changelog missing]` with the failing CI log excerpt.
+
