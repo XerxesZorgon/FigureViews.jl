@@ -1,8 +1,9 @@
 using Test
 using FigureViews
-using FigureViews: new_session, add_figure!, add_axis!, ingest!, MainSource, DataRef, Plot,
+using FigureViews: new_session, add_figure!, add_axis!, ingest!, MainSource, DataRef, Plot, Axis, Figure,
                   Renderer, _init_attrs, _add_plot_handle!, _remove_plot_handle!,
-                  _add_axis!, _remove_axis!
+                  _add_axis!, _remove_axis!, apply_structural!,
+                  AddPlotOp, RemovePlotOp, AddAxisOp, RemoveAxisOp, _window_is_live
 using Observables
 using UUIDs
 using Makie
@@ -120,3 +121,84 @@ end
     @test_nowarn _remove_axis!(renderer, "nonexistent")
     @test length(renderer.axis_handles) == 1
 end
+
+@testset "M13 apply_structural! funnel" begin
+    # 1. Build a session with one figure, one 2D axis, one line plot. Construct Renderer headless.
+    s = new_session()
+    fig_node = add_figure!(s)
+    ax_node = add_axis!(fig_node; kind = :axis2d)
+
+    m = Module(:_FunnelTest)
+    Core.eval(m, :(x1 = collect(1.0:10.0)))
+    Core.eval(m, :(y1 = sin.(collect(1.0:10.0))))
+    Core.eval(m, :(x2 = collect(1.0:10.0)))
+    Core.eval(m, :(y2 = cos.(collect(1.0:10.0))))
+
+    src = MainSource(m)
+    snap_x1 = ingest!(s, src, "x1")
+    snap_y1 = ingest!(s, src, "y1")
+    snap_x2 = ingest!(s, src, "x2")
+    snap_y2 = ingest!(s, src, "y2")
+
+    plot1 = Plot(string(uuid4()), :line,
+                 Observable([DataRef(:x, snap_x1, :main, "x1"), DataRef(:y, snap_y1, :main, "y1")]),
+                 _init_attrs(:line),
+                 Observable{Union{Nothing,AnimBinding}}(nothing))
+    ax_node.plots[] = [plot1]
+
+    makie_fig = Makie.Figure()
+    renderer = Renderer(s, makie_fig)
+
+    @test length(renderer.plot_handles) == 1
+    @test length(renderer.axis_handles) == 1
+
+    # 2. Construct an AddPlotOp for a new scatter plot. Call apply_structural!(renderer, op).
+    plot_scatter = Plot(string(uuid4()), :scatter,
+                        Observable([DataRef(:x, snap_x2, :main, "x2"), DataRef(:y, snap_y2, :main, "y2")]),
+                        _init_attrs(:scatter),
+                        Observable{Union{Nothing,AnimBinding}}(nothing))
+    op_add_plot = AddPlotOp(ax_node, plot_scatter)
+    apply_structural!(renderer, op_add_plot)
+    @test length(renderer.plot_handles) == 2
+    @test haskey(renderer.plot_handles, plot_scatter.id)
+
+    # 3. Construct RemovePlotOp for the scatter's id. Apply. Assert handle gone.
+    op_rem_plot = RemovePlotOp(plot_scatter.id)
+    apply_structural!(renderer, op_rem_plot)
+    @test length(renderer.plot_handles) == 1
+    @test !haskey(renderer.plot_handles, plot_scatter.id)
+
+    # 4. Construct AddAxisOp for a new :axis3d axis. Apply. Assert renderer.axis_handles has 2 entries, new handle is Makie.Axis3.
+    ax_node_3d = Axis(
+        string(uuid4()),
+        :axis3d,
+        Observable("3D Axis"),
+        Observable(""),
+        Observable(""),
+        Observable(""),
+        Observable{Union{Nothing,Tuple{Float64,Float64}}}(nothing),
+        Observable{Union{Nothing,Tuple{Float64,Float64}}}(nothing),
+        Observable(:linear),
+        Observable(:linear),
+        Observable(true),
+        Observable(true),
+        Observable{Union{Nothing,String}}(nothing),
+        Observable{Union{Nothing,CameraSpec}}(nothing),
+        Observable(Union{Plot, UnknownNode}[])
+    )
+    op_add_ax = AddAxisOp(fig_node, ax_node_3d)
+    apply_structural!(renderer, op_add_ax)
+    @test length(renderer.axis_handles) == 2
+    @test haskey(renderer.axis_handles, ax_node_3d.id)
+    @test renderer.axis_handles[ax_node_3d.id] isa Makie.Axis3
+
+    # 5. Construct RemoveAxisOp for the new axis. Apply. Assert back to 1 axis handle.
+    op_rem_ax = RemoveAxisOp(ax_node_3d.id)
+    apply_structural!(renderer, op_rem_ax)
+    @test length(renderer.axis_handles) == 1
+    @test !haskey(renderer.axis_handles, ax_node_3d.id)
+
+    # 6. Assert _window_is_live(renderer) == false.
+    @test _window_is_live(renderer) == false
+end
+
