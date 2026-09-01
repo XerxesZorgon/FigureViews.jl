@@ -66,6 +66,7 @@ mutable struct Session <: Node
     data_snapshots::Dict{String, AbstractArray}   # snapshot_id => array; key is UUIDv4
     selection::Observable{Union{Nothing, String}}    # id of currently-selected node
     selected_variable::Observable{Union{Nothing, Tuple{DataSource, String}}}
+    data_snapshots_version::Observable{Int}
 
     function Session(
         schema_version::VersionNumber,
@@ -73,8 +74,10 @@ mutable struct Session <: Node
         preferences_snapshot::Dict{String,Any},
         data_snapshots::Dict{String, AbstractArray},
         selection::Observable{Union{Nothing, String}},
-        selected_variable::Observable{Union{Nothing, Tuple{DataSource, String}}} = Observable{Union{Nothing, Tuple{DataSource, String}}}(nothing)
+        selected_variable::Observable{Union{Nothing, Tuple{DataSource, String}}} = Observable{Union{Nothing, Tuple{DataSource, String}}}(nothing),
+        data_snapshots_version::Observable{Int} = Observable{Int}(0)
     )
-        new(schema_version, figures, preferences_snapshot, data_snapshots, selection, selected_variable)
+        new(schema_version, figures, preferences_snapshot, data_snapshots,
+            selection, selected_variable, data_snapshots_version)
     end
 end

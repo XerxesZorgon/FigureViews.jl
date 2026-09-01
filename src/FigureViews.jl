@@ -17,6 +17,7 @@ include("render/export.jl")
 include("ui/tree_pane.jl")
 include("ui/property_pane.jl")
 include("ui/variable_pane.jl")
+include("ui/data_pane.jl")
 include("persistence/mvz_save.jl")
 include("persistence/mvz_load.jl")
 include("persistence/preferences.jl")
@@ -31,7 +32,7 @@ export makieviews, save_session, load_session,
        DataRef, MainSource, CsvSource, Hdf5Source, DataVar, AnimBinding,
        load_preferences, save_preferences, preferences_path, reset_to_preferences!,
        REGISTRY, REGISTRY_GENERATED, FUNCTION_REGISTRY, AXIS_KIND_FOR_TYPE, PlotTypeEntry, AttrSpec, TypedValue, PlotMeta,
-       _add_plot_to_axis!, _open_shell, build_variable_pane
+       _add_plot_to_axis!, _open_shell, build_variable_pane, build_data_pane, _rebuild_snapshot_list!
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)
@@ -142,10 +143,18 @@ function _open_shell(session::Session)
     variable_pane = build_variable_pane(session)
     variable_pane.width_request = 300
     variable_pane.height_request = 200
+    data_pane = build_data_pane(session)
+    data_pane.width_request = 300
+    data_pane.height_request = 200
+
+    # Task 104: Option A (tab strip) chosen to avoid cramping four vertically-stacked panes
+    data_notebook = GtkNotebook()
+    push!(data_notebook, variable_pane, "Variables")
+    push!(data_notebook, data_pane, "Snapshots")
 
     inner_paned = GtkPaned(:v)
     inner_paned[1] = property_pane
-    inner_paned[2] = variable_pane
+    inner_paned[2] = data_notebook
     inner_paned.position = 220
 
     outer_paned = GtkPaned(:v)

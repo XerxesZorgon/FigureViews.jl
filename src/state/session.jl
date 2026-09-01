@@ -6,7 +6,8 @@ function new_session()::Session
         Dict{String,Any}(),
         Dict{String, AbstractArray}(),
         Observable{Union{Nothing,String}}(nothing),
-        Observable{Union{Nothing, Tuple{DataSource, String}}}(nothing)
+        Observable{Union{Nothing, Tuple{DataSource, String}}}(nothing),
+        Observable{Int}(0)
     )
 end
 
@@ -130,6 +131,7 @@ function ingest!(session::Session, source::DataSource, id::String)::String
     arr = snapshot(source, id)
     snap_id = string(uuid4())
     session.data_snapshots[snap_id] = arr
+    session.data_snapshots_version[] += 1
     return snap_id
 end
 
