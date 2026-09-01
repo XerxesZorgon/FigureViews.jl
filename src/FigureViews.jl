@@ -162,6 +162,9 @@ function _open_shell(session::Session)
     signal_connect(viewport_widget, "destroy") do _
         renderer.viewport_widget = nothing
     end
+    signal_connect(viewport_widget, "unrealize") do _
+        renderer.viewport_widget = nothing
+    end
 
     _current_session[] = session
     _current_renderer[] = renderer

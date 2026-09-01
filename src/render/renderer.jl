@@ -109,7 +109,7 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
         end
     end
 
-    if plot.meta.status == :unresolved
+    if plot.meta.status == :unresolved || (isempty(plot.data_refs[]) && isempty(plot.args))
         handle = Makie.text!(makie_ax, "[unresolved: $(plot.func)]";
             position = Point2f(0.5, 0.5),
             space    = :relative,
