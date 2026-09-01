@@ -182,3 +182,23 @@ const AXIS_KIND_FOR_TYPE = Dict{Symbol, Symbol}(
 )
 
 @assert Set(keys(AXIS_KIND_FOR_TYPE)) == Set(keys(REGISTRY)) "AXIS_KIND_FOR_TYPE must cover all keys in REGISTRY"
+
+const SHAPE_TO_VAR_KIND = Dict{Symbol, Vector{Symbol}}(
+    :x_vector   => [:vector],
+    :y_vector   => [:vector],
+    :z_vector   => [:vector],
+    :x_range    => [:vector],
+    :y_range    => [:vector],
+    :y_lower    => [:vector],
+    :y_upper    => [:vector],
+    :low        => [:vector],
+    :high       => [:vector],
+    :values     => [:vector],
+    :strings    => [:vector],
+    :points     => [:vector, :matrix],
+    :positions  => [:vector, :matrix],
+    :vertices   => [:vector, :matrix],  # Nx3 matrix or vector of Point3
+    :matrix     => [:matrix],
+    :faces      => [:matrix, :vector],  # Nx3 index matrix or vector of ints
+    :field_func => [:function, :any],
+)

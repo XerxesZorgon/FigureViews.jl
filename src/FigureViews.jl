@@ -25,14 +25,16 @@ include("preflight/detect.jl")
 include("preflight/estimate.jl")
 include("preflight/downsample.jl")
 include("preflight/check.jl")
+include("ui/add_plot_dialog.jl")
 
 export makieviews, save_session, load_session,
        add_plot!, add_plot_checked!, ingest!, build_dataref, animate_plot!, render_animation, export_figure, render_session,
        apply_structural!, AddPlotOp, RemovePlotOp, AddAxisOp, RemoveAxisOp,
        DataRef, MainSource, CsvSource, Hdf5Source, DataVar, AnimBinding,
        load_preferences, save_preferences, preferences_path, reset_to_preferences!,
-       REGISTRY, REGISTRY_GENERATED, FUNCTION_REGISTRY, AXIS_KIND_FOR_TYPE, PlotTypeEntry, AttrSpec, TypedValue, PlotMeta,
-       _add_plot_to_axis!, _open_shell, build_variable_pane, build_data_pane, _rebuild_snapshot_list!
+       REGISTRY, REGISTRY_GENERATED, FUNCTION_REGISTRY, AXIS_KIND_FOR_TYPE, SHAPE_TO_VAR_KIND, PlotTypeEntry, AttrSpec, TypedValue, PlotMeta,
+       _add_plot_to_axis!, _open_shell, build_variable_pane, build_data_pane, _rebuild_snapshot_list!,
+       _confirm_add_plot, show_add_plot_dialog
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)
@@ -184,6 +186,24 @@ function _open_shell(session::Session)
     signal_connect(viewport_widget, "unrealize") do _
         renderer.viewport_widget = nothing
     end
+
+    # Keyboard shortcut: Ctrl+P calls show_add_plot_dialog for currently-selected axis
+    key_controller = GtkEventControllerKey()
+    signal_connect(key_controller, "key-pressed") do _c, keyval, keycode, state
+        is_ctrl = (Int(state) & Int(Gtk4.ModifierType_CONTROL_MASK)) != 0
+        if is_ctrl && (keyval == UInt32('p') || keyval == UInt32('P'))
+            sel_id = session.selection[]
+            if sel_id !== nothing
+                ax = _find_axis(session, sel_id)
+                if ax !== nothing
+                    show_add_plot_dialog(session, ax, w)
+                    return true
+                end
+            end
+        end
+        return false
+    end
+    Gtk4.G_.add_controller(w, key_controller)
 
     _current_session[] = session
     _current_renderer[] = renderer
