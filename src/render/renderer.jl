@@ -229,6 +229,12 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
                     end
                 end
 
+                for (k, v) in kw_dict
+                    if v isa Symbol && haskey(FUNCTION_REGISTRY, v)
+                        kw_dict[k] = FUNCTION_REGISTRY[v]
+                    end
+                end
+
                 handle = plot_fn(makie_ax, pos_args...; kw_dict...)
                 renderer.plot_handles[plot.id] = handle
                 _register_plot_observer!(renderer, plot)

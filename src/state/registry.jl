@@ -42,6 +42,7 @@ struct PlotTypeEntry
 end
 
 include("registry_generated.jl")
+include("function_registry.jl")
 
 const REFERENCE_7 = Dict{Symbol, PlotTypeEntry}(
     :line => PlotTypeEntry(
