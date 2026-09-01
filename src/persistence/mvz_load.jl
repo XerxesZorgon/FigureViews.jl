@@ -140,15 +140,28 @@ _dict_to_typed_value(x) = typed_value(x)
 function _dict_to_plot(d::Dict, default_target::String = "")::Union{Plot, UnknownNode}
     func_str = get(d, "func", get(d, "type", ""))
     func_sym = Symbol(func_str)
-    if !(func_sym in _KNOWN_PLOT_TYPES)
-        payload = copy(d)
-        delete!(payload, "type")
-        delete!(payload, "func")
-        return UnknownNode(func_str, payload)
-    end
 
     id = get(d, "id", string(uuid4()))
     target = get(d, "target", default_target)
+
+    if !(func_sym in _KNOWN_PLOT_TYPES || (haskey(REGISTRY, func_sym) && REGISTRY[func_sym].status == :valid))
+        @warn "FigureViews: unknown plot type :$(func_sym) in .mvz — node preserved, not rendered"
+        api = (makie_major = 0, makie_minor = 24)
+        meta = PlotMeta(v"1.0.0", :unresolved)
+        return Plot(
+            id,
+            target,
+            func_sym,
+            Any[],
+            Dict{Symbol, Any}(),
+            api,
+            meta,
+            func_sym,
+            Observable(DataRef[]),
+            Dict{Symbol, Observable{Any}}(),
+            Observable{Union{Nothing, AnimBinding}}(nothing)
+        )
+    end
 
     # API
     api_d = get(d, "api", Dict())

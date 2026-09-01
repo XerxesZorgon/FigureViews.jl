@@ -102,17 +102,26 @@ function _render_axis!(renderer::Renderer, fig::Makie.Figure, ax::Axis, position
 end
 
 function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
-    # Helper: look up the snapshot array for a given role
-    function arr(role::Symbol)
-        ref = only(r for r in plot.data_refs[] if r.role == role)
-        return renderer.session.data_snapshots[ref.snapshot_id]
-    end
-
     for (aid, h) in renderer.axis_handles
         if h === makie_ax
             renderer._plot_axis[plot.id] = aid
             break
         end
+    end
+
+    if plot.meta.status == :unresolved
+        handle = Makie.text!(makie_ax, "[unresolved: $(plot.func)]";
+            position = Point2f(0.5, 0.5),
+            space    = :relative,
+            align    = (:center, :center))
+        renderer.plot_handles[plot.id] = handle
+        return
+    end
+
+    # Helper: look up the snapshot array for a given role
+    function arr(role::Symbol)
+        ref = only(r for r in plot.data_refs[] if r.role == role)
+        return renderer.session.data_snapshots[ref.snapshot_id]
     end
 
     if plot.type == :line

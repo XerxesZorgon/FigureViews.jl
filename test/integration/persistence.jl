@@ -109,11 +109,15 @@ end
     content = read(tmp, String)
     content = replace(content, "\"line\"" => "\"custom_recipe_xyz\"")
     write(tmp, content)
-    s2  = load_session(tmp)
+    s2  = @test_logs (:warn, r"unknown plot type") load_session(tmp)
     rm(tmp)
     node = s2.figures[][1].axes[][1].plots[][1]
-    @test node isa FigureViews.UnknownNode
-    @test node.original_type == "custom_recipe_xyz"
+    @test (node isa FigureViews.UnknownNode || (node isa FigureViews.Plot && node.meta.status == :unresolved))
+    if node isa FigureViews.UnknownNode
+        @test node.original_type == "custom_recipe_xyz"
+    else
+        @test node.func == :custom_recipe_xyz
+    end
     # Re-save and confirm the type string survives
     tmp2     = tempname() * ".mvz"
     save_session(s2, tmp2)
