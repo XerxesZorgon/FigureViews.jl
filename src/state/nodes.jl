@@ -67,6 +67,7 @@ mutable struct Session <: Node
     selection::Observable{Union{Nothing, String}}    # id of currently-selected node
     selected_variable::Observable{Union{Nothing, Tuple{DataSource, String}}}
     data_snapshots_version::Observable{Int}
+    file_path::Ref{Union{Nothing, String}}
 
     function Session(
         schema_version::VersionNumber,
@@ -75,9 +76,10 @@ mutable struct Session <: Node
         data_snapshots::Dict{String, AbstractArray},
         selection::Observable{Union{Nothing, String}},
         selected_variable::Observable{Union{Nothing, Tuple{DataSource, String}}} = Observable{Union{Nothing, Tuple{DataSource, String}}}(nothing),
-        data_snapshots_version::Observable{Int} = Observable{Int}(0)
+        data_snapshots_version::Observable{Int} = Observable{Int}(0),
+        file_path::Ref{Union{Nothing, String}} = Ref{Union{Nothing, String}}(nothing)
     )
         new(schema_version, figures, preferences_snapshot, data_snapshots,
-            selection, selected_variable, data_snapshots_version)
+            selection, selected_variable, data_snapshots_version, file_path)
     end
 end

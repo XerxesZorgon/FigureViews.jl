@@ -22,6 +22,7 @@ include("unit/variable_pane.jl")
 include("unit/data_pane.jl")
 include("unit/add_plot_dialog_logic.jl")
 include("unit/menubar_scaffold.jl")
+include("unit/file_menu_handlers.jl")
 
 @testset "M1 shell — module loads" begin
     @test :makieviews in names(FigureViews)

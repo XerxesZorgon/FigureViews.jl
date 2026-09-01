@@ -7,7 +7,8 @@ function new_session()::Session
         Dict{String, AbstractArray}(),
         Observable{Union{Nothing,String}}(nothing),
         Observable{Union{Nothing, Tuple{DataSource, String}}}(nothing),
-        Observable{Int}(0)
+        Observable{Int}(0),
+        Ref{Union{Nothing, String}}(nothing)
     )
 end
 

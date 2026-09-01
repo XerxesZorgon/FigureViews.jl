@@ -34,7 +34,8 @@ export makieviews, save_session, load_session,
        load_preferences, save_preferences, preferences_path, reset_to_preferences!,
        REGISTRY, REGISTRY_GENERATED, FUNCTION_REGISTRY, AXIS_KIND_FOR_TYPE, SHAPE_TO_VAR_KIND, PlotTypeEntry, AttrSpec, TypedValue, PlotMeta,
        _add_plot_to_axis!, _open_shell, build_variable_pane, build_data_pane, _rebuild_snapshot_list!,
-       _confirm_add_plot, show_add_plot_dialog
+       _confirm_add_plot, show_add_plot_dialog,
+       _do_save, _do_load, _do_save_if_known
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)
@@ -125,6 +126,47 @@ window will deadlock. See ADR-024 for details.
     return _open_shell(session)
 end
 
+"""
+    _do_save(session::Session, path::String)
+
+Save the session to `path` and record the path on the session.
+"""
+function _do_save(session::Session, path::String)
+    save_session(session, path)
+    session.file_path[] = path
+end
+
+"""
+    _do_load(path::String) -> Session
+
+Load and return a session from `path`. Raises on bad schema, data_inline,
+or missing file — caller is responsible for showing an error dialog.
+"""
+function _do_load(path::String)::Session
+    return load_session(path)
+end
+
+"""
+    _do_save_if_known(session::Session)
+
+Save to the session's known path if one exists; returns `true` on success,
+`false` if no path is set (caller should fall back to Save As).
+"""
+function _do_save_if_known(session::Session)::Bool
+    session.file_path[] === nothing && return false
+    _do_save(session, session.file_path[])
+    return true
+end
+
+function _show_error_dialog(parent, title::String, msg::String)
+    dlg = GtkMessageDialog(msg, [("OK", 1)], Gtk4.DialogFlags_MODAL, Gtk4.MessageType_ERROR, parent)
+    dlg.title = title
+    signal_connect(dlg, "response") do _, _id
+        Gtk4.destroy(dlg)
+    end
+    show(dlg)
+end
+
 function _open_shell(session::Session)
     w = GtkWindow("FigureViews", 1400, 900)
 
@@ -176,15 +218,37 @@ function _open_shell(session::Session)
     # File > New
     Gtk4.GLib.add_action(action_map, "file_new",
         _ -> @info "File > New (stub — Task 108)")
-    # File > Open
-    Gtk4.GLib.add_action(action_map, "file_open",
-        _ -> @info "File > Open (stub — Task 107)")
+    # File > Open…
+    Gtk4.GLib.add_action(action_map, "file_open", _ -> begin
+        open_dialog("Open session", w) do path
+            isempty(path) && return
+            try
+                new_session_obj = _do_load(path)
+                makieviews(new_session_obj)
+                Gtk4.destroy(w)
+            catch e
+                _show_error_dialog(w, "Could not open session", sprint(showerror, e))
+            end
+        end
+    end)
     # File > Save
-    Gtk4.GLib.add_action(action_map, "file_save",
-        _ -> @info "File > Save (stub — Task 107)")
-    # File > Save As
-    Gtk4.GLib.add_action(action_map, "file_save_as",
-        _ -> @info "File > Save As (stub — Task 107)")
+    Gtk4.GLib.add_action(action_map, "file_save", _ -> begin
+        if !_do_save_if_known(_current_session[])
+            # No known path — fall through to Save As
+            Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "file_save_as")
+        end
+    end)
+    # File > Save As…
+    Gtk4.GLib.add_action(action_map, "file_save_as", _ -> begin
+        save_dialog("Save session", w) do path
+            isempty(path) && return
+            try
+                _do_save(_current_session[], path)
+            catch e
+                _show_error_dialog(w, "Could not save session", sprint(showerror, e))
+            end
+        end
+    end)
     # File > Quit
     Gtk4.GLib.add_action(action_map, "file_quit",
         _ -> Gtk4.destroy(w))
