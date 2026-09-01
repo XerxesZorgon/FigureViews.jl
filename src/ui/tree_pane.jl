@@ -79,7 +79,111 @@ function build_tree_pane(session::Session)
         end
     end
 
+    # Right-click context menu
+    current_popover = Ref{Union{Nothing, GtkPopoverMenu}}(nothing)
+    gesture = GtkGestureClick(list_view, 3)
+    signal_connect(gesture, "pressed") do _g, _n_press, x, y
+        kind, node = _find_selected_node(session, ids)
+        kind == :none && return
+
+        if current_popover[] !== nothing
+            try
+                Gtk4.G_.unparent(current_popover[])
+            catch
+            end
+            current_popover[] = nothing
+        end
+
+        menu = Gtk4.GLib.GMenu()
+        action_group = Gtk4.GLib.GSimpleActionGroup()
+        action_map = Gtk4.GLib.GActionMap(action_group)
+
+        if kind == :figure
+            fig_node = node::Figure
+            push!(menu, Gtk4.GLib.GMenuItem("Add Axis (2D)", "tree.add_axis_2d"))
+            push!(menu, Gtk4.GLib.GMenuItem("Add Axis (3D)", "tree.add_axis_3d"))
+            Gtk4.GLib.add_action(action_map, "add_axis_2d", (_a, _p) -> _context_add_axis!(session, fig_node, :axis2d))
+            Gtk4.GLib.add_action(action_map, "add_axis_3d", (_a, _p) -> _context_add_axis!(session, fig_node, :axis3d))
+        elseif kind == :axis
+            ax_node = node::Axis
+            push!(menu, Gtk4.GLib.GMenuItem("Delete Axis", "tree.delete_axis"))
+            Gtk4.GLib.add_action(action_map, "delete_axis", (_a, _p) -> _context_delete_axis!(session, ax_node.id))
+        elseif kind == :plot
+            plot_node = node::Plot
+            push!(menu, Gtk4.GLib.GMenuItem("Delete Plot", "tree.delete_plot"))
+            Gtk4.GLib.add_action(action_map, "delete_plot", (_a, _p) -> _context_delete_plot!(session, plot_node.id))
+        end
+
+        popover = GtkPopoverMenu(menu)
+        current_popover[] = popover
+        Gtk4.G_.insert_action_group(popover, "tree", Gtk4.GLib.GActionGroup(action_group))
+        Gtk4.G_.set_parent(popover, list_view)
+        rect = Ref(Gtk4._GdkRectangle(round(Int, x), round(Int, y), 1, 1))
+        Gtk4.G_.set_pointing_to(popover, rect)
+        Gtk4.popup(popover)
+    end
+
     sw = GtkScrolledWindow()
     sw[] = list_view
     return sw
+end
+
+function _find_selected_node(session::Session, ids::Vector{String})
+    sel_id = session.selection[]
+    sel_id === nothing && return (:none, nothing)
+    sel_id in ids || return (:none, nothing)
+    for fig in session.figures[]
+        fig.id == sel_id && return (:figure, fig)
+        for ax in fig.axes[]
+            ax.id == sel_id && return (:axis, ax)
+            for plot in ax.plots[]
+                plot.id == sel_id && return (:plot, plot)
+            end
+        end
+    end
+    return (:none, nothing)
+end
+
+function _context_add_axis!(session::Session, fig_node::Figure, kind::Symbol)
+    ax_node = add_axis!(fig_node; kind = kind, title = "New Axis")
+    op = AddAxisOp(fig_node, ax_node)
+    apply_structural!(_current_renderer[], op)
+    return ax_node
+end
+
+function _context_delete_axis!(session::Session, ax_id::String)
+    for fig in session.figures[]
+        axes = fig.axes[]
+        idx = findfirst(a -> a.id == ax_id, axes)
+        if idx !== nothing
+            deleted_ax = axes[idx]
+            if session.selection[] == ax_id || any(p -> p.id == session.selection[], deleted_ax.plots[])
+                session.selection[] = nothing
+            end
+            fig.axes[] = filter(a -> a.id != ax_id, axes)
+            break
+        end
+    end
+    op = RemoveAxisOp(ax_id)
+    apply_structural!(_current_renderer[], op)
+    return nothing
+end
+
+function _context_delete_plot!(session::Session, plot_id::String)
+    for fig in session.figures[]
+        for ax in fig.axes[]
+            plots = ax.plots[]
+            idx = findfirst(p -> p.id == plot_id, plots)
+            if idx !== nothing
+                if session.selection[] == plot_id
+                    session.selection[] = nothing
+                end
+                ax.plots[] = filter(p -> p.id != plot_id, plots)
+                break
+            end
+        end
+    end
+    op = RemovePlotOp(plot_id)
+    apply_structural!(_current_renderer[], op)
+    return nothing
 end

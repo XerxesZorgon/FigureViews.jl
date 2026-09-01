@@ -48,6 +48,8 @@ function _post_to_queue!(renderer::Renderer, op)
     ccall((:g_main_context_wakeup, Gtk4.GLib.libglib), Cvoid, (Ptr{Cvoid},), C_NULL)
 end
 
+apply_structural!(::Nothing, op) = nothing
+
 function apply_structural!(renderer::Renderer, op)
     if _window_is_live(renderer)
         _post_to_queue!(renderer, op)
