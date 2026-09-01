@@ -30,7 +30,7 @@ export makieviews, save_session, load_session,
        DataRef, MainSource, CsvSource, Hdf5Source, DataVar, AnimBinding,
        load_preferences, save_preferences, preferences_path, reset_to_preferences!,
        REGISTRY, REGISTRY_GENERATED, FUNCTION_REGISTRY, AXIS_KIND_FOR_TYPE, PlotTypeEntry, AttrSpec, TypedValue, PlotMeta,
-       _add_plot_to_axis!
+       _add_plot_to_axis!, _open_shell
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)
@@ -56,30 +56,16 @@ _has_interactive_thread()::Bool = Threads.nthreads(:interactive) > 0
 
 """
     makieviews() -> Gtk4.GtkWindow
+    makieviews(session::Session) -> Gtk4.GtkWindow
 
 Open the primary FigureViews application window.
 
-Auto-populates a demo session with a 2D axis and a sine wave line plot.
+With no arguments, auto-populates a demo session with a 2D axis and a sine wave line plot.
+With a `Session` argument, opens the shell window displaying that session.
 
 Note: FigureViews v0.1 reads variables from REPL Main. If invoked outside a REPL, a warning is emitted and variables defined later in the script will not appear. File loading (CSV / HDF5) works normally.
 """
-function makieviews()
-    if !_has_interactive_thread()
-        error("""
-FigureViews requires an interactive thread pool for live structural editing.
-Start Julia with:  julia --threads 4,1
-or set:            JULIA_NUM_THREADS=4,1
-Without an interactive thread, adding or removing plots/axes on a displayed
-window will deadlock. See ADR-024 for details.
-""")
-    end
-    if !(isinteractive() && isdefined(Base, :active_repl))
-        @warn "FigureViews v0.1 reads variables from REPL Main. You appear to be running outside a REPL. Variables defined in this script/context so far are visible; variables you define later will not appear. File loading (CSV / HDF5) works normally."
-    end
-    if isempty(AXIS_SCHEMAS)
-        _init_schemas()
-    end
-
+function _build_demo_session()::Session
     session = new_session()
     fig_node = add_figure!(session; title = "Demo Figure")
 
@@ -107,6 +93,35 @@ window will deadlock. See ADR-024 for details.
          DataRef(:y,      snap_ys3d, :main, "ys3d"),
          DataRef(:matrix, snap_zs3d, :main, "zs3d")])
 
+    return session
+end
+
+function makieviews()
+    session = _build_demo_session()
+    return makieviews(session)
+end
+
+function makieviews(session::Session)
+    if !_has_interactive_thread()
+        error("""
+FigureViews requires an interactive thread pool for live structural editing.
+Start Julia with:  julia --threads 4,1
+or set:            JULIA_NUM_THREADS=4,1
+Without an interactive thread, adding or removing plots/axes on a displayed
+window will deadlock. See ADR-024 for details.
+""")
+    end
+    if !(isinteractive() && isdefined(Base, :active_repl))
+        @warn "FigureViews v0.1 reads variables from REPL Main. You appear to be running outside a REPL. Variables defined in this script/context so far are visible; variables you define later will not appear. File loading (CSV / HDF5) works normally."
+    end
+    if isempty(AXIS_SCHEMAS)
+        _init_schemas()
+    end
+
+    return _open_shell(session)
+end
+
+function _open_shell(session::Session)
     w = GtkWindow("FigureViews", 1400, 900)
 
     makie_fig = Makie.Figure()
@@ -143,6 +158,10 @@ window will deadlock. See ADR-024 for details.
 
     # Activate live-queued structural-mutation path (ADR-024 Part A).
     renderer.viewport_widget = viewport_widget
+
+    signal_connect(viewport_widget, "destroy") do _
+        renderer.viewport_widget = nothing
+    end
 
     _current_session[] = session
     _current_renderer[] = renderer
