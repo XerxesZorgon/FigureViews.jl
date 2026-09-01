@@ -41,7 +41,9 @@ struct PlotTypeEntry
     status::Symbol                      # :valid or :needs_manual_review
 end
 
-const REGISTRY = Dict{Symbol, PlotTypeEntry}(
+include("registry_generated.jl")
+
+const REFERENCE_7 = Dict{Symbol, PlotTypeEntry}(
     :line => PlotTypeEntry(
         :line,
         :PointBased,
@@ -139,3 +141,5 @@ const REGISTRY = Dict{Symbol, PlotTypeEntry}(
         :valid
     ),
 )
+
+const REGISTRY = merge(REGISTRY_GENERATED, REFERENCE_7)

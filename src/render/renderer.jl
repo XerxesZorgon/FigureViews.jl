@@ -186,6 +186,54 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
             visible    = plot.attrs[:visible][])
         renderer.plot_handles[plot.id] = handle
         _register_plot_observer!(renderer, plot)
+    else
+        entry = get(REGISTRY, plot.func, nothing)
+        if entry !== nothing && entry.status == :valid
+            mut_sym = Symbol(string(entry.func), "!")
+            if isdefined(Makie, mut_sym)
+                plot_fn = getfield(Makie, mut_sym)
+                pos_args = Any[]
+                if !isempty(plot.data_refs[])
+                    for (idx, sym) in enumerate(entry.positional_shape)
+                        matched = filter(r -> r.role == sym, plot.data_refs[])
+                        if !isempty(matched)
+                            push!(pos_args, renderer.session.data_snapshots[matched[1].snapshot_id])
+                        elseif length(plot.data_refs[]) >= idx
+                            push!(pos_args, renderer.session.data_snapshots[plot.data_refs[][idx].snapshot_id])
+                        end
+                    end
+                elseif !isempty(plot.args)
+                    for a in plot.args
+                        val = decode_typed_value(a)
+                        if val isa DataRef
+                            push!(pos_args, renderer.session.data_snapshots[val.snapshot_id])
+                        else
+                            push!(pos_args, val)
+                        end
+                    end
+                end
+
+                kw_dict = Dict{Symbol, Any}()
+                for (k, obs) in plot.attrs
+                    v = obs[]
+                    if v !== nothing && v !== :automatic
+                        kw_dict[k] = v
+                    end
+                end
+                for (k, tv) in plot.kwargs
+                    if !haskey(kw_dict, k)
+                        v = decode_typed_value(tv)
+                        if v !== nothing && v !== :automatic
+                            kw_dict[k] = v
+                        end
+                    end
+                end
+
+                handle = plot_fn(makie_ax, pos_args...; kw_dict...)
+                renderer.plot_handles[plot.id] = handle
+                _register_plot_observer!(renderer, plot)
+            end
+        end
     end
 end
 

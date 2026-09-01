@@ -7,7 +7,8 @@ using Makie
 using Colors
 
 @testset "M14 registry — 7 existing types registered and valid" begin
-    @test length(REGISTRY) == 7
+    @test length(REGISTRY) >= 7
+    @test length(FigureViews.REFERENCE_7) == 7
     expected_types = [:line, :scatter, :bar, :heatmap, :contour, :surface, :volume]
     for sym in expected_types
         @test haskey(REGISTRY, sym)
