@@ -106,9 +106,7 @@ function build_tree_pane(session::Session)
             Gtk4.GLib.add_action(action_map, "add_axis_3d", (_a, _p) -> _context_add_axis!(session, fig_node, :axis3d))
         elseif kind == :axis
             ax_node = node::Axis
-            push!(menu, Gtk4.GLib.GMenuItem("Add plot…", "tree.add_plot"))
             push!(menu, Gtk4.GLib.GMenuItem("Delete Axis", "tree.delete_axis"))
-            Gtk4.GLib.add_action(action_map, "add_plot", (_a, _p) -> show_add_plot_dialog(session, ax_node, Gtk4.root(list_view)))
             Gtk4.GLib.add_action(action_map, "delete_axis", (_a, _p) -> _context_delete_axis!(session, ax_node.id))
         elseif kind == :plot
             plot_node = node::Plot

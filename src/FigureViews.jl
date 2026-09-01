@@ -169,7 +169,64 @@ function _open_shell(session::Session)
     main_paned[2] = viewport_widget
     main_paned.position = 300
 
-    w[] = main_paned
+    # Action group for window
+    group = Gtk4.GLib.GSimpleActionGroup()
+    action_map = Gtk4.GLib.GActionMap(group)
+
+    # File > New
+    Gtk4.GLib.add_action(action_map, "file_new",
+        _ -> @info "File > New (stub — Task 108)")
+    # File > Open
+    Gtk4.GLib.add_action(action_map, "file_open",
+        _ -> @info "File > Open (stub — Task 107)")
+    # File > Save
+    Gtk4.GLib.add_action(action_map, "file_save",
+        _ -> @info "File > Save (stub — Task 107)")
+    # File > Save As
+    Gtk4.GLib.add_action(action_map, "file_save_as",
+        _ -> @info "File > Save As (stub — Task 107)")
+    # File > Quit
+    Gtk4.GLib.add_action(action_map, "file_quit",
+        _ -> Gtk4.destroy(w))
+    # Plot > Add plot…
+    Gtk4.GLib.add_action(action_map, "plot_add", _ -> begin
+        sel_id = session.selection[]
+        ax = sel_id === nothing ? nothing : _find_axis(session, sel_id)
+        if ax !== nothing
+            show_add_plot_dialog(session, ax, w)
+        else
+            @info "Plot > Add plot…: no axis selected"
+        end
+    end)
+
+    Gtk4.G_.insert_action_group(w, "app", Gtk4.GLib.GActionGroup(group))
+
+    # File menu
+    file_menu = Gtk4.GLib.GMenu()
+    push!(file_menu, Gtk4.GLib.GMenuItem("New", "app.file_new"))
+    push!(file_menu, Gtk4.GLib.GMenuItem("Open…", "app.file_open"))
+    push!(file_menu, Gtk4.GLib.GMenuItem("Save", "app.file_save"))
+    push!(file_menu, Gtk4.GLib.GMenuItem("Save As…", "app.file_save_as"))
+
+    quit_section = Gtk4.GLib.GMenu()
+    push!(quit_section, Gtk4.GLib.GMenuItem("Quit", "app.file_quit"))
+    Gtk4.GLib.G_.append_section(file_menu, nothing, quit_section)
+
+    # Plot menu
+    plot_menu = Gtk4.GLib.GMenu()
+    push!(plot_menu, Gtk4.GLib.GMenuItem("Add plot…", "app.plot_add"))
+
+    menu_bar_model = Gtk4.GLib.GMenu()
+    push!(menu_bar_model, Gtk4.GLib.GMenuItem("File", file_menu))
+    push!(menu_bar_model, Gtk4.GLib.GMenuItem("Plot", plot_menu))
+
+    menubar = GtkPopoverMenuBar(menu_bar_model)
+
+    root_box = GtkBox(:v)
+    push!(root_box, menubar)
+    push!(root_box, main_paned)
+    main_paned.vexpand = true
+    w[] = root_box
     show(w)
 
     # Ensure the GLib main loop is running (required for g_idle_add drain).

@@ -21,6 +21,7 @@ include("unit/makieviews_session_method.jl")
 include("unit/variable_pane.jl")
 include("unit/data_pane.jl")
 include("unit/add_plot_dialog_logic.jl")
+include("unit/menubar_scaffold.jl")
 
 @testset "M1 shell — module loads" begin
     @test :makieviews in names(FigureViews)
@@ -50,7 +51,8 @@ end
     w = makieviews()
     sleep(0.3)  # let GLMakie initialize the GL context
     
-    main_paned = w[]
+    root = w[]
+    main_paned = root isa GtkPaned ? root : Gtk4.G_.get_last_child(root)
     @test main_paned !== nothing
     
     # Stronger assertions: right child is the viewport
