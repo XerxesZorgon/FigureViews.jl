@@ -85,17 +85,90 @@ function build_property_pane(session::Session)::GtkWidget
 end
 
 function _populate_for_plot!(box::GtkBox, plot::Plot)
-    specs = PLOT_SCHEMAS[plot.type]
-    for spec in specs
-        if haskey(plot.attrs, spec.name)
-            attr_obs = plot.attrs[spec.name]
-            widget = _widget_for_spec(specs, spec, attr_obs)
-            
-            hbox = GtkBox(:h)
-            push!(hbox, GtkLabel(spec.label))
-            push!(hbox, widget)
-            push!(box, hbox)
+    entry = get(REGISTRY, plot.func, nothing)
+    if entry === nothing
+        push!(box, GtkLabel("Unknown plot type: $(plot.func) — properties unavailable"))
+        return
+    end
+
+    sorted_attrs = sort(collect(entry.attributes), by = x -> string(x[1]))
+
+    for (name, spec) in sorted_attrs
+        attr_obs = get(plot.attrs, name, nothing)
+        is_observable = attr_obs !== nothing
+        current_val = nothing
+
+        if is_observable
+            current_val = attr_obs[]
+        else
+            kw_val = get(plot.kwargs, name, nothing)
+            if kw_val === nothing
+                continue
+            end
+            current_val = kw_val isa TypedValue ? decode_typed_value(kw_val) : kw_val
         end
+
+        widget = if spec.widget == :colorpicker
+            if current_val isa Colorant
+                btn = GtkColorButton()
+                btn.rgba = Gtk4.GdkRGBA(Float64(Colors.red(current_val)), Float64(Colors.green(current_val)), Float64(Colors.blue(current_val)), 1.0)
+                if is_observable
+                    signal_connect(btn, "color-set") do b
+                        s = Gtk4.rgba(b)
+                        attr_obs[] = RGB(s.red, s.green, s.blue)
+                    end
+                end
+                btn
+            else
+                GtkLabel(string(current_val))
+            end
+        elseif spec.widget == :numeric
+            if current_val isa Number && !(current_val isa Bool)
+                btn = GtkSpinButton(0.0, 1000.0, 1.0)
+                btn.value = Float64(current_val)
+                if is_observable
+                    signal_connect(btn, "value-changed") do b
+                        attr_obs[] = (spec.type == :Int || current_val isa Integer) ? round(Int, b.value) : b.value
+                    end
+                end
+                btn
+            else
+                GtkLabel(string(current_val))
+            end
+        elseif spec.widget == :dropdown
+            val_str = current_val !== nothing ? string(current_val) : string(spec.default)
+            GtkDropDown([val_str])
+        elseif spec.widget == :text
+            en = GtkEntry()
+            en.text = current_val !== nothing ? string(current_val) : ""
+            if is_observable
+                signal_connect(en, "changed") do e
+                    attr_obs[] = e.text
+                end
+            end
+            en
+        elseif spec.widget == :checkbox
+            if current_val isa Bool
+                sw = GtkSwitch()
+                sw.active = current_val
+                if is_observable
+                    signal_connect(sw, "notify::active") do s, _
+                        attr_obs[] = s.active
+                    end
+                end
+                sw
+            else
+                GtkLabel(string(current_val))
+            end
+        else
+            GtkLabel(string(current_val))
+        end
+
+        hbox = GtkBox(:h)
+        lbl = spec.label != "" ? spec.label : string(name)
+        push!(hbox, GtkLabel(lbl))
+        push!(hbox, widget)
+        push!(box, hbox)
     end
 
     # Time slider: shown only when plot has an animation binding
