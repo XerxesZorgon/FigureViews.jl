@@ -65,4 +65,16 @@ mutable struct Session <: Node
     preferences_snapshot::Dict{String,Any}           # copy taken at session creation
     data_snapshots::Dict{String, AbstractArray}   # snapshot_id => array; key is UUIDv4
     selection::Observable{Union{Nothing, String}}    # id of currently-selected node
+    selected_variable::Observable{Union{Nothing, Tuple{DataSource, String}}}
+
+    function Session(
+        schema_version::VersionNumber,
+        figures::Observable{Vector{Figure}},
+        preferences_snapshot::Dict{String,Any},
+        data_snapshots::Dict{String, AbstractArray},
+        selection::Observable{Union{Nothing, String}},
+        selected_variable::Observable{Union{Nothing, Tuple{DataSource, String}}} = Observable{Union{Nothing, Tuple{DataSource, String}}}(nothing)
+    )
+        new(schema_version, figures, preferences_snapshot, data_snapshots, selection, selected_variable)
+    end
 end

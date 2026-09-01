@@ -16,6 +16,7 @@ include("render/structural.jl")
 include("render/export.jl")
 include("ui/tree_pane.jl")
 include("ui/property_pane.jl")
+include("ui/variable_pane.jl")
 include("persistence/mvz_save.jl")
 include("persistence/mvz_load.jl")
 include("persistence/preferences.jl")
@@ -30,7 +31,7 @@ export makieviews, save_session, load_session,
        DataRef, MainSource, CsvSource, Hdf5Source, DataVar, AnimBinding,
        load_preferences, save_preferences, preferences_path, reset_to_preferences!,
        REGISTRY, REGISTRY_GENERATED, FUNCTION_REGISTRY, AXIS_KIND_FOR_TYPE, PlotTypeEntry, AttrSpec, TypedValue, PlotMeta,
-       _add_plot_to_axis!, _open_shell
+       _add_plot_to_axis!, _open_shell, build_variable_pane
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)
@@ -134,17 +135,26 @@ function _open_shell(session::Session)
 
     tree_pane = build_tree_pane(session)
     tree_pane.width_request = 300
-    tree_pane.height_request = 300
+    tree_pane.height_request = 250
     property_pane = build_property_pane(session)
     property_pane.width_request = 300
-    property_pane.height_request = 500
+    property_pane.height_request = 350
+    variable_pane = build_variable_pane(session)
+    variable_pane.width_request = 300
+    variable_pane.height_request = 200
 
-    left_column = GtkPaned(:v)
-    left_column[1] = tree_pane
-    left_column[2] = property_pane
+    inner_paned = GtkPaned(:v)
+    inner_paned[1] = property_pane
+    inner_paned[2] = variable_pane
+    inner_paned.position = 220
+
+    outer_paned = GtkPaned(:v)
+    outer_paned[1] = tree_pane
+    outer_paned[2] = inner_paned
+    outer_paned.position = 280
 
     main_paned = GtkPaned(:h)
-    main_paned[1] = left_column
+    main_paned[1] = outer_paned
     main_paned[2] = viewport_widget
     main_paned.position = 300
 

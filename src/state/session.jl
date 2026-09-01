@@ -5,7 +5,8 @@ function new_session()::Session
         Observable(Figure[]),
         Dict{String,Any}(),
         Dict{String, AbstractArray}(),
-        Observable{Union{Nothing,String}}(nothing)
+        Observable{Union{Nothing,String}}(nothing),
+        Observable{Union{Nothing, Tuple{DataSource, String}}}(nothing)
     )
 end
 
