@@ -144,3 +144,41 @@ const REFERENCE_7 = Dict{Symbol, PlotTypeEntry}(
 )
 
 const REGISTRY = merge(REGISTRY_GENERATED, REFERENCE_7)
+
+const AXIS_KIND_FOR_TYPE = Dict{Symbol, Symbol}(
+    # :axis2d only
+    :band         => :axis2d,
+    :bar          => :axis2d,
+    :barplot      => :axis2d,
+    :boxplot      => :axis2d,
+    :contourf     => :axis2d,
+    :density      => :axis2d,
+    :errorbars    => :axis2d,
+    :heatmap      => :axis2d,
+    :hexbin       => :axis2d,
+    :hist         => :axis2d,
+    :image        => :axis2d,
+    :line         => :axis2d,
+    :pie          => :axis2d,
+    :rangebars    => :axis2d,
+    :spy          => :axis2d,
+    :stairs       => :axis2d,
+    :stem         => :axis2d,
+    :streamplot   => :axis2d,
+    # :axis3d only
+    :surface      => :axis3d,
+    :volume       => :axis3d,
+    # :any (works on both Axis and Axis3)
+    :arrows       => :any,
+    :contour      => :any,
+    :lines        => :any,
+    :linesegments => :any,
+    :mesh         => :any,
+    :meshscatter  => :any,
+    :poly         => :any,
+    :scatter      => :any,
+    :scatterlines => :any,
+    :text         => :any,
+)
+
+@assert Set(keys(AXIS_KIND_FOR_TYPE)) == Set(keys(REGISTRY)) "AXIS_KIND_FOR_TYPE must cover all keys in REGISTRY"

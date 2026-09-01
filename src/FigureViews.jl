@@ -29,7 +29,8 @@ export makieviews, save_session, load_session,
        apply_structural!, AddPlotOp, RemovePlotOp, AddAxisOp, RemoveAxisOp,
        DataRef, MainSource, CsvSource, Hdf5Source, DataVar, AnimBinding,
        load_preferences, save_preferences, preferences_path, reset_to_preferences!,
-       REGISTRY, REGISTRY_GENERATED, FUNCTION_REGISTRY, PlotTypeEntry, AttrSpec, TypedValue, PlotMeta
+       REGISTRY, REGISTRY_GENERATED, FUNCTION_REGISTRY, AXIS_KIND_FOR_TYPE, PlotTypeEntry, AttrSpec, TypedValue, PlotMeta,
+       _add_plot_to_axis!
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)

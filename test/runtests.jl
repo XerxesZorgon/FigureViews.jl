@@ -14,6 +14,7 @@ include("unit/session.jl")
 include("unit/tree_pane.jl")
 include("unit/tree_pane_context_menu.jl")
 include("unit/property_pane.jl")
+include("unit/property_pane_add_plot.jl")
 include("unit/incremental_ops.jl")
 include("unit/thread_check.jl")
 

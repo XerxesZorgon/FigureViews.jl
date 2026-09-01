@@ -73,7 +73,7 @@ function build_property_pane(session::Session)::GtkWidget
                 ax = _find_axis(session, id)
                 if ax !== nothing
                     empty!(box)
-                    _populate_for_axis!(box, ax)
+                    _populate_for_axis!(box, ax, session)
                 else
                     show_placeholder()
                 end
@@ -177,7 +177,7 @@ function _populate_for_plot!(box::GtkBox, plot::Plot)
     end
 end
 
-function _populate_for_axis!(box::GtkBox, ax::Axis)
+function _populate_for_axis!(box::GtkBox, ax::Axis, session::Union{Nothing, Session} = nothing)
     if haskey(AXIS_SCHEMAS, ax.kind)
         specs = AXIS_SCHEMAS[ax.kind]
         if ax.camera[] === nothing
@@ -213,6 +213,54 @@ function _populate_for_axis!(box::GtkBox, ax::Axis)
         Makie.autolimits!(handle)
     end
     push!(box, recenter_btn)
+
+    # "Add plot…" button: opens a popover offering valid plot types for this axis kind
+    add_plot_btn = GtkButton("Add plot…")
+    popover_ref = Ref{Union{Nothing, GtkPopoverMenu}}(nothing)
+    signal_connect(add_plot_btn, "clicked") do _b
+        if popover_ref[] !== nothing
+            try
+                Gtk4.G_.unparent(popover_ref[])
+            catch
+            end
+            popover_ref[] = nothing
+        end
+
+        eligible = [type for (type, entry) in REGISTRY
+                    if entry.status == :valid &&
+                       get(AXIS_KIND_FOR_TYPE, type, :axis2d) in (ax.kind, :any)]
+        sort!(eligible, by = string)
+
+        menu = Gtk4.GLib.GMenu()
+        action_group = Gtk4.GLib.GSimpleActionGroup()
+        action_map = Gtk4.GLib.GActionMap(action_group)
+
+        for (i, ptype) in enumerate(eligible)
+            act_name = "add_$(i)"
+            push!(menu, Gtk4.GLib.GMenuItem(string(ptype), "axis.$(act_name)"))
+            Gtk4.GLib.add_action(action_map, act_name, (_a, _p) -> begin
+                if session !== nothing
+                    _add_plot_to_axis!(session, ax, ptype)
+                else
+                    plot = add_plot!(ax, ptype, DataRef[])
+                    apply_structural!(FigureViews._current_renderer[], AddPlotOp(ax, plot))
+                end
+            end)
+        end
+
+        popover = GtkPopoverMenu(menu)
+        popover_ref[] = popover
+        Gtk4.G_.insert_action_group(popover, "axis", Gtk4.GLib.GActionGroup(action_group))
+        Gtk4.G_.set_parent(popover, add_plot_btn)
+        Gtk4.popup(popover)
+    end
+    push!(box, add_plot_btn)
+end
+
+function _add_plot_to_axis!(session::Session, ax_node::Axis, plot_type::Symbol)
+    plot = add_plot!(ax_node, plot_type, DataRef[])
+    apply_structural!(FigureViews._current_renderer[], AddPlotOp(ax_node, plot))
+    return plot
 end
 
 function _widget_for_spec(specs::Vector{AttrSpec}, spec::AttrSpec, attr_observable::Observable{Any})::GtkWidget
