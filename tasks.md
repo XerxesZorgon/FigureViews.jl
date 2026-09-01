@@ -3578,7 +3578,7 @@ Report `TASK 093 FAILED — [what failed: type not preserved / render error on l
 ---
 
 ## Task 094: Registry generator — introspect Makie, emit entries for the full plot-type list
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-08-31, commit bf4dea8
 **Milestone:** M14 (Phase 2)
 **Depends on:** 093
 
@@ -3607,11 +3607,932 @@ Report `TASK 094 FAILED — [what failed: introspection error / reference-7 mism
 
 ---
 
-> **Phase 3 (Tasks 095+) to be written after Task 094 is green.** Scope per ADR-026: generic
-> property panel as an explicit fallback tier (not over-invested — per Perplexity's evidence that
-> auto-generated panels are universally second-class); non-serializable `Symbol→Function`/enum
-> registry; full preserve-and-warn + degraded-render placeholder; complete round-trip test suite;
-> then the original M14 pane-wiring (`makieviews(session)`, tree context actions, add-plot
-> affordance) now targeting generic nodes. Deferred indefinitely: first-class streamplot
-> vector-field serialization, arbitrary-closure editing, full third-party recipe auto-discovery.
+> **Phase 3 (Tasks 095–098):** Task 094 is green; specs are now written below.
+
+---
+
+## Task 095: Generic property panel — drive the property pane from REGISTRY for all plot types
+**Status:** [x] Done — 2026-08-31, commit 6d5d315
+**Milestone:** M14 (Phase 3)
+**Depends on:** 094
+
+### What to do
+Generalize `src/ui/property_pane.jl` so the property panel for a `Plot` node is built from
+`REGISTRY[plot.func]` rather than `PLOT_SCHEMAS[plot.type]`. This is the **fallback tier**
+(per ADR-026 and Perplexity's caution): good enough to edit any registered type, not a
+hand-crafted panel per type.
+
+1. In `_populate_for_plot!`, replace the `PLOT_SCHEMAS[plot.type]` lookup with a
+   `REGISTRY[plot.func]` lookup. Use `entry.attributes` (a `Dict{Symbol,AttrSpec}`) to drive
+   the widget list. The `AttrSpec` struct carries `type`, `default`, and `widget` — map these
+   to the existing widget builders:
+   - `widget == :colorpicker` → `_widget_for_spec(... :color ...)` path
+   - `widget == :numeric` → `:number` path (use a sensible default range 0–1000 when
+     `AttrSpec` has no explicit bounds; the bound-carrying extension is deferred)
+   - `widget == :dropdown` → `:enum` path (choices from `AttrSpec.default` if it is a
+     `Symbol`, else a one-item list containing the current value)
+   - `widget == :text` → `:string` path
+   - `widget == :checkbox` → `:bool` path
+   - `widget == :auto` or `:generic` → a read-only `GtkLabel` showing `string(current_val)`
+2. Attribute values live in `plot.attrs` (Observable-per-key, the reactive layer) for the
+   7 original types. For attributes only in `plot.kwargs` (the generic-node typed-value
+   dict), expose them as read-only labels — live editing of kwargs is a Phase 3 non-goal;
+   this panel only needs to surface what `plot.attrs` already exposes reactively.
+3. For a `Plot` whose `func` is **not in `REGISTRY`** (e.g. a future unknown type loaded from
+   a newer `.mvz`): show a GtkLabel: `"Unknown plot type: \$(plot.func) — properties
+   unavailable"`. No crash; no silent blank panel.
+4. Remove the `PLOT_SCHEMAS` import/reference from `property_pane.jl` once the switch is
+   complete (it is no longer the source of truth for the property panel; the 7 hand-authored
+   entries remain in `registry.jl` as the REFERENCE_7 validation set, not as UI schema).
+5. The time-slider logic (`_add_time_slider!`) is unchanged.
+6. The axis panel (`_populate_for_axis!`) is unchanged.
+
+**Do not** invest in per-widget bound inference or rich enum-choice discovery — that is
+the "first-class panel" that ADR-026 explicitly defers. A working generic panel that
+shows editable numeric fields, color pickers, and read-only labels is the acceptance bar.
+
+### Files touched
+- `src/ui/property_pane.jl` — replace PLOT_SCHEMAS-driven `_populate_for_plot!` with REGISTRY-driven version
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests green. Additionally,
+a manual GUI smoke check (not automated) confirms: opening FigureViews with a session
+containing a `:scatter` plot and selecting it in the tree shows editable numeric and color
+widgets in the property pane without error. (Antigravity: run `Pkg.test()` and report the
+Test Summary; note any test failures; the manual GUI check is recorded by John after the
+test suite passes.)
+
+### Report back
+On pass: `TASK 095 PASSED — generic property panel, REGISTRY-driven, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 095 FAILED — [what failed: test regression / REGISTRY lookup error / panel crash]` with the full error and Test Summary line.
+
+---
+
+## Task 096: Non-serializable `Symbol→Function` registry + rehydration in apply_structural!
+**Status:** [x] Done — 2026-08-31, commit 06da315
+**Milestone:** M14 (Phase 3)
+**Depends on:** 095
+
+### What to do
+The generic renderer branch in `_render_plot!` (the `else` clause added in Task 094) passes
+kwargs from `plot.kwargs` (typed-value dict) and `plot.attrs` (Observable dict) directly to
+the Makie plot function. Attributes whose values are `Function` objects (e.g. `colorscale`,
+`lowclip`/`highclip` when set to a Makie built-in) cannot round-trip through TOML and are
+currently passed as `:automatic` (their serializable default). This task adds a bounded
+`Symbol→Function` lookup so that known function-valued attributes can be stored as a
+`Symbol` name and rehydrated to the actual `Function` at render time.
+
+1. Create `src/state/function_registry.jl` with:
+   ```julia
+   const FUNCTION_REGISTRY = Dict{Symbol, Any}(
+       :identity   => identity,
+       :sqrt       => sqrt,
+       :log        => log,
+       :log10      => log10,
+       :exp        => exp,
+       :abs        => abs,
+   )
+   ```
+   This is the *complete initial list* — no guessing at what Makie uses internally. Add
+   entries only when a specific attribute/function pair is known to be needed. The list grows
+   by extension, not by auto-discovery.
+2. In `src/state/registry.jl`, include `function_registry.jl`. Export `FUNCTION_REGISTRY`.
+3. In `src/render/renderer.jl`, in the generic fallback branch of `_render_plot!`, after
+   building `kw_dict` from `plot.kwargs`/`plot.attrs`: for any value that is a `Symbol`
+   and that `Symbol` is a key in `FUNCTION_REGISTRY`, replace the value with
+   `FUNCTION_REGISTRY[sym]` before the `plot_fn(...)` call. Values not in
+   `FUNCTION_REGISTRY` that are `Symbol` stay as `Symbol` (Makie accepts most enum-like
+   kwargs as Symbols natively).
+4. Add a unit test in `test/unit/function_registry.jl`: verify that `:identity` maps to
+   `identity`, `:sqrt` maps to `sqrt`, and that a Symbol not in the registry is returned
+   unchanged (i.e. the lookup is a no-op for unknown Symbols).
+5. Include the new test file in `test/runtests.jl`.
+
+### Files touched
+- `src/state/function_registry.jl` — new: `FUNCTION_REGISTRY` constant
+- `src/state/registry.jl` — `include("function_registry.jl")`, export
+- `src/render/renderer.jl` — rehydration in the generic `_render_plot!` fallback
+- `test/unit/function_registry.jl` — new unit test
+- `test/runtests.jl` — add include
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests green, plus
+a `function_registry` testset asserting: `:identity` resolves to `identity`; `:sqrt`
+resolves to `sqrt`; a Symbol not in the registry (e.g. `:foobar`) is not in `FUNCTION_REGISTRY`.
+
+### Report back
+On pass: `TASK 096 PASSED — function registry, rehydration wired, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 096 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 097: Preserve-and-warn on load + degraded-render placeholder
+**Status:** [x] Done — 2026-08-31, commit 14e8154
+**Milestone:** M14 (Phase 3)
+**Depends on:** 096
+
+### What to do
+Close the ADR-026 loading contract: an `.mvz` with a plot type or attribute that the
+current Makie cannot interpret must **never destroy information** and must **refuse to
+render silently**. Task 093 already preserves unknown *kwargs* keys (marking
+`meta.status = :unresolved`). This task adds the renderer-side consequence and extends
+preservation to unknown *func* (unknown plot type).
+
+1. **Unknown `func` on load** (`src/persistence/mvz_load.jl`): if `plot.func` is not a
+   key in `REGISTRY`, load the node with `meta.status = :unresolved` and log a warning:
+   `@warn "FigureViews: unknown plot type $(plot.func) in .mvz — node preserved, not rendered"`. 
+   Do not crash. Do not silently skip. The node stays in the session tree so it round-trips
+   back out on re-save.
+2. **Degraded-render placeholder** (`src/render/renderer.jl`): in `_render_plot!`, before
+   dispatching, check `plot.meta.status`. If `:unresolved`:
+   - Do not call any Makie plot function.
+   - Instead, render a visible placeholder: a `Makie.text!` call on the target axis with
+     the string `"[unresolved: \$(plot.func)]"` at coordinates `(0.5, 0.5)` in axis-relative
+     space (use `space = :relative`).
+   - Store the text handle in `renderer.plot_handles[plot.id]` so cleanup works normally.
+3. **Test**: add `test/integration/preserve_and_warn.jl` with two subtests:
+   a. Save a session, manually corrupt the saved `.mvz` by changing a plot's
+      `[func]` field to `"unknown_plot_xyzzy"`, reload, and assert: no error thrown;
+      the loaded plot's `meta.status == :unresolved`; `@test_logs` captures a warning
+      containing `"unknown plot type"`.
+   b. Render the session with the unresolved plot headlessly (CairoMakie): assert no
+      error and `renderer.plot_handles` has an entry for the plot's id (the placeholder
+      text handle).
+4. Include the new test file in `test/runtests.jl`.
+
+### Files touched
+- `src/persistence/mvz_load.jl` — unknown-func preservation + warning
+- `src/render/renderer.jl` — `:unresolved` branch in `_render_plot!`
+- `test/integration/preserve_and_warn.jl` — new test file
+- `test/runtests.jl` — add include
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests green, plus
+a `preserve_and_warn` testset with both subtests passing: unknown-func load preserves
+the node with `meta.status == :unresolved` and emits a warning; headless render of
+an unresolved plot produces a placeholder handle with no error.
+
+### Report back
+On pass: `TASK 097 PASSED — preserve-and-warn + degraded placeholder, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 097 FAILED — [what failed: load crash / warning not emitted / placeholder missing]` with the full error and Test Summary line.
+
+---
+
+## Task 098: Full generic-node round-trip test suite (sampled types)
+**Status:** [x] Done — 2026-08-31, commit 4597610
+**Milestone:** M14 (Phase 3)
+**Depends on:** 097
+
+### What to do
+Close M14 Phase 3 with a broad round-trip test that validates the full pipeline
+(build → save → load → render) for a representative sample of the newly-registered
+plot types, not just the original 7. This is the "complete round-trip test suite" ADR-026
+committed to before M14 is declared done.
+
+1. In `test/integration/roundtrip_generic_extended.jl`, write a parametric round-trip
+   test over a list of **10 sampled types** from `REGISTRY` that are `:valid` and **not**
+   among the original 7 (e.g. `:scatterlines`, `:hist`, `:band`, `:density`, `:boxplot`,
+   `:linesegments`, `:stairs`, `:stem`, `:errorbars`, `:contourf` — pick 10 whose
+   `positional_shape` makes it straightforward to supply dummy data). For each:
+   a. Construct a `Session` containing one axis with one plot of that type, using minimal
+      synthetic data matching the type's `positional_shape`.
+   b. Save to a temp `.mvz` file.
+   c. Load the `.mvz` back into a new `Session`.
+   d. Assert: loaded `plot.func == original.func`; loaded `plot.meta.status == :valid`;
+      loaded `plot.args` or `plot.data_refs` round-trip correctly (value and type preserved).
+   e. Render the loaded session headlessly (CairoMakie); assert no error and
+      `renderer.plot_handles` has an entry for the plot's id.
+2. Include the new test file in `test/runtests.jl`.
+3. If any of the 10 sampled types fails the round-trip due to a data-construction issue
+   (e.g. `boxplot` requires a categorical x + real y), substitute a different `:valid`
+   type from the registry rather than working around it with special-case code — keep the
+   test clean.
+
+### Files touched
+- `test/integration/roundtrip_generic_extended.jl` — new test file
+- `test/runtests.jl` — add include
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests green, plus
+a `roundtrip_generic_extended` testset with all 10 sampled types passing the full
+build→save→load→render cycle. Report back: `TASK 098 PASSED — extended round-trip,
+10 types all green, tests green, commit = [hash]` with the Test Summary line.
+
+### On Failure
+Report `TASK 098 FAILED — [which type failed] — [step: save/load/render] — [error text]`
+with the Test Summary line.
+
+---
+
+> **M14 Phase 3 complete after Task 098 is green.** M14 exit criterion: Tasks 092–098
+> all green, CI 2/2, GUI launches and property panel shows widgets for a scatter plot.
+> Next milestone: M15 (GUI entry surface) — variable picker, add-plot menu, file menu,
+> data pane, pre-flight warning modal.
+> Deferred indefinitely per ADR-026: first-class streamplot vector-field serialization,
+> arbitrary-closure editing, full third-party recipe auto-discovery.
+
+---
+
+# M15 — Live GUI editing + entry surface
+
+**Scope note.** M15 as originally scoped in PLAN-v0.2.md assumes the live-editing
+plumbing from PLAN-v0.2 M14. The M14 that was actually executed (Tasks 092–098) was
+the ADR-026 registry generalization instead. This milestone rolls the missing
+plumbing into M15: Phase 1 delivers what PLAN-v0.2 M14 called for (tree/property
+panes wired to `apply_structural!`), Phases 2–5 deliver M15's original scope
+(variable picker, data pane, Add-Plot dialog, file menu, pre-flight modal).
+
+Unsaved-changes tracking is deferred to M18. Task 108's "New" action confirms with
+a fixed "Discard current session?" dialog until a `Session.dirty` observable exists.
+
+---
+
+## Task 099: Tree pane — context menu with add-axis / delete
+**Status:** [ ] Pending
+**Milestone:** M15 (Phase 1)
+**Depends on:** 098
+
+### What to do
+Add a right-click context menu to the existing tree_pane list view in
+`src/ui/tree_pane.jl`. The menu's items depend on the selected node's kind
+(figure / axis / plot), determined by looking up `session.selection[]` in the
+current `ids` array. Menu items:
+
+- On a **Figure** node: "Add Axis (2D)", "Add Axis (3D)".
+- On an **Axis** node: "Delete Axis" (routes `RemoveAxisOp(ax.id)`).
+- On a **Plot** node: "Delete Plot" (routes `RemovePlotOp(plot.id)`).
+
+Each item's callback constructs the appropriate op and calls
+`apply_structural!(FigureViews._current_renderer[], op)`. For "Add Axis", first
+call `add_axis!(fig_node; kind = :axis2d, title = "New Axis")` on the state side
+to construct the Axis node, then post `AddAxisOp(fig_node, ax_node)`. Do NOT
+mutate the renderer directly — everything routes through the funnel.
+
+Use Gtk4's `GtkPopoverMenu` bound to a `GestureClick` (secondary button) on the
+list view. Menu construction is per-right-click (rebuild the popover based on
+the currently-selected node's kind) — the popover does not need to be a
+long-lived widget.
+
+Expose the three callbacks as named functions for testing:
+`_context_add_axis!(session, fig_node, kind)`,
+`_context_delete_axis!(session, ax_id)`,
+`_context_delete_plot!(session, plot_id)`.
+
+### Files touched
+- `src/ui/tree_pane.jl` — add context menu, gesture, and callbacks
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests
+green, plus a new `tree_pane_context_menu` testset that:
+a. Builds a session with one figure and one 2D axis.
+b. Calls `_context_add_axis!(session, fig_node, :axis3d)` directly (no
+   GtkGesture required).
+c. Asserts the figure now has 2 axes and the second is `:axis3d`.
+d. Calls `_context_delete_axis!(session, new_ax.id)`.
+e. Asserts the figure is back to 1 axis.
+Headless — no `makieviews()` call. `apply_structural!` runs in direct (non-queued)
+mode because `_current_renderer[]` is nothing in the test; the state mutation
+still applies via `add_axis!` / the removal path in `_apply_structural_direct!`.
+
+### Report back
+On pass: `TASK 099 PASSED — tree context menu wired, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 099 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 100: Property pane — "Add plot" affordance + axis-kind lookup table
+**Status:** [ ] Pending
+**Milestone:** M15 (Phase 1)
+**Depends on:** 099
+
+### What to do
+Makie's `conversion_trait` does not partition 2D from 3D plot types cleanly
+(`:VertexGrid` covers both `:contour` and `:surface`; `:PointBased` covers
+`:scatter` in both). So the axis-kind constraint is expressed as a hand-curated
+lookup table, not via introspection.
+
+1. In `src/state/registry.jl`, add:
+   ```julia
+   const AXIS_KIND_FOR_TYPE = Dict{Symbol, Symbol}(
+       # :axis2d, :axis3d, or :any
+       ...
+   )
+   ```
+   Populate one entry for each of the 30 types currently in `REGISTRY`.
+   Use `:any` for types that legitimately work on both axis kinds
+   (`:scatter`, `:lines`, `:mesh`, `:meshscatter` — verify against Makie docs
+   as you go; when in doubt, mark `:axis2d` and note the type in a comment).
+   Export `AXIS_KIND_FOR_TYPE`.
+2. In `src/ui/property_pane.jl`, when the currently-selected node is an
+   `Axis`, add an "Add plot…" button below the schema-driven attribute
+   widgets. The button opens a small transient popover with a `GtkDropDown`
+   populated from `REGISTRY` filtered as follows: entry.status == :valid
+   AND (`AXIS_KIND_FOR_TYPE[type] == ax.kind` OR `AXIS_KIND_FOR_TYPE[type] == :any`).
+3. Selecting a type and clicking "Add" calls
+   `add_plot!(ax, plot_type, DataRef[])` (empty data — will render as the
+   ADR-026 `:unresolved` placeholder, which is expected; data binding
+   happens via the Add-Plot dialog in Task 105), then routes
+   `AddPlotOp(ax, plot)` through `apply_structural!`.
+
+Expose the callback as a named function `_add_plot_to_axis!(session, ax_node, plot_type)`
+for testing (same pattern as Task 099).
+
+### Files touched
+- `src/state/registry.jl` — new `AXIS_KIND_FOR_TYPE` constant, export
+- `src/ui/property_pane.jl` — add button + popover + callback
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests
+green, plus a new `property_pane_add_plot` testset that:
+a. Asserts `AXIS_KIND_FOR_TYPE` has an entry for every key in `REGISTRY`
+   (`Set(keys(AXIS_KIND_FOR_TYPE)) == Set(keys(REGISTRY))`).
+b. Asserts every value is one of `:axis2d`, `:axis3d`, `:any`.
+c. Builds a session with one figure and one `:axis2d`.
+d. Calls `_add_plot_to_axis!(session, ax_node, :line)` directly.
+e. Asserts the axis now has 1 plot with `plot.type == :line` and empty `data_refs[]`.
+f. Repeats with a `:axis3d` and `:surface`; asserts success.
+g. Filter test: computes the set of REGISTRY types eligible for `:axis3d`
+   (per the lookup) and asserts `:line` is NOT in it and `:surface` IS in it.
+
+### Report back
+On pass: `TASK 100 PASSED — add-plot affordance + axis-kind lookup, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 100 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 101: `makieviews(session)` + destroy-signal safety
+**Status:** [ ] Pending
+**Milestone:** M15 (Phase 1)
+**Depends on:** 100
+
+### What to do
+1. Add a new method `makieviews(session::Session)` in `src/FigureViews.jl` that
+   opens the shell window against a caller-provided session instead of the
+   demo. The existing `makieviews()` (no-arg) keeps working: it constructs
+   the demo session and calls `makieviews(session)`.
+2. Refactor: extract the "build shell around a session" code (from `w = GtkWindow(...)`
+   through `return w`, minus the demo-construction block above it) into
+   `_open_shell(session::Session)`. Both `makieviews()` and `makieviews(session)`
+   call `_open_shell`. The interactive-thread check, REPL-detection warning,
+   and `_init_schemas()` stay in `makieviews()` (both variants) before the
+   delegate.
+3. In `_open_shell`, after `renderer.viewport_widget = viewport_widget`,
+   connect a `destroy` signal to the viewport widget that resets
+   `renderer.viewport_widget = nothing`:
+   ```julia
+   signal_connect(viewport_widget, "destroy") do _
+       renderer.viewport_widget = nothing
+   end
+   ```
+   This ensures `_window_is_live(renderer)` returns `false` after the user
+   closes the window — otherwise a closed-then-reopened path would still
+   post to a stale widget.
+
+The no-arg `makieviews()` retains ONLY the interactive-thread check, REPL
+warning, `_init_schemas()` call, and demo-session construction before
+delegating to `makieviews(session)`.
+
+### Files touched
+- `src/FigureViews.jl` — add method, extract shell builder, add destroy signal
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests
+green, plus a `makieviews_session_method` testset that:
+a. Constructs an empty `Session` (no figures); asserts construction succeeds.
+b. Constructs a session with one figure, one axis, no plots via `add_figure!`
+   / `add_axis!`; asserts construction succeeds.
+c. Asserts `methods(makieviews)` has both zero-arg and one-arg (Session) methods.
+Do NOT call `makieviews(session)` in the test — it opens a window and starts
+a GLib loop; headless CI can't handle that. The test verifies method
+existence and that constructing the input sessions succeeds. The destroy-
+signal wiring is verified by Task 102's live GUI test.
+
+### Report back
+On pass: `TASK 101 PASSED — makieviews(session) method + destroy safety, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 101 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 102: Layer-3 GUI-smoke test for live structural editing
+**Status:** [ ] Pending
+**Milestone:** M15 (Phase 1)
+**Depends on:** 101
+
+### What to do
+Add `test/integration/live_structural_edit.jl` that drives the Phase-1 wiring
+end-to-end on a live window via `xvfb-run` on Linux CI (the same wrapper the
+existing Layer-3 tests use). If no existing Layer-3 test file demonstrates the
+xvfb pattern, copy the launch/teardown boilerplate from the M13 live-mutation
+test; do not invent a new pattern.
+
+Test flow:
+1. Construct a session with one figure and one `:axis2d` containing one
+   `:line` plot with dummy data.
+2. Call `makieviews(session)`; capture the window handle. Wait for the GLib
+   loop to become live (a short `sleep(0.5)` after `show(w)` is acceptable —
+   match whatever M13's test uses).
+3. Call `_context_add_axis!(session, fig_node, :axis3d)` — the Task 099
+   callback. Wait one drain cycle. Assert `renderer.axis_handles` now has
+   2 entries.
+4. Call `_add_plot_to_axis!(session, new_ax, :surface)` — the Task 100
+   callback (empty data → `:unresolved` placeholder is fine). Wait. Assert
+   `renderer.plot_handles` has an entry for the new plot's id.
+5. Call `_context_delete_plot!(session, original_plot.id)`. Wait. Assert
+   `renderer.plot_handles` no longer contains that plot's id.
+6. Close the window: `destroy(w)`; assert `renderer.viewport_widget === nothing`
+   after a brief `sleep(0.2)` for the destroy signal to fire (Task 101 wiring).
+7. `Gtk4.GLib.stop_main_loop()` if the test started it.
+
+Gate the test behind `get(ENV, "FIGUREVIEWS_LIVE_GUI", "0") == "1"` so it does
+not run on developer machines by default. CI sets this env var in the Ubuntu
+job. Skip cleanly (via `@test_skip` or an early return with a printed reason)
+when the env var is absent.
+
+### Files touched
+- `test/integration/live_structural_edit.jl` — new test file
+- `test/runtests.jl` — add include
+- `.github/workflows/ci.yml` — set `FIGUREVIEWS_LIVE_GUI=1` in the Ubuntu test
+  step's `env:` block (only Ubuntu — the matrix has no other OS)
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 on the local dev machine
+(the test skips with `FIGUREVIEWS_LIVE_GUI` unset). CI run on the branch
+completes both matrix cells green with `FIGUREVIEWS_LIVE_GUI=1` in the Ubuntu
+job's env, and the `live_structural_edit` testset shows Pass in the CI log's
+Test Summary.
+
+### Report back
+On pass: `TASK 102 PASSED — Layer-3 live edit test green in CI, tests green, commit = [hash]` with the CI run URL and the Test Summary line from the Ubuntu job.
+On fail: `TASK 102 FAILED — [which assertion failed] — [drain-cycle timing / handle count / etc.]` with the CI log excerpt.
+
+---
+
+## Task 103: Variable picker pane
+**Status:** [ ] Pending
+**Milestone:** M15 (Phase 2)
+**Depends on:** 102
+
+### What to do
+Create `src/ui/variable_pane.jl` with `build_variable_pane(session::Session)`
+that returns a `GtkBox` (vertical) containing:
+
+- A `GtkDropDown` at the top listing active sources: "Main (REPL)" (always
+  present as `MainSource()`), plus one entry per session-registered CSV/HDF5
+  source. For M15, only "Main (REPL)" is populated; CSV/HDF5 registration
+  from the file menu comes in a later milestone (record this as a TODO
+  comment referencing Task 106).
+- Below it, a `GtkListView` populated from `enumerate_variables(current_source)`
+  — one row per `DataVar` showing `label`, `kind`, and `shape`. `:unsupported`
+  entries render greyed out (use CSS class `dim-label` or set `opacity = 0.5`).
+- A "Refresh" button that re-runs `enumerate_variables` and rebuilds the list.
+
+Selection state: the currently-selected variable id is exposed as a public
+observable `session.selected_variable::Observable{Union{Nothing, Tuple{DataSource, String}}}`
+— a tuple of (source, var_id) or nothing. Add this field to `Session` in
+`src/state/session.jl` (default value: `Observable{...}(nothing)`).
+
+Wire the pane into `_open_shell` (Task 101) as a third vertical pane below
+the property pane in the left column. Use `GtkPaned(:v)` nested — the left
+column becomes a two-level paned widget:
+```
+GtkPaned(:v) top    -> tree_pane
+GtkPaned(:v) bottom -> GtkPaned(:v) top    -> property_pane
+                       GtkPaned(:v) bottom -> variable_pane
+```
+Set a sensible default split (property_pane ~50%, variable_pane ~30% of the
+lower half). The layout is expected to evolve — do not over-engineer.
+
+### Files touched
+- `src/ui/variable_pane.jl` — new
+- `src/state/session.jl` — add `selected_variable` field to `Session` struct + constructor
+- `src/FigureViews.jl` — include the new file; wire the pane into `_open_shell`
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests
+green, plus a `variable_pane` testset that:
+a. Constructs a `Session`; asserts `session.selected_variable[] === nothing`.
+b. Constructs a `MainSource(mod)` with a test module fixture containing two
+   Real vectors; calls `enumerate_variables(src)`; asserts the returned
+   `Vector{DataVar}` includes both entries.
+c. Sets `session.selected_variable[] = (src, "x")`; asserts the observable
+   fires an update (use `on(...)` handler with a `Ref{Bool}` that flips true).
+Do NOT construct the pane widget in the test (requires a display). Widget
+construction is covered by Task 111's integration test where it runs under xvfb.
+
+### Report back
+On pass: `TASK 103 PASSED — variable pane + selected_variable observable, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 103 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 104: Data pane — snapshots view
+**Status:** [ ] Pending
+**Milestone:** M15 (Phase 2)
+**Depends on:** 103
+
+### What to do
+Create `src/ui/data_pane.jl` with `build_data_pane(session::Session)` returning
+a `GtkScrolledWindow` containing a `GtkListView` (or `GtkColumnView` if
+straightforward) listing every entry in `session.data_snapshots`. Each row
+shows: snapshot id (first 8 chars), array kind (vector/matrix/array3),
+shape, element type, and estimated size in KB (`Base.summarysize(arr) / 1024`).
+
+Refresh: observe `session.data_snapshots_version::Observable{Int}` (add this
+field to `Session` — a counter incremented by `ingest!` after every insert;
+this is simpler than making the Dict itself reactive). On change, rebuild the
+list.
+
+Add this pane as a fourth item in the left column's vertical stack. If four
+panes get too cramped, use a `GtkNotebook` (tab strip) to combine
+`variable_pane` and `data_pane` on shared vertical space — record the decision
+inline as a comment referencing this task.
+
+### Files touched
+- `src/ui/data_pane.jl` — new
+- `src/state/session.jl` — add `data_snapshots_version::Observable{Int}` field;
+  increment it inside `ingest!` after `session.data_snapshots[id] = snap`
+- `src/FigureViews.jl` — include; wire into `_open_shell`
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests
+green, plus a `data_pane` testset that:
+a. Constructs a `Session`; asserts `session.data_snapshots_version[] == 0`.
+b. Calls `ingest!(session, MainSource(TestFixture), "x")`; asserts the version
+   observable is now 1.
+c. Ingests another variable; asserts the version is 2.
+d. Ingesting the same variable twice increments each time (v0.1 behavior:
+   snapshots are content-addressed by uuid, not by source key; duplicate
+   ingests produce duplicate snapshots — this is expected).
+
+### Report back
+On pass: `TASK 104 PASSED — data pane + version observable, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 104 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 105: Add-Plot dialog
+**Status:** [ ] Pending
+**Milestone:** M15 (Phase 2)
+**Depends on:** 104
+
+### What to do
+Create `src/ui/add_plot_dialog.jl` with `show_add_plot_dialog(session, ax_node)`
+that opens a modal `GtkDialog` with:
+
+- **Plot type dropdown**: `REGISTRY` entries filtered as in Task 100
+  (`entry.status == :valid` AND `AXIS_KIND_FOR_TYPE[type] ∈ (ax.kind, :any)`).
+- **Role rows** (dynamic): one row per entry in `REGISTRY[type].positional_shape`.
+  The shape symbols used across REGISTRY are:
+  - vector roles: `:x_vector`, `:y_vector`, `:z_vector`, `:y_lower`,
+    `:y_upper`, `:low`, `:high`, `:values`, `:vertices`
+  - matrix roles: `:matrix`, `:faces`
+  Filter the variable dropdown per row by the shape symbol → allowed
+  `DataVar.kind` map:
+  ```julia
+  const SHAPE_TO_VAR_KIND = Dict{Symbol, Vector{Symbol}}(
+      :x_vector => [:vector], :y_vector => [:vector], :z_vector => [:vector],
+      :y_lower  => [:vector], :y_upper  => [:vector],
+      :low      => [:vector], :high     => [:vector],
+      :values   => [:vector],
+      :vertices => [:vector, :matrix],   # Nx3 matrix or vector of Point3
+      :matrix   => [:matrix],
+      :faces    => [:matrix, :vector],   # Nx3 index matrix or vector of ints
+  )
+  ```
+  Place this constant in `src/state/registry.jl` and export it.
+- **OK button** (disabled until every role has a selection) and **Cancel**.
+
+On OK:
+1. For each role, call `ingest!(session, MainSource(), var_id)` to snapshot
+   the current REPL value and get a snapshot id.
+2. Construct `Vector{DataRef}` where each `DataRef.role` is the **positional-shape
+   symbol itself** (`:x_vector`, `:matrix`, etc.) — matching the renderer's
+   index-order fallback (`plot.data_refs[][idx]`, `src/render/renderer.jl:205-213`).
+   Do NOT remap to `:x`/`:y`/`:z`/`:matrix` — that convention belongs to a
+   pre-registry era.
+3. Call `add_plot_checked!(ax_node, plot_type, refs; session, host = detect_host_specs())`.
+4. If the returned `decision == :warn`, delegate to the pre-flight modal
+   (Task 109) — for THIS task, Task 109 isn't merged yet, so fall through
+   to the existing `@warn` behavior in `add_plot_checked!` (add plot at full
+   size, log warning). Modal wiring lands in Task 110.
+5. Post `AddPlotOp(ax_node, plot)` through `apply_structural!`.
+
+Wire the dialog entry points:
+- A temporary "Add plot…" item on the tree pane's Axis context menu (removed
+  in Task 106 once the menubar exists).
+- Keyboard shortcut `Ctrl+P` registered on the main window (permanent).
+
+The menubar "Plot > Add plot…" entry lands in Task 106.
+
+### Files touched
+- `src/ui/add_plot_dialog.jl` — new
+- `src/state/registry.jl` — add and export `SHAPE_TO_VAR_KIND`
+- `src/ui/tree_pane.jl` — add temporary "Add plot…" context menu item on Axis nodes
+- `src/FigureViews.jl` — include; register Ctrl+P accelerator in `_open_shell`
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests
+green, plus an `add_plot_dialog_logic` testset that:
+a. Extracts the dialog's "on OK" logic into a testable pure function
+   `_confirm_add_plot(session, ax_node, plot_type, role_assignments::Dict{Symbol,String})`
+   (where role_assignments maps positional-shape symbol → var id in Main).
+   Tests this function directly, no dialog widget.
+ b. Uses a test fixture module with `x`, `y` real vectors; calls the pure
+   function with `plot_type = :line`,
+   `role_assignments = Dict(:x_vector => "x", :y_vector => "y")`.
+c. Asserts: axis now has 1 plot; plot has 2 `DataRef`s; each ref's
+   `role` matches the positional-shape symbol it was assigned to; both refs'
+   snapshot ids exist in `session.data_snapshots`.
+d. Asserts `SHAPE_TO_VAR_KIND` covers every symbol appearing in any
+   `REGISTRY[t].positional_shape` (unioned across all `:valid` entries).
+
+### Report back
+On pass: `TASK 105 PASSED — add-plot dialog logic + role wiring, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 105 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 106: File menu — menubar scaffold
+**Status:** [ ] Pending
+**Milestone:** M15 (Phase 3)
+**Depends on:** 105
+
+### What to do
+Add a `GtkPopoverMenuBar` (Gtk4's menubar widget) to the top of the main
+window in `_open_shell`. Structure:
+
+- **File**: New, Open…, Save, Save As…, (separator), Quit
+- **Plot**: Add plot… (routes to `show_add_plot_dialog` from Task 105 using
+  the currently-selected axis; grey out when no axis is selected)
+
+Menu items are created from a `GMenu` model; actions are registered on the
+window via `Gio.SimpleAction` with names `"win.file.new"`, `"win.file.open"`,
+etc. Handler bodies are stubs that log `@info "File > New clicked"` etc. —
+real handlers land in Tasks 107 and 108.
+
+Remove the temporary "Add plot…" context-menu item added in Task 105 (leaving
+the Task 099 add-axis / delete items in the tree context menu, which is the
+final tree UX).
+
+### Files touched
+- `src/FigureViews.jl` — construct the menubar in `_open_shell`; wire actions
+- `src/ui/tree_pane.jl` — remove the temporary "Add plot…" item
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests
+green. Because menubar construction requires a display, no unit test is added;
+the presence and click-ability of menu items is verified by Task 111 under xvfb.
+This task's own acceptance is: (a) the code compiles, (b) all existing tests
+pass, (c) grep of `src/ui/tree_pane.jl` for the exact string `"Add plot…"`
+returns no matches — the temporary item is gone. Add this grep as an explicit
+test: `@test !occursin("Add plot…", read(joinpath(pkgdir(FigureViews), "src", "ui", "tree_pane.jl"), String))`.
+
+### Report back
+On pass: `TASK 106 PASSED — menubar scaffold + File/Plot menus stubbed, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 106 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 107: Open / Save / Save As handlers
+**Status:** [ ] Pending
+**Milestone:** M15 (Phase 3)
+**Depends on:** 106
+
+### What to do
+Implement the Task 106 menu action stubs:
+
+- **Open…** — `GtkFileDialog` with `.mvz` filter. On selection, call
+  `load_session(path)`, replace `_current_session[]`, and rebuild the shell
+  panes bound to the new session. Simplest implementation: destroy the
+  current window and call `makieviews(new_session)` — the shell rebuild is
+  free that way. Note the trade-off inline: this loses window position; a
+  proper in-place session swap is a later milestone.
+- **Save** — if the current session has a known path (stored in a new
+  `session.file_path::Ref{Union{Nothing,String}}` field), call
+  `save_session(session, path)`. Otherwise fall through to Save As.
+- **Save As…** — `GtkFileDialog` in save mode; on confirm, set
+  `session.file_path[]` and call `save_session(session, path)`.
+
+Loader errors (bad schema version, `data_inline`, missing file) surface via
+`GtkMessageDialog` per DESIGN §10 ("never silently degrade"); the error's
+message string is shown verbatim.
+
+### Files touched
+- `src/FigureViews.jl` — action handler bodies for open/save/save-as
+- `src/state/session.jl` — add `file_path::Ref{Union{Nothing,String}}` field
+  (Ref, not Observable — no UI needs to react to it in M15)
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests
+green, plus a `file_menu_handlers` testset that:
+a. Extracts the save/load logic into testable pure functions
+   `_do_save(session, path)` and `_do_load(path)`. Test these directly.
+b. Round-trips: builds a session, `_do_save` to a temp path, `_do_load` from
+   that path, asserts the loaded session has the same figure/axis/plot counts.
+c. `_do_load` on a nonexistent path raises an error whose message contains
+   the path (or a `SystemError` referencing the path — either is acceptable).
+d. `_do_load` on a `.mvz` with `data_inline` raises with the ADR-017 message
+   ("requires FigureViews v0.2 or later"). (Construct a synthetic bad `.mvz`
+   by hand-writing a TOML string in the test fixture.)
+
+### Report back
+On pass: `TASK 107 PASSED — File > Open/Save/Save As handlers wired, round-trip green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 107 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 108: New handler with discard confirmation
+**Status:** [ ] Pending
+**Milestone:** M15 (Phase 3)
+**Depends on:** 107
+
+### What to do
+Implement the File > New action handler:
+
+1. Show a `GtkMessageDialog` with the text "Discard current session and start
+   a new one?" and buttons "Cancel" / "Discard". Fixed prompt — unsaved-changes
+   detection is deferred to M18 (add a TODO comment referencing M18 and the
+   future `session.dirty::Observable{Bool}` field).
+2. On "Discard", call `new_session()`, replace `_current_session[]`, and
+   rebuild the shell (same destroy-and-reopen pattern as Task 107's Open).
+3. On "Cancel", return without side effects.
+
+### Files touched
+- `src/FigureViews.jl` — action handler body for New + TODO comment
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests
+green, plus a `file_menu_new_handler` testset that:
+a. Extracts the discard-and-replace logic into `_do_new()` — a pure function
+   that assumes confirmation has already been given (no dialog in the test).
+b. Sets `_current_session[]` to a session with figures; calls `_do_new()`;
+   asserts `_current_session[]` is a fresh empty session with
+   `isempty(_current_session[].figures[])`.
+c. Greps `src/FigureViews.jl` for the string "M18" in a comment near the New
+   handler — asserts the TODO is present
+   (`@test occursin("M18", read(joinpath(pkgdir(FigureViews), "src", "FigureViews.jl"), String))`).
+
+### Report back
+On pass: `TASK 108 PASSED — File > New handler + M18 TODO, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 108 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 109: Pre-flight modal dialog
+**Status:** [ ] Pending
+**Milestone:** M15 (Phase 4)
+**Depends on:** 108
+
+### What to do
+Create `src/ui/preflight_modal.jl` with
+`show_preflight_modal(parent_window, decision::NamedTuple) -> Symbol`
+that shows a modal `GtkDialog` matching DESIGN §7.1's non-blocking WARN dialog:
+
+- Title: "Large dataset warning"
+- Body: three lines showing `decision.est_bytes` (formatted as MB with 1
+  decimal), `decision.est_fps` (rounded to 1 decimal), and `decision.reason`
+  (mapped to human-readable text: `:fps` → "Estimated frame rate is below
+  15 fps", `:vram` → "Dataset would consume more than 60% of GPU VRAM",
+  `:both` → both messages, `:ok` should not reach this dialog).
+- Three buttons: "Accept" (returns `:accept`), "Downsample…" (returns
+  `:downsample`), "Override" (returns `:override`).
+
+The return symbol tells the caller (Task 110) which branch of the DESIGN §7.1
+state machine to follow. Downsample-algorithm selection (LTTB / MinMax /
+UniformStride + target n) is a separate follow-up dialog opened by Task 110
+when `:downsample` is returned — this task only returns the top-level choice.
+
+### Files touched
+- `src/ui/preflight_modal.jl` — new
+- `src/FigureViews.jl` — include
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests
+green, plus a `preflight_modal_formatting` testset that:
+a. Extracts the body-text formatting into a pure function
+   `_format_preflight_body(decision::NamedTuple)::String`.
+b. Calls it with `(decision = :warn, reason = :fps, est_fps = 8.3, est_bytes = 1_500_000)`;
+   asserts the returned string contains "1.5" (MB), "8.3" (fps), and "frame rate".
+c. Calls with `reason = :vram`; asserts the string contains "VRAM".
+d. Calls with `reason = :both`; asserts the string contains both "frame rate"
+   and "VRAM".
+The dialog widget itself is not exercised in the test — only the formatter.
+
+### Report back
+On pass: `TASK 109 PASSED — pre-flight modal + body formatter, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 109 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 110: Wire pre-flight modal into Add-Plot dialog
+**Status:** [ ] Pending
+**Milestone:** M15 (Phase 4)
+**Depends on:** 109
+
+### What to do
+Modify Task 105's `_confirm_add_plot` (or the dialog's OK-handler wrapper —
+whichever is the entry point) so that when `add_plot_checked!` returns
+`decision.decision == :warn` AND a window is live
+(`_window_is_live(_current_renderer[])` — use the existing helper from
+`src/render/structural.jl`, NOT a bare `viewport_widget !== nothing` check),
+it calls `show_preflight_modal` before deciding what to do.
+
+Behavior by returned symbol:
+- `:accept` → keep the plot as added (no further action).
+- `:override` → same as `:accept` (identical from the state's perspective;
+  the distinction is that the user acknowledged the warning). Log at
+  `@info` level: `"pre-flight override accepted"`.
+- `:downsample` → open a second dialog (`_show_downsample_dialog`) with:
+  algorithm dropdown (LTTB / MinMaxDecimation / UniformStride) + target-n
+  spin button. On confirm, call `apply_downsample!(session, plot, algo)`.
+  On cancel, leave the plot at full size and log
+  `@info "downsample cancelled — plot kept at full size"`.
+
+When no window is live (headless / test path), skip the modal entirely and
+fall through to the existing `@warn` behavior in `add_plot_checked!` — this
+preserves the REPL-scripting path.
+
+### Files touched
+- `src/ui/add_plot_dialog.jl` — wire modal call into the OK handler
+- `src/ui/preflight_modal.jl` — add `_show_downsample_dialog` helper
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests
+green, plus a `preflight_wiring` testset that:
+a. Extracts the branch logic into a pure function
+   `_apply_preflight_choice(session, plot, choice::Symbol, downsample_spec::Union{Nothing,DownsampleAlgorithm})`.
+b. Tests `choice = :accept` — plot unchanged, no downsample recorded.
+c. Tests `choice = :override` — plot unchanged, no downsample recorded.
+d. Tests `choice = :downsample` with `LTTB(500)` — asserts
+   `plot.attrs[:downsample_algorithm][] isa LTTB` and refs were repointed.
+e. Tests headless path: `_current_renderer[] = nothing`; verifies that the
+   existing `add_plot_checked!` `@warn` fires and no modal is invoked
+   (use `@test_logs (:warn, r"pre-flight") ...`).
+
+### Report back
+On pass: `TASK 110 PASSED — pre-flight modal wired into add-plot flow, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 110 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 111: M15 end-to-end integration test
+**Status:** [ ] Pending
+**Milestone:** M15 (Phase 5)
+**Depends on:** 110
+
+### What to do
+Add `test/integration/m15_end_to_end.jl` — a Layer-3 xvfb-gated test that
+exercises the full M15 user flow through the pane and dialog callbacks
+(no actual mouse events; call the exposed test-hook functions from Tasks
+099, 100, 105, 107, 108):
+
+1. Set up a REPL-Main fixture module with `x`, `y`, `z` vectors and a 3D matrix `zm`.
+2. Call `makieviews()` (demo session opens). Wait for GLib loop.
+3. Call `_do_new()` — session is now empty.
+4. Add a figure and 2D axis via `add_figure!` + `_context_add_axis!`.
+5. Call `_confirm_add_plot(session, ax, :line, Dict(:x_vector => "x", :y_vector => "y"))`.
+   Wait one drain cycle. Assert `renderer.plot_handles` has 1 entry.
+6. `_do_save(session, tmp_path)`.
+7. `_do_new()`.
+8. `_do_load(tmp_path)`.
+9. Wait one drain cycle. Assert the loaded session has 1 figure, 1 axis,
+   1 plot; assert `renderer.plot_handles` has 1 entry.
+10. `destroy(w)`; `stop_main_loop()`.
+
+Gated behind `FIGUREVIEWS_LIVE_GUI=1` same as Task 102.
+
+Also add a manual-verification checklist to `docs/TEST_PLAN.md` under a new
+"M15 Windows manual verification" heading:
+- Start `julia --threads 4,1 --project=.`; `using FigureViews; makieviews()`.
+- Verify: menubar visible (File, Plot); tree pane populated; property pane
+  populated; variable pane shows Main entries; data pane shows demo snapshots.
+- Right-click a figure → "Add Axis (2D)" — new axis appears in tree and viewport.
+- Right-click the new axis → "Delete Axis" — removed.
+- Plot > Add plot… — dialog opens, dropdown populated, role rows appear.
+- File > Save As → pick path → file saved. File > New → discard prompt →
+  session cleared. File > Open → reopens saved session.
+
+### Files touched
+- `test/integration/m15_end_to_end.jl` — new
+- `test/runtests.jl` — add include
+- `docs/TEST_PLAN.md` — append "M15 Windows manual verification" section
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 on the local dev
+machine (test skips without `FIGUREVIEWS_LIVE_GUI`). CI run completes both
+matrix cells green with `FIGUREVIEWS_LIVE_GUI=1` set on Ubuntu; the
+`m15_end_to_end` testset shows Pass. John performs the manual verification
+checklist on Windows and reports the result.
+
+### Report back
+On pass: `TASK 111 PASSED — M15 end-to-end integration green in CI, Windows manual verification passed, tests green, commit = [hash]` with the CI URL and John's Windows verification note.
+On fail: `TASK 111 FAILED — [which step failed / CI or manual]` with the excerpt.
+
+---
+
+> **M15 complete after Task 111 is green + Windows manual verification.** M15
+> exit criterion: Tasks 099–111 all green; SDD SC-002 / SC-003 / SC-005 /
+> SC-006 met through the GUI (not just the REPL). Pre-flight modal lands per
+> DESIGN §7.1. Next: M16 (`.mvz` data round-trip — parallel track, may run
+> alongside M17/M18 planning) or M17 (macOS CI + conditional backend loading).
 
