@@ -199,16 +199,12 @@ function _open_shell(session::Session)
     renderer = Renderer(session, makie_fig)
 
     tree_pane = build_tree_pane(session)
-    tree_pane.width_request = 300
     tree_pane.height_request = 250
     property_pane = build_property_pane(session)
-    property_pane.width_request = 300
     property_pane.height_request = 350
     variable_pane = build_variable_pane(session)
-    variable_pane.width_request = 300
     variable_pane.height_request = 200
     data_pane = build_data_pane(session)
-    data_pane.width_request = 300
     data_pane.height_request = 200
 
     # Task 104: Option A (tab strip) chosen to avoid cramping four vertically-stacked panes
@@ -222,6 +218,7 @@ function _open_shell(session::Session)
     inner_paned.position = 220
 
     outer_paned = GtkPaned(:v)
+    outer_paned.width_request = 320
     outer_paned[1] = tree_pane
     outer_paned[2] = inner_paned
     outer_paned.position = 280
@@ -229,7 +226,7 @@ function _open_shell(session::Session)
     main_paned = GtkPaned(:h)
     main_paned[1] = outer_paned
     main_paned[2] = viewport_widget
-    main_paned.position = 300
+    main_paned.position = 320
 
     # Action group for window
     group = Gtk4.GLib.GSimpleActionGroup()

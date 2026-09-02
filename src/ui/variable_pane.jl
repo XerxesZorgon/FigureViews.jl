@@ -57,6 +57,8 @@ function build_variable_pane(session::Session)::GtkBox
     rebuild_rows!()
 
     scrolled = GtkScrolledWindow()
+    scrolled.hscrollbar_policy = Gtk4.PolicyType_AUTOMATIC
+    scrolled.vscrollbar_policy = Gtk4.PolicyType_AUTOMATIC
     scrolled[] = list_box
     scrolled.vexpand = true
     scrolled.hexpand = true

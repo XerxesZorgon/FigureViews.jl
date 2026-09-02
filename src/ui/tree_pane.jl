@@ -124,6 +124,8 @@ function build_tree_pane(session::Session)
     end
 
     sw = GtkScrolledWindow()
+    sw.hscrollbar_policy = Gtk4.PolicyType_AUTOMATIC
+    sw.vscrollbar_policy = Gtk4.PolicyType_AUTOMATIC
     sw[] = list_view
     return sw
 end
