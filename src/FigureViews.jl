@@ -37,7 +37,8 @@ export makieviews, save_session, load_session,
        _add_plot_to_axis!, _open_shell, build_variable_pane, build_data_pane, _rebuild_snapshot_list!,
        _confirm_add_plot, show_add_plot_dialog,
        _do_save, _do_load, _do_save_if_known, _do_new,
-       show_preflight_modal, _format_preflight_body
+       show_preflight_modal, _format_preflight_body,
+       _apply_preflight_choice, _show_downsample_dialog
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)

@@ -17,6 +17,7 @@ struct RemoveAxisOp
 end
 
 _window_is_live(renderer::Renderer) = renderer.viewport_widget !== nothing
+_window_is_live(::Nothing) = false
 
 function _post_to_queue!(renderer::Renderer, op)
     lock(renderer._queue_lock) do

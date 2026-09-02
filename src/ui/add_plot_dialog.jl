@@ -22,8 +22,17 @@ function _confirm_add_plot(session::Session,
     end
     result = add_plot_checked!(ax_node, plot_type, refs; session = session,
                                host = detect_host_specs())
-    # Modal wiring for result.decision == :warn lands in Task 110.
-    # For now fall through: add_plot_checked! already emitted @warn if needed.
+    if result.decision == :warn && _window_is_live(FigureViews._current_renderer[])
+        parent = FigureViews._current_renderer[].viewport_widget
+        choice = show_preflight_modal(parent, result)
+        if choice == :downsample
+            ds_spec = _show_downsample_dialog(parent)
+            _apply_preflight_choice(session, result.plot, :downsample, ds_spec)
+        else
+            _apply_preflight_choice(session, result.plot, choice, nothing)
+        end
+        # headless/test path: add_plot_checked! already emitted @warn above
+    end
     # TODO(Task 110): when modal wires in :downsample, apply_downsample! needs updating
     # to match positional-shape role symbols (:x_vector/:y_vector) not the legacy :x/:y.
     apply_structural!(FigureViews._current_renderer[], AddPlotOp(ax_node, result.plot))
