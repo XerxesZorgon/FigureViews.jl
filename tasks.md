@@ -3848,7 +3848,7 @@ a fixed "Discard current session?" dialog until a `Session.dirty` observable exi
 ---
 
 ## Task 099: Tree pane — context menu with add-axis / delete
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-01, commit 5c452f4
 **Milestone:** M15 (Phase 1)
 **Depends on:** 098
 
@@ -3901,7 +3901,7 @@ On fail: `TASK 099 FAILED — [what failed]` with the full error and Test Summar
 ---
 
 ## Task 100: Property pane — "Add plot" affordance + axis-kind lookup table
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-01, commit 0070887
 **Milestone:** M15 (Phase 1)
 **Depends on:** 099
 
@@ -3961,7 +3961,7 @@ On fail: `TASK 100 FAILED — [what failed]` with the full error and Test Summar
 ---
 
 ## Task 101: `makieviews(session)` + destroy-signal safety
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-01, commit 6ad4abe
 **Milestone:** M15 (Phase 1)
 **Depends on:** 100
 
@@ -4014,7 +4014,7 @@ On fail: `TASK 101 FAILED — [what failed]` with the full error and Test Summar
 ---
 
 ## Task 102: Layer-3 GUI-smoke test for live structural editing
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-01, commit 12a4095, CI 2/2
 **Milestone:** M15 (Phase 1)
 **Depends on:** 101
 
@@ -4068,7 +4068,7 @@ On fail: `TASK 102 FAILED — [which assertion failed] — [drain-cycle timing /
 ---
 
 ## Task 103: Variable picker pane
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-01, commit c986cbb
 **Milestone:** M15 (Phase 2)
 **Depends on:** 102
 
@@ -4126,7 +4126,7 @@ On fail: `TASK 103 FAILED — [what failed]` with the full error and Test Summar
 ---
 
 ## Task 104: Data pane — snapshots view
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-01, commit fb3dd8d
 **Milestone:** M15 (Phase 2)
 **Depends on:** 103
 
@@ -4171,7 +4171,7 @@ On fail: `TASK 104 FAILED — [what failed]` with the full error and Test Summar
 ---
 
 ## Task 105: Add-Plot dialog
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-01, commit 0f3f1da
 **Milestone:** M15 (Phase 2)
 **Depends on:** 104
 
@@ -4253,7 +4253,7 @@ On fail: `TASK 105 FAILED — [what failed]` with the full error and Test Summar
 ---
 
 ## Task 106: File menu — menubar scaffold
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-01, commit 7d5f31d
 **Milestone:** M15 (Phase 3)
 **Depends on:** 105
 
@@ -4294,9 +4294,10 @@ On fail: `TASK 106 FAILED — [what failed]` with the full error and Test Summar
 ---
 
 ## Task 107: Open / Save / Save As handlers
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-01, commit 1a69a92
 **Milestone:** M15 (Phase 3)
 **Depends on:** 106
+**Note:** Used `open_dialog`/`save_dialog` fallback; async `GAsyncReadyCallback` path deferred.
 
 ### What to do
 Implement the Task 106 menu action stubs:
@@ -4342,9 +4343,10 @@ On fail: `TASK 107 FAILED — [what failed]` with the full error and Test Summar
 ---
 
 ## Task 108: New handler with discard confirmation
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-01, commit fddbf59
 **Milestone:** M15 (Phase 3)
 **Depends on:** 107
+**Note:** Used `ask_dialog(no_text="Cancel", yes_text="Discard")` for confirmation.
 
 ### What to do
 Implement the File > New action handler:
@@ -4379,9 +4381,10 @@ On fail: `TASK 108 FAILED — [what failed]` with the full error and Test Summar
 ---
 
 ## Task 109: Pre-flight modal dialog
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-01, commit 770aadc
 **Milestone:** M15 (Phase 4)
 **Depends on:** 108
+**Note:** `GtkMessageDialog(msg, [(label, id), ...], flags, type, parent)` constructor used.
 
 ### What to do
 Create `src/ui/preflight_modal.jl` with
@@ -4425,7 +4428,7 @@ On fail: `TASK 109 FAILED — [what failed]` with the full error and Test Summar
 ---
 
 ## Task 110: Wire pre-flight modal into Add-Plot dialog
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-01, commit db53d3d
 **Milestone:** M15 (Phase 4)
 **Depends on:** 109
 
@@ -4476,7 +4479,7 @@ On fail: `TASK 110 FAILED — [what failed]` with the full error and Test Summar
 ---
 
 ## Task 111: M15 end-to-end integration test
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-01, commit 15d3fb3, CI 2/2, Windows checklist 11/11
 **Milestone:** M15 (Phase 5)
 **Depends on:** 110
 
