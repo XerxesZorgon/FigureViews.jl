@@ -51,9 +51,13 @@ jobs:
           FIGUREVIEWS_GOLDEN: '1'
         run: xvfb-run -a julia --threads 4,1 --project=. --code-coverage=user -e 'using Pkg; Pkg.test()'
 
+      - name: Process coverage
+        uses: julia-actions/julia-processcoverage@v1
+
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
           fail_ci_if_error: false
 
