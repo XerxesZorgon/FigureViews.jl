@@ -1,23 +1,36 @@
 # Session Log
-**Updated:** 2026-08-31
-**Active skill:** software-project (v0.2 execution — M14 Phase 1 complete + confirmed, entering Phase 2)
-**Last confirmed state:** M14 Task 093 green and pushed (commit 680869f). Phase 1 CONFIRMED (full local suite green, CI run #68 green on Ubuntu 1.10+1.12, GUI launches clean). Ready to start Task 094.
+**Updated:** 2026-09-02
+**Active skill:** software-project
+**Last confirmed state:** CI patch complete (commit 05e5466) — green
 
 ## What happened this session
-Renamed the package MakieViews → FigureViews (a registry reviewer flagged the old name as implying a link to the Makie project), closed the registry submission, and made all the reviewer's requested fixes — the package is deliberately not being re-registered until it's closer to done, so it stays off the public package index for now. Ran a science-council review of a big design question ("should the tool ever limit what Makie can draw?") which, backed by a measurement test, chose a new "generic node" design (written up as ADR-026): every plot is stored as plain data the tool doesn't have to hand-code per type. Built and confirmed Phase 1 of that design — the 7 existing plot types now use the generic model and survive a full save/reload with their data types intact.
+
+### M15 — Live GUI editing + entry surface (Tasks 099–111, all green)
+- Phase 1: tree context menu (add/delete axes/plots), property-pane Add-plot button, `makieviews(session)` method, destroy-signal safety, Layer-3 live-edit CI test.
+- Phase 2: variable picker pane (`selected_variable` observable), data/snapshots pane (GtkNotebook tab strip), Add-Plot dialog with positional-shape role wiring (`SHAPE_TO_VAR_KIND`, `AXIS_KIND_FOR_TYPE`).
+- Phase 3: menubar scaffold (File + Plot menus), Open/Save/Save As handlers (`open_dialog`/`save_dialog` fallback — async GAsyncReadyCallback deferred), File > New with `ask_dialog` confirmation (M18 TODO for dirty-flag).
+- Phase 4: pre-flight modal (`GtkMessageDialog` button-list constructor), downsample dialog, modal wired into Add-Plot flow.
+- Phase 5: M15 end-to-end integration test (CI 2/2) + Windows manual verification (11/11 ✓).
+- Patch: left-column label clipping fixed (`outer_paned.width_request = 320`, hscrollbar AUTOMATIC on tree + variable panes).
+- SDD SC-002/SC-003/SC-005/SC-006 met through GUI.
+
+### M16 — `.mvz` data round-trip (Tasks 112–115, all green)
+- ADR-027: inline TOML storage, 100,000-element cap, binary sidecar deferred indefinitely.
+- Schema version bumped 1.0 → 1.1.
+- `data_inline` written per plot (de-duplicated by snapshot id, orphans dropped, >100k refuses with clear error).
+- `_load_data_inline` + `_parse_eltype` restore arrays into `session.data_snapshots` on load.
+- Round-trip pixel hashes matched (CairoMakie before/after export identical). SC-004 closed.
+- CI patch: added `julia-actions/julia-processcoverage@v1` step; Codecov upload now green.
 
 ## Decisions made (not yet in an ADR)
-None. The load-bearing decision (the generic-node model, Option D) is fully recorded in ADR-026, with the phased build order and non-goals. The M14 re-scope is in tasks.md.
+- `open_dialog`/`save_dialog` used for File > Open/Save As (not async `GAsyncReadyCallback` path — deferred).
+- `ask_dialog(no_text="Cancel", yes_text="Discard")` used for File > New confirmation.
+- `GtkMessageDialog(msg, [(label, id)...], flags, type, parent)` constructor used for pre-flight modal.
+- GtkNotebook tab strip (Option A) chosen for variable + snapshot panes (four stacked panes too cramped).
+- AoG (AlgebraOfGraphics) noted as a future candidate for tabular/DataFrame plotting — no milestone assigned yet; needs ADR before any code.
 
 ## Blocked on / open question
-None. Phase 1 confirmed on all three checks (local tests, CI, manual GUI launch). No open questions.
+None.
 
 ## Next action
-Start **Task 094 — the registry generator** (M14 Phase 2, the "dictionary" step). The task block is already written in tasks.md under Milestone M14. It promotes the introspection logic from the throwaway spike `spike/m14d_serializable_fraction.jl` into a committed generator (`tools/gen_registry.jl`) that asks Makie itself for each plot type's attributes and argument shapes, and emits registry entries as data for a broad list of plot types — validating its output for the 7 known types against the hand-written reference entries from Task 092. Types that can't be cleanly introspected (e.g. `arrows`, which the spike found is broken in Makie 0.24) get flagged `:needs_manual_review` rather than skipped or guessed.
-
-To resume: say "resume FigureViews" and Claude will re-read this log, the antigravity skill, and ADR-026, then generate the Task 094 Antigravity instruction. Expect Task 094 to need a few iterations — Makie's introspection is fiddly, and that's normal, not failure.
-
-## Recent commit trail (for reference)
-- 083fe62 — Task 092 (generic node + registry structs, 7 types refactored)
-- 680869f — Task 093 (generic-node .mvz round-trip, type fidelity + preserve-on-load)
-- M13 chain: 1888c97, 5850d4b, 0fd156e, 1fcb3df, cd1aaae, b063b56
+M17 planning: macOS CI gate (ADR-018 hard gate before any future version tag) + conditional backend loading (ADR-023 backlog item). Read PLAN-v0.2.md M17 section before writing task specs. M18 (toolbar — the primary UX — unsaved-changes tracking, FPS pass) follows M17.
