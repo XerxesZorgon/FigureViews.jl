@@ -35,7 +35,7 @@ export makieviews, save_session, load_session,
        REGISTRY, REGISTRY_GENERATED, FUNCTION_REGISTRY, AXIS_KIND_FOR_TYPE, SHAPE_TO_VAR_KIND, PlotTypeEntry, AttrSpec, TypedValue, PlotMeta,
        _add_plot_to_axis!, _open_shell, build_variable_pane, build_data_pane, _rebuild_snapshot_list!,
        _confirm_add_plot, show_add_plot_dialog,
-       _do_save, _do_load, _do_save_if_known
+       _do_save, _do_load, _do_save_if_known, _do_new
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)
@@ -167,6 +167,23 @@ function _show_error_dialog(parent, title::String, msg::String)
     show(dlg)
 end
 
+"""
+    _do_new(old_window::Union{Nothing, GtkWindow} = nothing)
+
+Discard the current session and replace it with a fresh empty session.
+Assumes the caller has already obtained user confirmation.
+Opens a new shell window for the fresh session and destroys the old one.
+"""
+function _do_new(old_window::Union{Nothing, GtkWindow} = nothing)
+    fresh = new_session()
+    _current_session[] = fresh
+    w_new = _open_shell(fresh)
+    if old_window !== nothing
+        Gtk4.destroy(old_window)
+    end
+    return w_new
+end
+
 function _open_shell(session::Session)
     w = GtkWindow("FigureViews", 1400, 900)
 
@@ -216,8 +233,16 @@ function _open_shell(session::Session)
     action_map = Gtk4.GLib.GActionMap(group)
 
     # File > New
-    Gtk4.GLib.add_action(action_map, "file_new",
-        _ -> @info "File > New (stub — Task 108)")
+    Gtk4.GLib.add_action(action_map, "file_new", _ -> begin
+        # TODO(M18): replace fixed prompt with unsaved-changes check once
+        # session.dirty::Observable{Bool} lands (M18 deferred item).
+        ask_dialog("Discard current session and start a new one?", w;
+                   no_text = "Cancel", yes_text = "Discard") do response
+            if response   # true = user chose the affirmative button
+                _do_new(w)
+            end
+        end
+    end)
     # File > Open…
     Gtk4.GLib.add_action(action_map, "file_open", _ -> begin
         open_dialog("Open session", w) do path
