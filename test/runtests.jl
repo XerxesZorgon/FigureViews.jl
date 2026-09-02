@@ -24,6 +24,7 @@ include("unit/add_plot_dialog_logic.jl")
 include("unit/menubar_scaffold.jl")
 include("unit/file_menu_handlers.jl")
 include("unit/file_menu_new_handler.jl")
+include("unit/preflight_modal_formatting.jl")
 
 @testset "M1 shell — module loads" begin
     @test :makieviews in names(FigureViews)

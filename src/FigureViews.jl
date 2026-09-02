@@ -25,6 +25,7 @@ include("preflight/detect.jl")
 include("preflight/estimate.jl")
 include("preflight/downsample.jl")
 include("preflight/check.jl")
+include("ui/preflight_modal.jl")
 include("ui/add_plot_dialog.jl")
 
 export makieviews, save_session, load_session,
@@ -35,7 +36,8 @@ export makieviews, save_session, load_session,
        REGISTRY, REGISTRY_GENERATED, FUNCTION_REGISTRY, AXIS_KIND_FOR_TYPE, SHAPE_TO_VAR_KIND, PlotTypeEntry, AttrSpec, TypedValue, PlotMeta,
        _add_plot_to_axis!, _open_shell, build_variable_pane, build_data_pane, _rebuild_snapshot_list!,
        _confirm_add_plot, show_add_plot_dialog,
-       _do_save, _do_load, _do_save_if_known, _do_new
+       _do_save, _do_load, _do_save_if_known, _do_new,
+       show_preflight_modal, _format_preflight_body
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)
