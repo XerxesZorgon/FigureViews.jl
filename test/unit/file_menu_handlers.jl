@@ -29,11 +29,11 @@ using FigureViews: new_session, add_figure!, add_axis!,
     # asserts it throws any exception (SystemError or otherwise).
     @test_throws Exception _do_load("/nonexistent/path/test.mvz")
 
-    # d. Constructs a synthetic bad .mvz TOML string with a data_inline key and writes it to a temp file.
-    # Calls _do_load(bad_path). Asserts it throws an exception whose message contains "v0.2".
-    bad_path = joinpath(tmp_dir, "bad.mvz")
-    bad_toml = """
-    schema_version = "1.0.0"
+    # d. Constructs a synthetic .mvz TOML string with valid data_inline and writes it to a temp file.
+    # Calls _do_load(valid_inline_path). Asserts it loads successfully and ingests the snapshot.
+    valid_inline_path = joinpath(tmp_dir, "valid_inline.mvz")
+    valid_inline_toml = """
+    schema_version = "1.1.0"
 
     [[figure]]
     id = "fig1"
@@ -44,17 +44,17 @@ using FigureViews: new_session, add_figure!, add_axis!,
     [[figure.axis.plot]]
     id = "plot1"
     type = "scatter"
-    data_inline = "dummy"
+
+    [figure.axis.plot.data_inline.snap1]
+    eltype = "Float64"
+    shape = [2]
+    data = [1.0, 2.0]
     """
-    write(bad_path, bad_toml)
-    err = try
-        _do_load(bad_path)
-        nothing
-    catch e
-        e
-    end
-    @test err !== nothing
-    @test occursin("v0.2", sprint(showerror, err))
+    write(valid_inline_path, valid_inline_toml)
+    loaded_session = _do_load(valid_inline_path)
+    @test length(loaded_session.figures[]) == 1
+    @test haskey(loaded_session.data_snapshots, "snap1")
+    @test loaded_session.data_snapshots["snap1"] == [1.0, 2.0]
 
     # e. Tests _do_save_if_known on a session with file_path[] = nothing;
     # asserts it returns false without writing any file.

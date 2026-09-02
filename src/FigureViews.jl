@@ -38,7 +38,8 @@ export makieviews, save_session, load_session,
        _confirm_add_plot, show_add_plot_dialog,
        _do_save, _do_load, _do_save_if_known, _do_new,
        show_preflight_modal, _format_preflight_body,
-       _apply_preflight_choice, _show_downsample_dialog
+       _apply_preflight_choice, _show_downsample_dialog,
+       _DATA_INLINE_MAX_ELEMENTS
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)

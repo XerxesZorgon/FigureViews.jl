@@ -26,6 +26,7 @@ include("unit/file_menu_handlers.jl")
 include("unit/file_menu_new_handler.jl")
 include("unit/preflight_modal_formatting.jl")
 include("unit/preflight_wiring.jl")
+include("unit/data_inline_save.jl")
 
 @testset "M1 shell — module loads" begin
     @test :makieviews in names(FigureViews)

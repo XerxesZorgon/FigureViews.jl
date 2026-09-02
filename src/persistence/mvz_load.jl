@@ -1,20 +1,18 @@
 # src/persistence/mvz_load.jl
 
-const _LOADER_VERSION = v"1.0.0"
+const _LOADER_VERSION = v"1.1.0"
 
 """
     load_session(path::String) -> Session
 
 Deserialize a `.mvz` TOML file into a new Session.
-Raises an error for major-version mismatch or `data_inline` content.
+Raises an error for major-version mismatch.
 Warns for same-major, newer-minor version.
 Unknown plot/axis type strings become UnknownNode (verbatim round-trip).
-DataRef arrays are NOT reloaded from disk (v0.1: in-memory only).
 """
 function load_session(path::String)::Session
     raw = open(path) do io TOML.parse(io) end
     _check_schema_version(raw)
-    _reject_data_inline(raw)
     return _dict_to_session(raw)
 end
 
@@ -31,17 +29,35 @@ function _check_schema_version(raw::Dict)
     end
 end
 
-function _reject_data_inline(raw::Dict)
-    for fig in get(raw, "figure", [])
-        for ax in get(fig, "axis", [])
-            for plot in get(ax, "plot", [])
-                if haskey(plot, "data_inline")
-                    error("This .mvz contains inline data (data_inline), which requires " *
-                          "FigureViews v0.2 or later. Loading aborted.")
+function _load_data_inline(session::Session, raw::Dict)
+    for fig_dict in get(raw, "figure", [])
+        for ax_dict in get(fig_dict, "axis", [])
+            for plot_dict in get(ax_dict, "plot", [])
+                di = get(plot_dict, "data_inline", nothing)
+                di === nothing && continue
+                for (snap_id, entry) in di
+                    haskey(session.data_snapshots, snap_id) && continue
+                    eltype_str = get(entry, "eltype", "Float64")
+                    shape      = Int.(get(entry, "shape",  [0]))
+                    flat       = Float64.(get(entry, "data",   []))
+                    T          = _parse_eltype(eltype_str)
+                    arr        = reshape(T.(flat), tuple(shape...))
+                    session.data_snapshots[snap_id] = arr
+                    session.data_snapshots_version[] += 1
                 end
             end
         end
     end
+end
+
+function _parse_eltype(s::String)::Type
+    get(Dict(
+        "Float64" => Float64,
+        "Float32" => Float32,
+        "Int64"   => Int64,
+        "Int32"   => Int32,
+        "Int16"   => Int16,
+    ), s, Float64)   # default to Float64 for unknown eltypes
 end
 
 function _dict_to_session(raw::Dict)::Session
@@ -51,6 +67,7 @@ function _dict_to_session(raw::Dict)::Session
         fig = _dict_to_figure(fig_dict)
         s.figures[] = [s.figures[]..., fig]
     end
+    _load_data_inline(s, raw)
     return s
 end
 

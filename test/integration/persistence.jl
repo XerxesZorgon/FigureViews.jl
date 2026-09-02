@@ -131,7 +131,7 @@ end
     tmp = tempname() * ".mvz"
     save_session(s, tmp)
     content = replace(read(tmp, String),
-                      "schema_version = \"1.0\"" => "schema_version = \"9.0\"")
+                      r"schema_version = \"[0-9\.]+\"" => "schema_version = \"9.0\"")
     write(tmp, content)
     @test_throws Exception load_session(tmp)
     rm(tmp)

@@ -1,4 +1,4 @@
-# src/persistence/mvz_save.jl
+const _DATA_INLINE_MAX_ELEMENTS = 100_000
 
 """
     save_session(session::Session, path::String)
@@ -16,22 +16,22 @@ end
 
 function _session_to_dict(session::Session)::Dict{String,Any}
     d = Dict{String,Any}()
-    d["schema_version"] = "1.0"
+    d["schema_version"] = "1.1"
     d["preferences_snapshot"] = copy(session.preferences_snapshot)
-    d["figure"] = [_figure_to_dict(fig) for fig in session.figures[]]
+    d["figure"] = [_figure_to_dict(fig; session) for fig in session.figures[]]
     return d
 end
 
-function _figure_to_dict(fig::Figure)::Dict{String,Any}
+function _figure_to_dict(fig::Figure; session::Union{Session,Nothing} = nothing)::Dict{String,Any}
     d = Dict{String,Any}()
     d["id"]    = fig.id
     d["title"] = fig.title[]
     d["layout"] = Dict{String,Any}("rows" => fig.layout[].rows, "cols" => fig.layout[].cols)
-    d["axis"]  = [_axis_to_dict(ax) for ax in fig.axes[]]
+    d["axis"]  = [_axis_to_dict(ax; session) for ax in fig.axes[]]
     return d
 end
 
-function _axis_to_dict(ax::Axis)::Dict{String,Any}
+function _axis_to_dict(ax::Axis; session::Union{Session,Nothing} = nothing)::Dict{String,Any}
     d = Dict{String,Any}()
     d["id"]        = ax.id
     d["kind"]      = string(ax.kind)
@@ -56,7 +56,7 @@ function _axis_to_dict(ax::Axis)::Dict{String,Any}
         cam = ax.camera[]
         d["camera"] = Dict{String,Any}("azimuth" => cam.azimuth, "elevation" => cam.elevation, "zoom" => cam.zoom)
     end
-    d["plot"] = [_plot_to_dict(p, ax.id) for p in ax.plots[]]
+    d["plot"] = [_plot_to_dict(p, ax.id; session) for p in ax.plots[]]
     return d
 end
 
@@ -79,7 +79,7 @@ function _typed_value_to_dict(tv::TypedValue)::Dict{String,Any}
 end
 _typed_value_to_dict(v) = _typed_value_to_dict(typed_value(v))
 
-function _plot_to_dict(plot::Plot, target::String = "")::Dict{String,Any}
+function _plot_to_dict(plot::Plot, target::String = ""; session::Union{Session,Nothing} = nothing)::Dict{String,Any}
     d = Dict{String,Any}()
     d["id"]     = plot.id
     d["target"] = !isempty(plot.target) ? plot.target : target
@@ -105,6 +105,28 @@ function _plot_to_dict(plot::Plot, target::String = "")::Dict{String,Any}
     d["args"]      = [_typed_value_to_dict(a) for a in plot.args]
     d["kwargs"]    = Dict{String,Any}(string(k) => _typed_value_to_dict(v) for (k, v) in plot.kwargs)
     d["data_refs"] = [_dataref_to_dict(r) for r in plot.data_refs[]]
+    if session !== nothing && !isempty(plot.data_refs[])
+        inline = Dict{String,Any}()
+        for ref in plot.data_refs[]
+            haskey(inline, ref.snapshot_id) && continue        # de-duplicate
+            arr = get(session.data_snapshots, ref.snapshot_id, nothing)
+            arr === nothing && continue                         # orphaned ref — skip
+            n = length(arr)
+            if n > _DATA_INLINE_MAX_ELEMENTS
+                error("Cannot save: snapshot '$(ref.snapshot_id)' has $(n) elements, " *
+                      "which exceeds the $(_DATA_INLINE_MAX_ELEMENTS)-element inline limit. " *
+                      "Reduce dataset size or load data from a CSV/HDF5 source.")
+            end
+            inline[ref.snapshot_id] = Dict{String,Any}(
+                "eltype" => string(eltype(arr)),
+                "shape"  => collect(Int, size(arr)),
+                "data"   => vec(Float64.(arr))
+            )
+        end
+        if !isempty(inline)
+            d["data_inline"] = inline
+        end
+    end
     attrs = Dict{String,Any}()
     for (k, obs) in plot.attrs
         v = obs[]
@@ -129,7 +151,7 @@ function _plot_to_dict(plot::Plot, target::String = "")::Dict{String,Any}
     return d
 end
 
-function _plot_to_dict(node::UnknownNode, target::String = "")::Dict{String,Any}
+function _plot_to_dict(node::UnknownNode, target::String = ""; session::Union{Session,Nothing} = nothing)::Dict{String,Any}
     d = copy(node.payload)
     d["type"] = node.original_type
     if !haskey(d, "target") && !isempty(target)
