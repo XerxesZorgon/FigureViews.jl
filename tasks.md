@@ -4539,3 +4539,340 @@ On fail: `TASK 111 FAILED — [which step failed / CI or manual]` with the excer
 > DESIGN §7.1. Next: M16 (`.mvz` data round-trip — parallel track, may run
 > alongside M17/M18 planning) or M17 (macOS CI + conditional backend loading).
 
+---
+
+# M16 — `.mvz` data round-trip
+
+**Scope.** Implement the `data_inline` slot reserved by ADR-017 so a saved
+session reopens with its data intact. Arrays are stored as TOML float lists
+(inline). Snapshots above 100,000 elements are refused at save time with a
+clear error; binary sidecar storage is explicitly deferred. Schema version
+bumped from `"1.0"` to `"1.1"` (minor bump; v0.1 loader already handles
+forward-compat via its minor-version warning). Closes SDD SC-004.
+
+---
+
+## Task 112: ADR-027 — inline data decision
+**Status:** [x] Done — 2026-09-02, commit 25d604e
+**Milestone:** M16
+**Depends on:** 111
+
+### What to do
+Write `docs/adr/ADR-027-data-inline-toml-element-cap.md` documenting the
+following decision:
+
+**Decision**: For M16, session data is stored inline in the `.mvz` TOML file
+as TOML arrays of floats. Arrays with more than 100,000 elements are refused
+at save time with a clear error message. No binary sidecar file is written.
+This ceiling covers all typical scientific plots (the demo surface is 900
+elements). Users who need larger datasets should keep data in CSV or HDF5
+files and load via the file sources (which already work). A binary sidecar
+option is explicitly deferred and not planned for any current milestone.
+
+**Schema version**: bumped from `"1.0"` to `"1.1"` (minor bump). The v0.1
+loader already emits a warning for same-major newer-minor files and continues
+loading; existing v0.1 `.mvz` files (no `data_inline`) load unchanged.
+
+**What is stored**: for each `DataRef` in each plot, if the snapshot id
+exists in `session.data_snapshots`, the array is written as a
+`data_inline` sub-table under the plot entry:
+```toml
+[figure.axis.plot.data_inline.SNAPSHOT_ID]
+eltype = "Float64"         # Julia eltype string
+shape = [30, 30]           # size(arr) as integer list
+data  = [0.1, 0.2, ...]    # row-major flattened floats
+```
+Multiple refs in one plot that share a snapshot id write the array only once
+(keyed by snapshot id, de-duplicated within the plot's `data_inline` table).
+
+**What is not stored**: snapshots not referenced by any plot in the session
+are not written (orphaned snapshots are dropped on save). This is the
+expected v0.2 behavior.
+
+The ADR must include: Context, Decision, Alternatives considered (binary
+sidecar, HDF5 embed, no-inline / REPL-only), Consequences.
+
+### Files touched
+- `docs/adr/ADR-027-data-inline-toml-element-cap.md` — new
+
+### Acceptance Criterion
+The file exists and contains the four standard ADR sections (Context,
+Decision, Alternatives Considered, Consequences). `julia --project=. -e
+'using Pkg; Pkg.test()'` exits 0, all existing tests green (no code changes
+in this task).
+
+### Report back
+On pass: `TASK 112 PASSED — ADR-027 written, tests green, commit = [hash]`.
+On fail: `TASK 112 FAILED — [what failed]`.
+
+---
+
+## Task 113: Save — write `data_inline` arrays
+**Status:** [x] Done — 2026-09-02, commit 19e0a9b
+**Milestone:** M16
+**Depends on:** 112
+**Note:** Antigravity pulled `_LOADER_VERSION = v"1.1.0"` and `_load_data_inline` stub forward into this commit to keep existing round-trip tests green. Task 114 adds the full reader + unit tests.
+
+### What to do
+
+**Part 1 — Element-count guard**
+
+In `src/persistence/mvz_save.jl`, add a module-level constant:
+```julia
+const _DATA_INLINE_MAX_ELEMENTS = 100_000
+```
+
+**Part 2 — Bump schema version**
+
+In `_session_to_dict`, change:
+```julia
+d["schema_version"] = "1.0"
+```
+to:
+```julia
+d["schema_version"] = "1.1"
+```
+
+**Part 3 — Collect referenced snapshot ids per plot**
+
+In `_plot_to_dict`, after writing `d["data_refs"]`, add a `data_inline`
+sub-table. For each `DataRef` in `plot.data_refs[]`:
+1. Look up `ref.snapshot_id` in `session.data_snapshots` (passed as a new
+   keyword argument to `_plot_to_dict`).
+2. If the snapshot does not exist (orphaned ref), skip it silently.
+3. If `length(arr) > _DATA_INLINE_MAX_ELEMENTS`, throw:
+   ```julia
+   error("Cannot save: snapshot '$(ref.snapshot_id)' has $(length(arr)) " *
+         "elements, which exceeds the $(FigureViews._DATA_INLINE_MAX_ELEMENTS)-element " *
+         "inline limit. Reduce dataset size or load data from a CSV/HDF5 source.")
+   ```
+4. Otherwise, write the snapshot into a `data_inline` dict keyed by
+   snapshot id (de-duplicate: if already written by a prior ref with the
+   same id, skip):
+   ```julia
+   d["data_inline"] = Dict{String,Any}(
+       snap_id => Dict{String,Any}(
+           "eltype" => string(eltype(arr)),
+           "shape"  => collect(Int, size(arr)),
+           "data"   => vec(Float64.(arr))   # row-major flatten
+       )
+       for (snap_id, arr) in referenced_snapshots
+   )
+   ```
+
+Thread `session` down through `_session_to_dict` → `_figure_to_dict` →
+`_axis_to_dict` → `_plot_to_dict` as a keyword argument so the snapshot
+dict is accessible at the plot level. Existing call sites that don’t pass
+`session` keep working via a default of `nothing` (in which case
+`data_inline` is simply omitted, preserving v0.1 headless/export behavior).
+
+Export `_DATA_INLINE_MAX_ELEMENTS` from `src/FigureViews.jl`.
+
+### Files touched
+- `src/persistence/mvz_save.jl` — constant, schema bump, `data_inline` writer
+- `src/FigureViews.jl` — export `_DATA_INLINE_MAX_ELEMENTS`
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests
+green, plus a new `data_inline_save` testset in
+`test/unit/data_inline_save.jl` (included from `test/runtests.jl`) that:
+
+a. Builds a session with one figure, one 2D axis, one `:line` plot. Ingests
+   `x = collect(1.0:10.0)` and `y = sin.(1.0:10.0)` from a fixture module.
+   Calls `save_session(session, tmp_path)`. Reads the saved TOML. Asserts:
+   - `raw["schema_version"] == "1.1"`.
+   - `raw["figure"][1]["axis"][1]["plot"][1]` has a `"data_inline"` key.
+   - That sub-table has exactly the two snapshot ids from the DataRefs.
+   - Each entry has `"eltype"`, `"shape"`, and `"data"` keys.
+   - `"shape"` for a length-10 vector is `[10]`.
+   - `"data"` has 10 entries.
+
+b. Builds a session with a snapshot of 100,001 elements. Asserts that
+   `save_session(session, tmp_path)` throws an error whose message contains
+   `"exceeds the"` and `"100000"` (or `"100_000"` — whichever the formatted
+   message uses).
+
+c. Builds a session with no ingested data (plots have empty `data_refs[]`).
+   Asserts `save_session` succeeds and the plot entry has no `"data_inline"`
+   key (omitted cleanly).
+
+### Report back
+On pass: `TASK 113 PASSED — data_inline save, schema 1.1, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 113 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 114: Load — read `data_inline` arrays
+**Status:** [x] Done — 2026-09-02, commit 67eea8d
+**Milestone:** M16
+**Depends on:** 113
+
+### What to do
+
+**Part 1 — Replace `_reject_data_inline` with a reader**
+
+In `src/persistence/mvz_load.jl`, remove the `_reject_data_inline` function
+and its call in `load_session`. Replace with `_load_data_inline`, called
+from `_dict_to_session` after the session struct is built:
+
+```julia
+function _load_data_inline(session::Session, raw::Dict)
+    for fig_dict in get(raw, "figure", [])
+        for ax_dict in get(fig_dict, "axis", [])
+            for plot_dict in get(ax_dict, "plot", [])
+                di = get(plot_dict, "data_inline", nothing)
+                di === nothing && continue
+                for (snap_id, entry) in di
+                    haskey(session.data_snapshots, snap_id) && continue
+                    eltype_str = get(entry, "eltype", "Float64")
+                    shape      = Int.(get(entry, "shape",  [0]))
+                    flat       = Float64.(get(entry, "data",   []))
+                    T          = _parse_eltype(eltype_str)
+                    arr        = reshape(T.(flat), tuple(shape...))
+                    session.data_snapshots[snap_id] = arr
+                    session.data_snapshots_version[] += 1
+                end
+            end
+        end
+    end
+end
+
+function _parse_eltype(s::String)::Type
+    get(Dict(
+        "Float64" => Float64,
+        "Float32" => Float32,
+        "Int64"   => Int64,
+        "Int32"   => Int32,
+        "Int16"   => Int16,
+    ), s, Float64)   # default to Float64 for unknown eltypes
+end
+```
+
+Call `_load_data_inline(session, raw)` at the end of `_dict_to_session`,
+before returning.
+
+Also update the loader’s schema-version constant:
+```julia
+const _LOADER_VERSION = v"1.1.0"
+```
+
+The existing forward-compat warning (`file_ver > _LOADER_VERSION`) now only
+fires for files saved by a version newer than 1.1 — correct behavior.
+
+The v0.1 error message path ("requires FigureViews v0.2 or later") is
+removed — M16 IS v0.2’s implementation of `data_inline`, so the gate is
+now open.
+
+**Part 2 — Renderer uses restored snapshots**
+
+The renderer already calls `plot.data_refs[]` to find snapshot ids, then
+looks them up in `session.data_snapshots` to get arrays. Since
+`_load_data_inline` populates `session.data_snapshots` before the renderer
+first runs, no renderer changes are needed — verify this in the round-trip
+test (Task 115).
+
+### Files touched
+- `src/persistence/mvz_load.jl` — replace `_reject_data_inline` with
+  `_load_data_inline`; update `_LOADER_VERSION`
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0, all existing tests
+green (note: the existing test in `file_menu_handlers.jl` that asserts
+`_do_load` on a `data_inline` file throws with `"v0.2"` will now need
+updating — that error no longer fires; update the test to assert the file
+loads successfully instead), plus a new `data_inline_load` testset in
+`test/unit/data_inline_load.jl` (included from `test/runtests.jl`) that:
+
+a. Builds a session with one line plot (x, y vectors of length 20). Saves
+   to a temp path. Loads back with `_do_load`. Asserts:
+   - The loaded session has 1 figure, 1 axis, 1 plot.
+   - `length(session2.data_snapshots)` equals 2 (both snapshot ids
+     restored).
+   - The restored `x` array matches the original (element-wise).
+   - The restored `y` array matches the original (element-wise).
+
+b. Builds a session with a 2D surface plot (x vector, y vector, 10×10
+   matrix). Saves and reloads. Asserts the matrix shape is `(10, 10)` and
+   values match.
+
+c. Loads a v0.1-format `.mvz` (no `data_inline` key — construct as a TOML
+   string in the fixture). Asserts it loads without error and
+   `data_snapshots` is empty.
+
+### Report back
+On pass: `TASK 114 PASSED — data_inline load, round-trip arrays match, tests green, commit = [hash]` with the Test Summary line.
+On fail: `TASK 114 FAILED — [what failed]` with the full error and Test Summary line.
+
+---
+
+## Task 115: M16 round-trip test (SC-004)
+**Status:** [x] Done — 2026-09-02, commit 9da4555, CI 2/2, pixel hashes matched
+**Milestone:** M16
+**Depends on:** 114
+
+### What to do
+
+**Part 1 — Extended round-trip test**
+
+Add a new `data_roundtrip_sc004` testset in
+`test/integration/data_roundtrip_sc004.jl` (included from `test/runtests.jl`)
+that verifies the full build → save → load → export → pixel-hash cycle:
+
+1. Build a session with one figure, one `:axis2d`, one `:line` plot using
+   deterministic fixture data (`x = collect(1.0:50.0)`,
+   `y = sin.(collect(1.0:50.0) ./ 5)`).
+2. Export the figure to a PNG via `export_figure` before saving. Record the
+   pixel hash (`hash(read(png_path_before)`).
+3. Save the session to a temp `.mvz` file.
+4. Load the session back with `_do_load`.
+5. Export the reloaded figure to a second PNG. Record its pixel hash.
+6. Assert the two pixel hashes are equal.
+7. Assert `length(loaded_session.data_snapshots) == 2` (both snapshots
+   restored).
+
+This test is headless (uses CairoMakie via `export_figure`, not GLMakie)
+and runs on CI without a display. Gate behind
+`get(ENV, "FIGUREVIEWS_GOLDEN", "0") == "1"` (same gate as the existing
+golden-image tests) so it doesn’t run by default on developer machines.
+CI already sets this env var in the Ubuntu test step.
+
+**Part 2 — `CHANGELOG.md` entry**
+
+Append to `CHANGELOG.md` under a new `## [Unreleased]` section (or add to
+an existing one if present):
+
+```markdown
+### Added
+- M16: `.mvz` data round-trip — session data now survives save/load.
+  Arrays are stored inline in the `.mvz` file (TOML float lists).
+  Snapshots exceeding 100,000 elements are refused at save time with
+  a clear error message. Schema version bumped to 1.1. Closes SC-004.
+```
+
+**Part 3 — Update `PLAN-v0.2.md`**
+
+Mark M16 as complete in the plan’s milestone list.
+
+### Files touched
+- `test/integration/data_roundtrip_sc004.jl` — new
+- `test/runtests.jl` — add include
+- `CHANGELOG.md` — append M16 entry
+- `docs/PLAN-v0.2.md` — mark M16 done
+
+### Acceptance Criterion
+`julia --project=. -e 'using Pkg; Pkg.test()'` exits 0 on the local dev
+machine (golden test skips without `FIGUREVIEWS_GOLDEN=1`). CI run
+completes both matrix cells green with `FIGUREVIEWS_GOLDEN=1` set; the
+`data_roundtrip_sc004` testset shows Pass in the Ubuntu job’s Test Summary.
+
+### Report back
+On pass: `TASK 115 PASSED — SC-004 closed, round-trip pixel hashes match, CI 2/2, commit = [hash]` with the CI run URL and Test Summary line.
+On fail: `TASK 115 FAILED — [which step failed]` with the error or hash mismatch details.
+
+---
+
+> **M16 complete after Task 115 is green + CI 2/2.** M16 exit criterion:
+> Tasks 112–115 all green; SDD SC-004 closed; a saved session reopens with
+> data intact. Next: M17 (macOS CI + conditional backend loading) and/or
+> M18 (toolbar, unsaved-changes tracking, FPS measurement pass).
+
