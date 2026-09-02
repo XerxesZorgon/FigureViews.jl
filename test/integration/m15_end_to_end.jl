@@ -65,6 +65,7 @@ else
     # 8. Teardown
     Gtk4.destroy(w3)
     sleep(0.3)
+    _current_renderer[] = nothing
 end
 
 end  # _has_display

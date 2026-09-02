@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased] — v0.2 development
 
 ### Added
+- M16: `.mvz` data round-trip — session data now survives save/load.
+  Arrays are stored inline in the `.mvz` file (TOML float lists).
+  Snapshots exceeding 100,000 elements are refused at save time with
+  a clear error message. Schema version bumped to 1.1. Closes SC-004.
 - **Incremental renderer (Bug F fix):** Replaced the v0.1 full-figure-rebuild observers
   with targeted incremental ops (`_add_plot_handle!`, `_remove_plot_handle!`, `_add_axis!`,
   `_remove_axis!`). Structural edits now mutate only the changed node's Makie handle,

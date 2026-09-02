@@ -34,8 +34,10 @@ function _confirm_add_plot(session::Session,
         # headless/test path: add_plot_checked! already emitted @warn above
     end
     # TODO(Task 110): when modal wires in :downsample, apply_downsample! needs updating
-    # to match positional-shape role symbols (:x_vector/:y_vector) not the legacy :x/:y.
-    apply_structural!(FigureViews._current_renderer[], AddPlotOp(ax_node, result.plot))
+    renderer = FigureViews._current_renderer[]
+    if renderer !== nothing && renderer.session === session
+        apply_structural!(renderer, AddPlotOp(ax_node, result.plot))
+    end
     return result.plot
 end
 

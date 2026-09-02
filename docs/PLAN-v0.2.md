@@ -82,7 +82,7 @@ The thin UI layer on top of M14's plumbing — the parts of ADR-022's deferred l
 
 **Exit**: SDD SC-002/SC-003/SC-005/SC-006 met through the GUI (not just the REPL); the pre-flight warning modal (deferred from M10 — v0.1 had no GUI load flow) lands here as the Gtk4 dialog DESIGN §7.1 specifies. Manual verification on Windows.
 
-### M16 — `.mvz` data round-trip (parallel track; independent of the spine)
+### M16 — `.mvz` data round-trip (parallel track; independent of the spine) — COMPLETE
 
 Implement the reserved `data_inline` slot ([ADR-017](adr/ADR-017-reserve-data-inline-schema-slot.md)) so a saved session reopens *with its data*, not as a dataless skeleton. Closes SC-004, the one v0.1 success criterion ADR-022 explicitly left open.
 
