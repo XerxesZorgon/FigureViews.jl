@@ -120,7 +120,11 @@ function _render_plot!(renderer::Renderer, makie_ax, plot::Plot)
 
     # Helper: look up the snapshot array for a given role
     function arr(role::Symbol)
-        ref = only(r for r in plot.data_refs[] if r.role == role)
+        matches_role(r) = r.role == role ||
+            (role == :x && r.role == :x_vector) ||
+            (role == :y && r.role == :y_vector) ||
+            (role == :z && r.role == :z_vector)
+        ref = only(r for r in plot.data_refs[] if matches_role(r))
         return renderer.session.data_snapshots[ref.snapshot_id]
     end
 

@@ -237,3 +237,27 @@ test/
 - No `set_theme!` call anywhere in `src/` (grep gate in CI).
 - No hard-coded plot-type branch in property-panel UI code (grep gate: `if.*plot\.type ==` forbidden in `src/ui/`).
 - **For M11 (release-gating) only:** maintainer pre-release manual QA on Windows and macOS complete, results in release notes per ADR-018.
+
+---
+
+## M15 Windows manual verification
+
+Run on Windows with `julia --threads 4,1 --project=.` before tagging any release.
+
+```julia
+using FigureViews; makieviews()
+```
+
+Checklist:
+- [ ] Menubar visible with "File" and "Plot" menus
+- [ ] Tree pane populated with demo figure/axes/plots
+- [ ] Property pane shows attributes when a node is selected
+- [ ] Left column bottom: "Variables" tab shows Main entries; "Snapshots" tab shows demo snapshots
+- [ ] Right-click a Figure node → "Add Axis (2D)" — new axis appears in tree and viewport
+- [ ] Right-click the new axis → "Delete Axis" — removed from tree and viewport
+- [ ] Right-click an Axis → property pane shows "Add plot…" button; click it → popover appears with eligible types
+- [ ] Plot > Add plot… (or Ctrl+P with axis selected) — dialog opens, type dropdown populated, role rows appear and filter by variable kind
+- [ ] File > Save As → pick path → file saved (`.mvz` written to disk)
+- [ ] File > New → "Discard current session?" prompt appears → "Discard" clears session
+- [ ] File > Open → select the saved `.mvz` → session reloads with the saved figure/axis/plot
+
