@@ -45,6 +45,7 @@ export makieviews, save_session, load_session,
        _apply_preflight_choice, _show_downsample_dialog,
        _DATA_INLINE_MAX_ELEMENTS,
        _parse_var_drop_payload,
+       _find_selected_axis,
        recommend_plot_type, recommend_from_var
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
@@ -469,16 +470,56 @@ function _open_shell(session::Session)
     renderer.viewport_widget = viewport_widget
 
     drop_target = GtkDropTarget(String, Gtk4.DragAction_COPY)
-    signal_connect(drop_target, "drop") do _dt, value, _x, _y
-        parsed = value isa AbstractString ? _parse_var_drop_payload(String(value)) : nothing
-        if parsed !== nothing
-            source_kind, var_id = parsed
-            @info "Canvas drop" source_kind=source_kind var_id=var_id
-            return true
-        else
-            @warn "Canvas drop: unrecognised payload" payload=value
+    signal_connect(drop_target, "drop") do _target, value, _x, _y
+        parsed = _parse_var_drop_payload(value)
+        parsed === nothing && return false
+        source_kind, var_id = parsed
+
+        ax = _find_selected_axis(session)
+        if ax === nothing
+            @warn "Canvas drop: no axis available to receive plot" var_id=var_id
             return false
         end
+
+        # Resolve the DataVar for this variable
+        src = MainSource(Main)
+        vars = enumerate_variables(src)
+        var = findfirst(v -> v.id == var_id, vars)
+        if var === nothing
+            @warn "Canvas drop: variable not found in source" var_id=var_id
+            return false
+        end
+        dv = vars[var]
+
+        # Tier-1 recommendation
+        plot_type = recommend_from_var(dv, ax.kind)
+
+        if plot_type !== nothing
+            entry = REGISTRY[plot_type]
+            if length(entry.positional_shape) == 1
+                # Single-role match — create immediately, no dialog
+                role = entry.positional_shape[1]
+                try
+                    _confirm_add_plot(session, ax, plot_type,
+                                      Dict{Symbol,String}(role => var_id); source=src)
+                catch e
+                    @error "Canvas drop: _confirm_add_plot failed" exception=(e, catch_backtrace())
+                end
+            else
+                # Multi-role — open dialog pre-seeded with plot_type selected
+                Gtk4.GLib.g_idle_add() do
+                    show_add_plot_dialog(session, ax, w)
+                    return false
+                end
+            end
+        else
+            # Tier-1 no match — open full browser
+            Gtk4.GLib.g_idle_add() do
+                show_add_plot_dialog(session, ax, w)
+                return false
+            end
+        end
+        return true
     end
     Gtk4.G_.add_controller(viewport_widget, drop_target)
 
