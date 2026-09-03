@@ -28,6 +28,7 @@ include("unit/preflight_modal_formatting.jl")
 include("unit/preflight_wiring.jl")
 include("unit/data_inline_save.jl")
 include("unit/data_inline_load.jl")
+include("ui/test_shell_layout_m17.jl")
 
 @testset "M1 shell — module loads" begin
     @test :makieviews in names(FigureViews)
@@ -60,9 +61,11 @@ end
     root = w[]
     main_paned = root isa GtkPaned ? root : Gtk4.G_.get_last_child(root)
     @test main_paned !== nothing
-    
-    # Stronger assertions: right child is the viewport
-    viewport = main_paned[2]
+
+    # M17 tri-pane: main_paned[2] is center_paned (GtkPaned :h); viewport is center_paned[1]
+    center_paned = main_paned[2]
+    @test center_paned isa GtkPaned
+    viewport = center_paned[1]
     @test occursin(r"Makie|GL", string(typeof(viewport)))
     
     Gtk4.destroy(w)

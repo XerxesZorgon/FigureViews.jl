@@ -213,21 +213,36 @@ function _open_shell(session::Session)
     push!(data_notebook, variable_pane, "Variables")
     push!(data_notebook, data_pane, "Snapshots")
 
-    inner_paned = GtkPaned(:v)
-    inner_paned[1] = property_pane
-    inner_paned[2] = data_notebook
-    inner_paned.position = 220
+    # M17 tri-pane layout
+    derived_drawer_placeholder = GtkBox(:v)
+    recipe_drawer_placeholder  = GtkBox(:v)
 
-    outer_paned = GtkPaned(:v)
-    outer_paned.width_request = 320
-    outer_paned[1] = tree_pane
-    outer_paned[2] = inner_paned
-    outer_paned.position = 280
+    left_column = GtkPaned(:v)
+    left_column.width_request = 280
+    left_column[1] = data_notebook
+    left_column[2] = derived_drawer_placeholder
+    left_column.position = 800
+
+    right_top_paned = GtkPaned(:v)
+    right_top_paned[1] = tree_pane
+    right_top_paned[2] = property_pane
+    right_top_paned.position = 250
+
+    right_column = GtkPaned(:v)
+    right_column.width_request = 280
+    right_column[1] = right_top_paned
+    right_column[2] = recipe_drawer_placeholder
+    right_column.position = 800
+
+    center_paned = GtkPaned(:h)
+    center_paned[1] = viewport_widget
+    center_paned[2] = right_column
+    center_paned.position = 840
 
     main_paned = GtkPaned(:h)
-    main_paned[1] = outer_paned
-    main_paned[2] = viewport_widget
-    main_paned.position = 320
+    main_paned[1] = left_column
+    main_paned[2] = center_paned
+    main_paned.position = 280
 
     # Action group for window
     group = Gtk4.GLib.GSimpleActionGroup()
