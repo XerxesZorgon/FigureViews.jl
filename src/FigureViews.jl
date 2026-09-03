@@ -264,7 +264,7 @@ function _open_shell(session::Session)
     action_map = Gtk4.GLib.GActionMap(group)
 
     # File > New
-    Gtk4.GLib.add_action(action_map, "file_new", _ -> begin
+    Gtk4.GLib.add_action(action_map, "file_new", (_, _) -> begin
         msg = session.dirty[] ?
             "You have unsaved changes. Discard and start a new session?" :
             "Discard current session and start a new one?"
@@ -276,7 +276,7 @@ function _open_shell(session::Session)
         end
     end)
     # File > Open…
-    Gtk4.GLib.add_action(action_map, "file_open", _ -> begin
+    Gtk4.GLib.add_action(action_map, "file_open", (_, _) -> begin
         open_dialog("Open session", w) do path
             isempty(path) && return
             try
@@ -289,14 +289,14 @@ function _open_shell(session::Session)
         end
     end)
     # File > Save
-    Gtk4.GLib.add_action(action_map, "file_save", _ -> begin
+    Gtk4.GLib.add_action(action_map, "file_save", (_, _) -> begin
         if !_do_save_if_known(_current_session[])
             # No known path — fall through to Save As
             Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "file_save_as")
         end
     end)
     # File > Save As…
-    Gtk4.GLib.add_action(action_map, "file_save_as", _ -> begin
+    Gtk4.GLib.add_action(action_map, "file_save_as", (_, _) -> begin
         save_dialog("Save session", w) do path
             isempty(path) && return
             try
@@ -308,17 +308,17 @@ function _open_shell(session::Session)
     end)
     # File > Quit
     Gtk4.GLib.add_action(action_map, "file_quit",
-        _ -> Gtk4.destroy(w))
+        (_, _) -> Gtk4.destroy(w))
     Gtk4.GLib.add_action(action_map, "axis_add",
-        _ -> @info "axis_add: not yet implemented (Task 118+)")
-    Gtk4.GLib.add_action(action_map, "edit_undo", _ -> begin
+        (_, _) -> @info "axis_add: not yet implemented (Task 118+)")
+    Gtk4.GLib.add_action(action_map, "edit_undo", (_, _) -> begin
         if undo!(undo_stack)
             _mark_dirty()
             btn_undo.sensitive = can_undo(undo_stack)
             btn_redo.sensitive = can_redo(undo_stack)
         end
     end)
-    Gtk4.GLib.add_action(action_map, "edit_redo", _ -> begin
+    Gtk4.GLib.add_action(action_map, "edit_redo", (_, _) -> begin
         if redo!(undo_stack)
             _mark_dirty()
             btn_undo.sensitive = can_undo(undo_stack)
@@ -326,7 +326,7 @@ function _open_shell(session::Session)
         end
     end)
     # Plot > Add plot…
-    Gtk4.GLib.add_action(action_map, "plot_add", _ -> begin
+    Gtk4.GLib.add_action(action_map, "plot_add", (_, _) -> begin
         sel_id = session.selection[]
         ax = sel_id === nothing ? nothing : _find_axis(session, sel_id)
         if ax !== nothing

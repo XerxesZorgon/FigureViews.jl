@@ -146,8 +146,30 @@ function _populate_for_plot!(box::GtkBox, plot::Plot, on_edit::Union{Nothing, Fu
                 GtkLabel(string(current_val))
             end
         elseif spec.widget == :dropdown
-            val_str = current_val !== nothing ? string(current_val) : string(spec.default)
-            GtkDropDown([val_str])
+            strings = spec.range !== nothing ? string.(spec.range) : [current_val !== nothing ? string(current_val) : string(spec.default)]
+            dd = GtkDropDown(strings)
+            if spec.range !== nothing
+                idx = findfirst(==(current_val), spec.range)
+                if idx !== nothing
+                    dd.selected = idx - 1
+                end
+            end
+            if is_observable
+                signal_connect(dd, "notify::selected") do d, _
+                    if spec.range !== nothing
+                        idx = d.selected + 1
+                        if idx >= 1 && idx <= length(spec.range)
+                            new_val = spec.range[idx]
+                            before = attr_obs[]
+                            attr_obs[] = new_val
+                            if on_edit !== nothing
+                                on_edit(attr_obs, before, new_val, string(name))
+                            end
+                        end
+                    end
+                end
+            end
+            dd
         elseif spec.widget == :text
             en = GtkEntry()
             en.text = current_val !== nothing ? string(current_val) : ""
