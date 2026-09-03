@@ -287,12 +287,32 @@ function _open_shell(session::Session)
     end)
     # File > Save
     Gtk4.GLib.add_action(action_map, "file_save", (_, _) -> begin
-        Gtk4.GLib.g_idle_add() do
-            if !_do_save_if_known(session)
-                # No known path — fall through to Save As
-                Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "file_save_as")
+        if session.file_path[] !== nothing
+            # Known path — defer only the write
+            path = session.file_path[]
+            Gtk4.GLib.g_idle_add() do
+                try
+                    _do_save(session, path)
+                catch e
+                    _show_error_dialog(w, "Could not save session", sprint(showerror, e))
+                end
+                return false
             end
-            return false
+        else
+            # No known path — open Save As dialog at top level (not inside g_idle_add)
+            mvz_filter = GtkFileFilter("*.mvz"; name = "FigureViews session (*.mvz)")
+            all_filter = GtkFileFilter("*"; name = "All files (*)")
+            save_dialog("Save session", w, [mvz_filter, all_filter]) do path
+                isempty(path) && return
+                Gtk4.GLib.g_idle_add() do
+                    try
+                        _do_save(session, path)
+                    catch e
+                        _show_error_dialog(w, "Could not save session", sprint(showerror, e))
+                    end
+                    return false
+                end
+            end
         end
     end)
     # File > Save As…
