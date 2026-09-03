@@ -4879,7 +4879,7 @@ On fail: `TASK 115 FAILED — [which step failed]` with the error or hash mismat
 ---
 
 ## Task 117: Add toolbar with Document, Structure, and History button groups
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-03, commit 4274fe1
 **Milestone:** M17
 **Depends on:** Task 116
 
@@ -5067,4 +5067,35 @@ Remove:
 ### On Failure
 Report verbatim:
 `TASK 116 FAILED — [criterion number] — [observed container shape or error text] — [full stderr if crash]`
+
+---
+
+## Task 117: Add toolbar with Document, Structure, and History button groups
+**Status:** [x] Done — 2026-09-03, commit 4274fe1
+**Milestone:** M17
+**Depends on:** Task 116
+
+Toolbar `GtkBox(:h)` with CSS class `toolbar` inserted between menubar and `main_paned`.
+Document group: New, Open, Save (live). Structure group: Add Axis (stub), Add Plot (live).
+History group: Undo (stub), Redo (stub). Two `GtkSeparator(:v)` dividers. 9 children total.
+Stub actions `axis_add`, `edit_undo`, `edit_redo` registered. Test updated to assert 3 root
+children, 9 toolbar children, and correct per-button sensitivity.
+
+---
+
+## Task 118: Undo/redo stack + dirty flag
+**Status:** [x] Done — 2026-09-03, commit d2aa439
+**Milestone:** M17
+**Depends on:** Task 117
+
+- `dirty::Observable{Bool}` added to `Session` (defaults `false`; skipped by serializer).
+- `src/state/undo.jl`: `UndoStack` (capacity 20), `UndoEntry`, `push_edit!`, `undo!`,
+  `redo!`, `can_undo`, `can_redo`. New edit clears redo stack; oldest entry dropped at 21.
+- `build_property_pane` gains `on_edit::Union{Nothing,Function}` kwarg; all confirmed
+  attr edits (numeric, color, text, checkbox, dropdown) invoke it.
+- `_open_shell`: window-scoped `undo_stack` + `_mark_dirty()`; `edit_undo`/`edit_redo`
+  actions replaced with real handlers; toolbar button sensitivity updated on each op.
+- `_do_save` clears `session.dirty[]`; `file_new` action prompt is dirty-aware.
+- `test/unit/undo_stack.jl`: push, undo, redo, capacity cap, branch-clears-redo,
+  dirty default. Full suite green.
 
