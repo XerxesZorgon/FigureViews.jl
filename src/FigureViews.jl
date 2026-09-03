@@ -138,8 +138,9 @@ end
 Save the session to `path` and record the path on the session.
 """
 function _do_save(session::Session, path::String)
-    save_session(session, path)
-    session.file_path[] = path
+    actual_path = endswith(path, ".mvz") ? path : path * ".mvz"
+    save_session(session, actual_path)
+    session.file_path[] = actual_path
     session.dirty[] = false
 end
 
@@ -279,7 +280,9 @@ function _open_shell(session::Session)
     end)
     # File > Open…
     Gtk4.GLib.add_action(action_map, "file_open", (_, _) -> begin
-        open_dialog("Open session", w) do path
+        mvz_filter = GtkFileFilter("*.mvz"; name = "FigureViews session (*.mvz)")
+        all_filter = GtkFileFilter("*"; name = "All files (*)")
+        open_dialog("Open session", w, [mvz_filter, all_filter]) do path
             isempty(path) && return
             try
                 new_session_obj = _do_load(path)
@@ -302,7 +305,9 @@ function _open_shell(session::Session)
     end)
     # File > Save As…
     Gtk4.GLib.add_action(action_map, "file_save_as", (_, _) -> begin
-        save_dialog("Save session", w) do path
+        mvz_filter = GtkFileFilter("*.mvz"; name = "FigureViews session (*.mvz)")
+        all_filter = GtkFileFilter("*"; name = "All files (*)")
+        save_dialog("Save session", w, [mvz_filter, all_filter]) do path
             isempty(path) && return
             try
                 _do_save(_current_session[], path)
