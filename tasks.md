@@ -4879,7 +4879,7 @@ On fail: `TASK 115 FAILED — [which step failed]` with the error or hash mismat
 ---
 
 ## Task 116: Restructure _open_shell to tri-pane layout
-**Status:** [ ] Pending
+**Status:** [x] Done — 2026-09-02, commit 7bc5788
 **Milestone:** M17
 **Depends on:** —
 
