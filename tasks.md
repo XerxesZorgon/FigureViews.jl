@@ -4873,6 +4873,96 @@ On fail: `TASK 115 FAILED — [which step failed]` with the error or hash mismat
 
 > **M16 complete after Task 115 is green + CI 2/2.** M16 exit criterion:
 > Tasks 112–115 all green; SDD SC-004 closed; a saved session reopens with
-> data intact. Next: M17 (macOS CI + conditional backend loading) and/or
-> M18 (toolbar, unsaved-changes tracking, FPS measurement pass).
+> data intact. Next: M17 (GUI redesign — tri-pane layout, toolbar, undo/redo,
+> drop-to-add, AI assistant). M18 = macOS CI + conditional backend. M19 = release prep.
+
+---
+
+## Task 116: Restructure _open_shell to tri-pane layout
+**Status:** [ ] Pending
+**Milestone:** M17
+**Depends on:** —
+
+### What to do
+Restructure the top-level container hierarchy in `_open_shell` in
+`src/FigureViews.jl` from the current LEFT+CENTER two-column layout to a
+three-column tri-pane layout. Do not add a toolbar (Task 117) and do not
+add real Derived Variable or Recipe Drawer contents (Tasks 123–124); use
+empty `GtkBox(:v)` placeholders in those slots so the container tree
+matches the M17 target shape from the start and later phases only fill
+existing slots.
+
+New container hierarchy:
+
+    root_box (GtkBox :v)
+      menubar                                    [unchanged]
+      main_paned (GtkPaned :h)                   [replaces existing main_paned]
+        left_column (GtkPaned :v, width_request=280)
+          data_notebook                          [existing — Variables | Snapshots tabs]
+          derived_drawer_placeholder (GtkBox :v) [empty, Task 123 fills this]
+        center_paned (GtkPaned :h)
+          viewport_widget                        [unchanged, hexpand=true, vexpand=true]
+          right_column (GtkPaned :v, width_request=280)
+            right_top_paned (GtkPaned :v)
+              tree_pane                          [existing — moved from left column]
+              property_pane                      [existing — moved from left column]
+            recipe_drawer_placeholder (GtkBox :v) [empty, Task 124 fills this]
+
+Splitter positions:
+- `main_paned.position = 280` (left column ~280px wide at open)
+- `center_paned.position` set so the viewport takes remaining width minus
+  ~280px for the right column (compute from `1400 - 280 - 280 = 840`)
+- `left_column.position = 800` (drawer placeholder collapses to ~0;
+  Task 123 will lower this)
+- `right_column.position = 800` (drawer placeholder collapses to ~0;
+  Task 124 will lower this)
+- `right_top_paned.position = 250` (tree_pane on top at 250px, property
+  below — matches existing 250px tree height)
+
+Preserve unchanged:
+- All action group wiring, menu construction, and action handlers
+- `renderer.viewport_widget = viewport_widget` and both destroy /
+  unrealize signal handlers
+- `key_controller` (Ctrl+P) wiring on the window
+- `Gtk4.GLib.start_main_loop()` call
+- `_current_session[]` / `_current_renderer[]` assignments
+
+Remove:
+- The current `outer_paned` and `inner_paned` constructions (superseded)
+
+### Files touched
+- `src/FigureViews.jl` — replace the paned-container construction inside
+  `_open_shell` (from `tree_pane = build_tree_pane(session)` through
+  `main_paned.position = 320`). Everything before and after that block
+  is untouched.
+- `test/ui/test_shell_layout_m17.jl` — new file, added to `test/runtests.jl` includes.
+
+### Acceptance Criterion
+1. `julia --project=. --threads 4,1 -e 'using Pkg; Pkg.test()'` exits 0
+   with the full existing test suite green (M15 and M16 tests unchanged).
+2. New test `test/ui/test_shell_layout_m17.jl` opens a session via
+   `_open_shell` and asserts the container tree:
+   - `w[]` is a `GtkBox` (root_box) with exactly 2 children (menubar
+     first, `main_paned` second)
+   - `main_paned` is a horizontal `GtkPaned`; child-1 is the left column
+     (a vertical `GtkPaned`), child-2 is `center_paned` (a horizontal
+     `GtkPaned`)
+   - Left column child-1 is the existing `data_notebook`; child-2 is a
+     `GtkBox` placeholder
+   - `center_paned` child-1 is `viewport_widget`; child-2 is the right
+     column (a vertical `GtkPaned`)
+   - Right column child-1 is `right_top_paned` (a vertical `GtkPaned`);
+     child-2 is a `GtkBox` placeholder
+   - `right_top_paned` child-1 is `tree_pane`; child-2 is `property_pane`
+   - `left_column.width_request >= 280` and
+     `right_column.width_request >= 280`
+3. Manual Windows launch: `julia --project=. --threads 4,1`, then
+   `using FigureViews; makieviews()`. Window opens showing tri-pane
+   layout, demo session visible in the center canvas, and every M15
+   flow still works: tree context menu delete, property edits, Add Plot
+   dialog (via menu and Ctrl+P), File > New/Open/Save/Save As.
+
+### On Failure
+Report verbatim:
+`TASK 116 FAILED — [criterion number] — [observed container shape or error text] — [full stderr if crash]`
 
