@@ -2,14 +2,47 @@
     w = FigureViews._open_shell(new_session())
     sleep(0.2)  # let GTK settle
 
-    # root_box: GtkBox with 2 children (menubar + main_paned)
+    # root_box: GtkBox with 3 children (menubar + toolbar + main_paned)
     root = w[]
     @test root isa GtkBox
     root_children = collect(root)
-    @test length(root_children) == 2
+    @test length(root_children) == 3
+
+    # toolbar: horizontal GtkBox with CSS class "toolbar"
+    toolbar = root_children[2]
+    @test toolbar isa GtkBox
+    @test Gtk4.G_.has_css_class(toolbar, "toolbar")
+    toolbar_children = collect(toolbar)
+    @test length(toolbar_children) == 9
+
+    # Document group buttons (sensitive)
+    btn_new = toolbar_children[1]
+    btn_open = toolbar_children[2]
+    btn_save = toolbar_children[3]
+    @test btn_new isa GtkButton && btn_new.sensitive == true
+    @test btn_open isa GtkButton && btn_open.sensitive == true
+    @test btn_save isa GtkButton && btn_save.sensitive == true
+
+    # Separator 1
+    @test toolbar_children[4] isa GtkSeparator
+
+    # Structure group buttons
+    btn_add_axis = toolbar_children[5]
+    btn_add_plot = toolbar_children[6]
+    @test btn_add_axis isa GtkButton && btn_add_axis.sensitive == false
+    @test btn_add_plot isa GtkButton && btn_add_plot.sensitive == true
+
+    # Separator 2
+    @test toolbar_children[7] isa GtkSeparator
+
+    # History group buttons
+    btn_undo = toolbar_children[8]
+    btn_redo = toolbar_children[9]
+    @test btn_undo isa GtkButton && btn_undo.sensitive == false
+    @test btn_redo isa GtkButton && btn_redo.sensitive == false
 
     # main_paned: horizontal GtkPaned
-    main_paned = root_children[2]
+    main_paned = root_children[3]
     @test main_paned isa GtkPaned
 
     # child-1 of main_paned: left_column (vertical GtkPaned)

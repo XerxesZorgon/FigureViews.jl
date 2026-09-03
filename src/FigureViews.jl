@@ -293,6 +293,12 @@ function _open_shell(session::Session)
     # File > Quit
     Gtk4.GLib.add_action(action_map, "file_quit",
         _ -> Gtk4.destroy(w))
+    Gtk4.GLib.add_action(action_map, "axis_add",
+        _ -> @info "axis_add: not yet implemented (Task 118+)")
+    Gtk4.GLib.add_action(action_map, "edit_undo",
+        _ -> @info "edit_undo: not yet implemented (Task 118)")
+    Gtk4.GLib.add_action(action_map, "edit_redo",
+        _ -> @info "edit_redo: not yet implemented (Task 118)")
     # Plot > Add plot…
     Gtk4.GLib.add_action(action_map, "plot_add", _ -> begin
         sel_id = session.selection[]
@@ -327,8 +333,55 @@ function _open_shell(session::Session)
 
     menubar = GtkPopoverMenuBar(menu_bar_model)
 
+    # Toolbar
+    toolbar = GtkBox(:h)
+    Gtk4.G_.add_css_class(toolbar, "toolbar")
+
+    # Document group
+    btn_new = GtkButton(; label="New", icon_name="document-new")
+    signal_connect(btn_new, "clicked") do _
+        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "file_new")
+    end
+    btn_open = GtkButton(; label="Open", icon_name="document-open")
+    signal_connect(btn_open, "clicked") do _
+        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "file_open")
+    end
+    btn_save = GtkButton(; label="Save", icon_name="document-save")
+    signal_connect(btn_save, "clicked") do _
+        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "file_save")
+    end
+
+    separator_1 = GtkSeparator(:v)
+
+    # Structure group
+    btn_add_axis = GtkButton(; label="Add Axis", icon_name="list-add")
+    btn_add_axis.sensitive = false
+    btn_add_plot = GtkButton(; label="Add Plot", icon_name="draw-brush")
+    signal_connect(btn_add_plot, "clicked") do _
+        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "plot_add")
+    end
+
+    separator_2 = GtkSeparator(:v)
+
+    # History group
+    btn_undo = GtkButton(; label="Undo", icon_name="edit-undo")
+    btn_undo.sensitive = false
+    btn_redo = GtkButton(; label="Redo", icon_name="edit-redo")
+    btn_redo.sensitive = false
+
+    push!(toolbar, btn_new)
+    push!(toolbar, btn_open)
+    push!(toolbar, btn_save)
+    push!(toolbar, separator_1)
+    push!(toolbar, btn_add_axis)
+    push!(toolbar, btn_add_plot)
+    push!(toolbar, separator_2)
+    push!(toolbar, btn_undo)
+    push!(toolbar, btn_redo)
+
     root_box = GtkBox(:v)
     push!(root_box, menubar)
+    push!(root_box, toolbar)
     push!(root_box, main_paned)
     main_paned.vexpand = true
     w[] = root_box
