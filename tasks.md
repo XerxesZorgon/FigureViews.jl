@@ -5099,3 +5099,11 @@ children, 9 toolbar children, and correct per-button sensitivity.
 - `test/unit/undo_stack.jl`: push, undo, redo, capacity cap, branch-clears-redo,
   dirty default. Full suite green.
 
+**Bug fix (manual smoke test) — commit 0570ee9:**
+- All `add_action` lambdas changed from `_ ->` to `(_, _) ->` to match GSimpleAction
+  two-argument dispatch (action, parameter). Affected: file_new, file_open, file_save,
+  file_save_as, file_quit, axis_add, edit_undo, edit_redo, plot_add.
+- `GtkDropDown` in `_populate_for_plot!` wired to `notify::selected` with `on_edit`.
+- Manual smoke test confirmed: toolbar buttons no longer crash; property edit sets dirty
+  flag and activates Undo; Undo reverts value; Redo re-applies.
+
