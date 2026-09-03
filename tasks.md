@@ -5113,12 +5113,12 @@ children, 9 toolbar children, and correct per-button sensitivity.
   to the next GLib main loop iteration, preventing GTK main-thread re-entrancy
   (Windows fatal exception exit code -805306369).
 
-**Bug fix 3 (Save As hang + toolbar init + session tracking) — commit 96cfec1:**
-- `_do_save` and `file_save_as` fallback activation wrapped in `g_idle_add` (same
-  re-entrancy pattern as File > New crash).
-- `_open_shell` reordered: action map, menubar, and toolbar buttons constructed
-  before `build_property_pane` so `btn_undo`/`btn_redo` are in scope when
-  `on_edit` closure captures them.
-- `makieviews(session)` now sets `_current_session[] = session` so file actions
-  after Open operate on the loaded session, not the prior one.
+**Bug fix 4 (Save As deadlock — save_dialog inside g_idle_add) — commit 3684d48:**
+- Rule established: dialogs must run at the top level of the action handler;
+  only the file-write (`_do_save`) is deferred with `g_idle_add`. Calling
+  `save_dialog` from inside `g_idle_add` creates a nested GTK main loop that
+  deadlocks on Windows.
+- `file_save`: if path known, defers only `_do_save`; if no path, opens
+  `save_dialog` at top level then defers write.
+- `file_save_as`: `save_dialog` at top level, only `_do_save` deferred.
 
