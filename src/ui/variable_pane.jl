@@ -1,6 +1,15 @@
 # src/ui/variable_pane.jl
 
 """
+    _variable_drag_payload(source_kind::Symbol, var_id) -> String
+
+Format the drag payload string for a variable from `source_kind` with identifier `var_id`.
+"""
+function _variable_drag_payload(source_kind::Symbol, var_id)::String
+    return "figureviews-var:$(source_kind):$(var_id)"
+end
+
+"""
     build_variable_pane(session::Session) -> GtkBox
 
 Build the variable picker pane showing active data sources and available variables.
@@ -39,6 +48,14 @@ function build_variable_pane(session::Session)::GtkBox
             Gtk4.G_.set_child(row, lbl)
             if var.kind == :unsupported
                 row.sensitive = false
+            else
+                drag_source = GtkDragSource()
+                signal_connect(drag_source, "prepare") do _ds, _x, _y
+                    payload = _variable_drag_payload(:main, var.id)
+                    bytes = Gtk4.GLib.GBytes(Vector{UInt8}(codeunits(payload)))
+                    return GdkContentProvider("text/plain", bytes)
+                end
+                Gtk4.G_.add_controller(row, drag_source)
             end
             push!(list_box, row)
         end

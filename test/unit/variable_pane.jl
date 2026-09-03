@@ -37,3 +37,9 @@ end
     @test fired[] == true
     @test session.selected_variable[] == (src, "x")
 end
+
+@testset "variable drag payload" begin
+    @test FigureViews._variable_drag_payload(:main, "x") == "figureviews-var:main:x"
+    @test FigureViews._variable_drag_payload(:main, "long_name_123") == "figureviews-var:main:long_name_123"
+    @test FigureViews._variable_drag_payload(:csv, "col_A") == "figureviews-var:csv:col_A"
+end
