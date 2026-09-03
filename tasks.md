@@ -5140,3 +5140,21 @@ children, 9 toolbar children, and correct per-button sensitivity.
 - Full suite green: `variable drag payload` 3 passed, 0 failed.
 - Drop target (canvas) and recommendation engine deferred to Tasks 120+.
 
+---
+
+## Task 120: Canvas drop target — parse payload and log
+**Status:** [x] Done — 2026-09-03, commit 36b403e
+**Milestone:** M17 (Phase 2)
+**Depends on:** Task 119
+
+- `src/ui/drop_target.jl` (new): `_parse_var_drop_payload(s::String) -> Union{Tuple{Symbol,String}, Nothing}`
+  splits on `':'` (limit=3), rejects empty `source_kind` or `var_id`, returns
+  `(Symbol(source_kind), var_id)` on success, `nothing` otherwise.
+- `src/FigureViews.jl`: `include("ui/drop_target.jl")` added; `_parse_var_drop_payload`
+  exported; `GtkDropTarget(String, Gtk4.DragAction_COPY)` attached to `viewport_widget`
+  in `_open_shell` — `"drop"` signal parses payload, logs `@info "Canvas drop"` on match,
+  `@warn "Canvas drop: unrecognised payload"` otherwise, returns `true`/`false`.
+- `test/unit/drop_target.jl` (new): `@testset "parse_var_drop_payload"` — 4 assertions
+  (valid main, valid csv, bad prefix, empty var_id). Registered in `test/runtests.jl`.
+- Full suite green: `parse_var_drop_payload` 4/4. No plot creation — logging only.
+
