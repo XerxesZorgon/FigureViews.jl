@@ -68,6 +68,7 @@ mutable struct Session <: Node
     selected_variable::Observable{Union{Nothing, Tuple{DataSource, String}}}
     data_snapshots_version::Observable{Int}
     file_path::Ref{Union{Nothing, String}}
+    dirty::Observable{Bool}                          # true when session has unsaved changes
 
     function Session(
         schema_version::VersionNumber,
@@ -77,9 +78,10 @@ mutable struct Session <: Node
         selection::Observable{Union{Nothing, String}},
         selected_variable::Observable{Union{Nothing, Tuple{DataSource, String}}} = Observable{Union{Nothing, Tuple{DataSource, String}}}(nothing),
         data_snapshots_version::Observable{Int} = Observable{Int}(0),
-        file_path::Ref{Union{Nothing, String}} = Ref{Union{Nothing, String}}(nothing)
+        file_path::Ref{Union{Nothing, String}} = Ref{Union{Nothing, String}}(nothing),
+        dirty::Observable{Bool} = Observable(false)
     )
         new(schema_version, figures, preferences_snapshot, data_snapshots,
-            selection, selected_variable, data_snapshots_version, file_path)
+            selection, selected_variable, data_snapshots_version, file_path, dirty)
     end
 end

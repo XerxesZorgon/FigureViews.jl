@@ -2,7 +2,7 @@ using Test
 using FigureViews
 using Gtk4
 using Makie
-using FigureViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, DataRef, MainSource, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, AXIS_SCHEMAS, CameraSpec, _current_session, _current_renderer, ValidationError
+using FigureViews: new_session, add_figure!, add_axis!, add_plot!, ingest!, DataRef, MainSource, Renderer, build_tree_pane, build_property_pane, validate, PLOT_SCHEMAS, AXIS_SCHEMAS, CameraSpec, _current_session, _current_renderer, ValidationError, UndoStack, UndoEntry, push_edit!, undo!, redo!, can_undo, can_redo
 
 include("unit/nodes.jl")
 include("unit/schema.jl")
@@ -28,6 +28,7 @@ include("unit/preflight_modal_formatting.jl")
 include("unit/preflight_wiring.jl")
 include("unit/data_inline_save.jl")
 include("unit/data_inline_load.jl")
+include("unit/undo_stack.jl")
 include("ui/test_shell_layout_m17.jl")
 
 @testset "M1 shell — module loads" begin

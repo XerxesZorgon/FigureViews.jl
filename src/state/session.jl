@@ -8,7 +8,8 @@ function new_session()::Session
         Observable{Union{Nothing,String}}(nothing),
         Observable{Union{Nothing, Tuple{DataSource, String}}}(nothing),
         Observable{Int}(0),
-        Ref{Union{Nothing, String}}(nothing)
+        Ref{Union{Nothing, String}}(nothing),
+        Observable(false)
     )
 end
 

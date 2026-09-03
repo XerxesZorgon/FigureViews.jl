@@ -51,7 +51,7 @@ function _find_axis(session::Session, id::String)::Union{Nothing, Axis}
     return nothing
 end
 
-function build_property_pane(session::Session)::GtkWidget
+function build_property_pane(session::Session; on_edit::Union{Nothing, Function} = nothing)::GtkWidget
     box = GtkBox(:v)
     
     function show_placeholder()
@@ -68,12 +68,12 @@ function build_property_pane(session::Session)::GtkWidget
             plot = _find_plot(session, id)
             if plot !== nothing
                 empty!(box)
-                _populate_for_plot!(box, plot)
+                _populate_for_plot!(box, plot, on_edit)
             else
                 ax = _find_axis(session, id)
                 if ax !== nothing
                     empty!(box)
-                    _populate_for_axis!(box, ax, session)
+                    _populate_for_axis!(box, ax, session, on_edit)
                 else
                     show_placeholder()
                 end
@@ -84,7 +84,7 @@ function build_property_pane(session::Session)::GtkWidget
     return box
 end
 
-function _populate_for_plot!(box::GtkBox, plot::Plot)
+function _populate_for_plot!(box::GtkBox, plot::Plot, on_edit::Union{Nothing, Function} = nothing)
     entry = get(REGISTRY, plot.func, nothing)
     if entry === nothing
         push!(box, GtkLabel("Unknown plot type: $(plot.func) — properties unavailable"))
@@ -115,7 +115,12 @@ function _populate_for_plot!(box::GtkBox, plot::Plot)
                 if is_observable
                     signal_connect(btn, "color-set") do b
                         s = Gtk4.rgba(b)
-                        attr_obs[] = RGB(s.red, s.green, s.blue)
+                        new_val = RGB(s.red, s.green, s.blue)
+                        before = attr_obs[]
+                        attr_obs[] = new_val
+                        if on_edit !== nothing
+                            on_edit(attr_obs, before, new_val, string(name))
+                        end
                     end
                 end
                 btn
@@ -128,7 +133,12 @@ function _populate_for_plot!(box::GtkBox, plot::Plot)
                 btn.value = Float64(current_val)
                 if is_observable
                     signal_connect(btn, "value-changed") do b
-                        attr_obs[] = (spec.type == :Int || current_val isa Integer) ? round(Int, b.value) : b.value
+                        new_val = (spec.type == :Int || current_val isa Integer) ? round(Int, b.value) : b.value
+                        before = attr_obs[]
+                        attr_obs[] = new_val
+                        if on_edit !== nothing
+                            on_edit(attr_obs, before, new_val, string(name))
+                        end
                     end
                 end
                 btn
@@ -143,7 +153,12 @@ function _populate_for_plot!(box::GtkBox, plot::Plot)
             en.text = current_val !== nothing ? string(current_val) : ""
             if is_observable
                 signal_connect(en, "changed") do e
-                    attr_obs[] = e.text
+                    new_val = e.text
+                    before = attr_obs[]
+                    attr_obs[] = new_val
+                    if on_edit !== nothing
+                        on_edit(attr_obs, before, new_val, string(name))
+                    end
                 end
             end
             en
@@ -153,7 +168,12 @@ function _populate_for_plot!(box::GtkBox, plot::Plot)
                 sw.active = current_val
                 if is_observable
                     signal_connect(sw, "notify::active") do s, _
-                        attr_obs[] = s.active
+                        new_val = s.active
+                        before = attr_obs[]
+                        attr_obs[] = new_val
+                        if on_edit !== nothing
+                            on_edit(attr_obs, before, new_val, string(name))
+                        end
                     end
                 end
                 sw
@@ -177,7 +197,7 @@ function _populate_for_plot!(box::GtkBox, plot::Plot)
     end
 end
 
-function _populate_for_axis!(box::GtkBox, ax::Axis, session::Union{Nothing, Session} = nothing)
+function _populate_for_axis!(box::GtkBox, ax::Axis, session::Union{Nothing, Session} = nothing, on_edit::Union{Nothing, Function} = nothing)
     if haskey(AXIS_SCHEMAS, ax.kind)
         specs = AXIS_SCHEMAS[ax.kind]
         if ax.camera[] === nothing
@@ -195,7 +215,7 @@ function _populate_for_axis!(box::GtkBox, ax::Axis, session::Union{Nothing, Sess
             end
         end
         for spec in specs
-            widget = _widget_for_spec(specs, spec, field_obs[spec.name])
+            widget = _widget_for_spec(specs, spec, field_obs[spec.name]; on_edit = on_edit)
             hbox = GtkBox(:h)
             push!(hbox, GtkLabel(spec.label))
             push!(hbox, widget)
@@ -263,7 +283,7 @@ function _add_plot_to_axis!(session::Session, ax_node::Axis, plot_type::Symbol)
     return plot
 end
 
-function _widget_for_spec(specs::Vector{AttrSpec}, spec::AttrSpec, attr_observable::Observable{Any})::GtkWidget
+function _widget_for_spec(specs::Vector{AttrSpec}, spec::AttrSpec, attr_observable::Observable{Any}; on_edit::Union{Nothing, Function} = nothing)::GtkWidget
     if spec.kind == :color
         rgb = attr_observable[]
         btn = GtkColorButton()
@@ -279,7 +299,11 @@ function _widget_for_spec(specs::Vector{AttrSpec}, spec::AttrSpec, attr_observab
                 old = attr_observable[]
                 b.rgba = Gtk4.GdkRGBA(old.r, old.g, old.b, 1.0)
             else
+                before = attr_observable[]
                 attr_observable[] = res
+                if on_edit !== nothing
+                    on_edit(attr_observable, before, res, string(spec.name))
+                end
             end
         end
         return btn
@@ -295,7 +319,11 @@ function _widget_for_spec(specs::Vector{AttrSpec}, spec::AttrSpec, attr_observab
                 b.value = attr_observable[]
             else
                 # TODO: throttle at 60Hz per DESIGN §5
+                before = attr_observable[]
                 attr_observable[] = res
+                if on_edit !== nothing
+                    on_edit(attr_observable, before, res, string(spec.name))
+                end
             end
         end
         return btn
@@ -318,7 +346,11 @@ function _widget_for_spec(specs::Vector{AttrSpec}, spec::AttrSpec, attr_observab
                         d.selected = old_idx - 1
                     end
                 else
+                    before = attr_observable[]
                     attr_observable[] = res
+                    if on_edit !== nothing
+                        on_edit(attr_observable, before, res, string(spec.name))
+                    end
                 end
             end
         end
@@ -332,7 +364,11 @@ function _widget_for_spec(specs::Vector{AttrSpec}, spec::AttrSpec, attr_observab
                 println(res.message)
                 s.active = attr_observable[]
             else
+                before = attr_observable[]
                 attr_observable[] = res
+                if on_edit !== nothing
+                    on_edit(attr_observable, before, res, string(spec.name))
+                end
             end
         end
         return sw
@@ -345,7 +381,11 @@ function _widget_for_spec(specs::Vector{AttrSpec}, spec::AttrSpec, attr_observab
                 println(res.message)
                 e.text = attr_observable[]
             else
+                before = attr_observable[]
                 attr_observable[] = res
+                if on_edit !== nothing
+                    on_edit(attr_observable, before, res, string(spec.name))
+                end
             end
         end
         return en

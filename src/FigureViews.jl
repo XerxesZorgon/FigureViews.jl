@@ -11,6 +11,7 @@ include("state/nodes.jl")
 include("state/registry.jl")
 include("state/schema.jl")
 include("state/session.jl")
+include("state/undo.jl")
 include("render/renderer.jl")
 include("render/structural.jl")
 include("render/export.jl")
@@ -33,6 +34,7 @@ export makieviews, save_session, load_session,
        apply_structural!, AddPlotOp, RemovePlotOp, AddAxisOp, RemoveAxisOp,
        DataRef, MainSource, CsvSource, Hdf5Source, DataVar, AnimBinding,
        load_preferences, save_preferences, preferences_path, reset_to_preferences!,
+       UndoStack, UndoEntry, push_edit!, undo!, redo!, can_undo, can_redo,
        REGISTRY, REGISTRY_GENERATED, FUNCTION_REGISTRY, AXIS_KIND_FOR_TYPE, SHAPE_TO_VAR_KIND, PlotTypeEntry, AttrSpec, TypedValue, PlotMeta,
        _add_plot_to_axis!, _open_shell, build_variable_pane, build_data_pane, _rebuild_snapshot_list!,
        _confirm_add_plot, show_add_plot_dialog,
@@ -138,6 +140,7 @@ Save the session to `path` and record the path on the session.
 function _do_save(session::Session, path::String)
     save_session(session, path)
     session.file_path[] = path
+    session.dirty[] = false
 end
 
 """
@@ -199,9 +202,21 @@ function _open_shell(session::Session)
 
     renderer = Renderer(session, makie_fig)
 
+    undo_stack = UndoStack()
+
+    function _mark_dirty()
+        session.dirty[] = true
+    end
+
     tree_pane = build_tree_pane(session)
     tree_pane.height_request = 250
-    property_pane = build_property_pane(session)
+    property_pane = build_property_pane(session;
+        on_edit = (obs, before, after, label) -> begin
+            push_edit!(undo_stack, obs, before, after; label = label)
+            _mark_dirty()
+            btn_undo.sensitive = can_undo(undo_stack)
+            btn_redo.sensitive = can_redo(undo_stack)
+        end)
     property_pane.height_request = 350
     variable_pane = build_variable_pane(session)
     variable_pane.height_request = 200
@@ -250,9 +265,10 @@ function _open_shell(session::Session)
 
     # File > New
     Gtk4.GLib.add_action(action_map, "file_new", _ -> begin
-        # TODO(M18): replace fixed prompt with unsaved-changes check once
-        # session.dirty::Observable{Bool} lands (M18 deferred item).
-        ask_dialog("Discard current session and start a new one?", w;
+        msg = session.dirty[] ?
+            "You have unsaved changes. Discard and start a new session?" :
+            "Discard current session and start a new one?"
+        ask_dialog(msg, w;
                    no_text = "Cancel", yes_text = "Discard") do response
             if response   # true = user chose the affirmative button
                 _do_new(w)
@@ -295,10 +311,20 @@ function _open_shell(session::Session)
         _ -> Gtk4.destroy(w))
     Gtk4.GLib.add_action(action_map, "axis_add",
         _ -> @info "axis_add: not yet implemented (Task 118+)")
-    Gtk4.GLib.add_action(action_map, "edit_undo",
-        _ -> @info "edit_undo: not yet implemented (Task 118)")
-    Gtk4.GLib.add_action(action_map, "edit_redo",
-        _ -> @info "edit_redo: not yet implemented (Task 118)")
+    Gtk4.GLib.add_action(action_map, "edit_undo", _ -> begin
+        if undo!(undo_stack)
+            _mark_dirty()
+            btn_undo.sensitive = can_undo(undo_stack)
+            btn_redo.sensitive = can_redo(undo_stack)
+        end
+    end)
+    Gtk4.GLib.add_action(action_map, "edit_redo", _ -> begin
+        if redo!(undo_stack)
+            _mark_dirty()
+            btn_undo.sensitive = can_undo(undo_stack)
+            btn_redo.sensitive = can_redo(undo_stack)
+        end
+    end)
     # Plot > Add plot…
     Gtk4.GLib.add_action(action_map, "plot_add", _ -> begin
         sel_id = session.selection[]
@@ -366,8 +392,15 @@ function _open_shell(session::Session)
     # History group
     btn_undo = GtkButton(; label="Undo", icon_name="edit-undo")
     btn_undo.sensitive = false
+    signal_connect(btn_undo, "clicked") do _
+        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "edit_undo")
+    end
+
     btn_redo = GtkButton(; label="Redo", icon_name="edit-redo")
     btn_redo.sensitive = false
+    signal_connect(btn_redo, "clicked") do _
+        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "edit_redo")
+    end
 
     push!(toolbar, btn_new)
     push!(toolbar, btn_open)

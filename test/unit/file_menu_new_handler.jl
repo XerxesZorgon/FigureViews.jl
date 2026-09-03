@@ -24,7 +24,7 @@ using FigureViews: new_session, add_figure!, _current_session, _do_new, makievie
     # c. Asserts length(methods(makieviews)) >= 2 — both entry points still exist.
     @test length(methods(makieviews)) >= 2
 
-    # d. Greps src/FigureViews.jl for the string "M18".
+    # d. Greps src/FigureViews.jl for the dirty-check prompt.
     src = read(joinpath(pkgdir(FigureViews), "src", "FigureViews.jl"), String)
-    @test occursin("M18", src)
+    @test occursin("unsaved changes", src)
 end
