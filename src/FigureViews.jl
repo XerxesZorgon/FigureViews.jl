@@ -18,6 +18,7 @@ include("render/export.jl")
 include("ui/tree_pane.jl")
 include("ui/property_pane.jl")
 include("ui/variable_pane.jl")
+include("ui/drop_target.jl")
 include("ui/data_pane.jl")
 include("persistence/mvz_save.jl")
 include("persistence/mvz_load.jl")
@@ -41,7 +42,8 @@ export makieviews, save_session, load_session,
        _do_save, _do_load, _do_save_if_known, _do_new,
        show_preflight_modal, _format_preflight_body,
        _apply_preflight_choice, _show_downsample_dialog,
-       _DATA_INLINE_MAX_ELEMENTS
+       _DATA_INLINE_MAX_ELEMENTS,
+       _parse_var_drop_payload
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)
@@ -463,6 +465,20 @@ function _open_shell(session::Session)
 
     # Activate live-queued structural-mutation path (ADR-024 Part A).
     renderer.viewport_widget = viewport_widget
+
+    drop_target = GtkDropTarget(String, Gtk4.DragAction_COPY)
+    signal_connect(drop_target, "drop") do _dt, value, _x, _y
+        parsed = value isa AbstractString ? _parse_var_drop_payload(String(value)) : nothing
+        if parsed !== nothing
+            source_kind, var_id = parsed
+            @info "Canvas drop" source_kind=source_kind var_id=var_id
+            return true
+        else
+            @warn "Canvas drop: unrecognised payload" payload=value
+            return false
+        end
+    end
+    Gtk4.G_.add_controller(viewport_widget, drop_target)
 
     signal_connect(viewport_widget, "destroy") do _
         renderer.viewport_widget = nothing
