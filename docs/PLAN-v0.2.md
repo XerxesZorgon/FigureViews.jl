@@ -93,7 +93,40 @@ Implement the reserved `data_inline` slot ([ADR-017](adr/ADR-017-reserve-data-in
 
 **Exit**: TEST_PLAN §3 round-trip property test extended — build → save → load → export is pixel-hash-identical *including data* (SC-004 closed). May start any time after M12; does not gate M13–M15.
 
-### M17 — macOS CI + conditional backend loading (parallel track)
+---
+
+## REVISION — 2026-09-02
+
+**M12–M16 were executed as planned. The following milestones are renumbered and rescoped based on decisions made after the Science Council meeting on GUI layout (2026-09-02). The original M17 and M18 descriptions below are superseded; they are preserved for historical reference.**
+
+Summary of changes:
+- **M17 (new)** = GUI redesign (tri-pane layout, toolbar, undo/redo, drop-to-add with AI-assisted recommendation engine). Informally labelled "M18" in the session log before this renumbering.
+- **M18 (new)** = macOS CI + conditional backend loading (was original M17).
+- **M19 (new)** = Release prep + v0.2.0 (was original M18).
+
+See `docs/adr/ADR-028-*.md` (to be written in M17 Phase 3) for the AI assistant design decisions. See `SESSION_LOG.md` for the full confirmed M17 layout spec.
+
+---
+
+### M17 — GUI redesign: tri-pane layout, toolbar, drop-to-add, AI assistant
+
+**Supersedes the original M17. This is the milestone that turns FigureViews from a functional scaffold into the tool the project set out to build.**
+
+Five phases (Tasks 116–125):
+
+- **Phase 1 (116–117):** Restructure window to confirmed tri-pane layout. Left: Variables/Snapshots notebook (top) + Derived Variable drawer (foldable, bottom). Center: canvas. Right: tree pane (top) + property inspector + Recipe Drawer (foldable, bottom). Add toolbar with icon+label buttons: Document group (New, Open, Save, Export), Structure group (Add Figure, Add 2D Axis, Add 3D Axis, Delete Selected, Move Up, Move Down), History group (Undo, Redo).
+- **Phase 2 (118):** Undo/Redo — shallow ~20-step command stack for structural ops and property changes.
+- **Phase 3 (119–122):** ADR-028 + drop-to-add gesture with three-tier recommendation engine: Tier 1 (deterministic rule-based by data shape), Tier 2 (categorized browser by visual question with static thumbnails from Makie docs), Tier 3 (pluggable AI provider via OpenRouter/Claude/OpenAI/Gemini with adaptive sampling).
+- **Phase 4 (123–124):** Derived Variable drawer + Recipe Drawer (one-way code emission only — bi-directionality is a deliberate non-goal).
+- **Phase 5 (125):** M17 integration test + Windows manual verification.
+
+Key confirmed decisions: tree pane moves to RIGHT column above property inspector; axis transforms live as hover gear icon on canvas; thumbnails fetched from Makie docs + cached via Scratch.jl; AI sampling is opt-in adaptive (200-pt subsample for 1D, max 20×20 for 2D, 10k-value hard cap, full-data override available).
+
+**Exit:** Tasks 116–125 all green; CI 2/2; Windows manual verification passed.
+
+---
+
+### M18 — macOS CI + conditional backend loading (was original M17, parallel track)
 
 Enable macOS CI by guarding backend imports, per [ADR-023](adr/ADR-023-defer-interactive-macos-to-post-v0-1.md)'s v0.2 commitment.
 
@@ -103,7 +136,7 @@ Enable macOS CI by guarding backend imports, per [ADR-023](adr/ADR-023-defer-int
 
 **Exit**: 4-cell CI green; interactive macOS pass documented. Pairs naturally with the GUI/headless split M13 introduces. Does not gate the spine.
 
-### M18 — Release prep + v0.2.0
+### M19 — Release prep + v0.2.0 (was original M18)
 
 Fold in the remaining v0.1 carryovers and the release mechanics.
 
@@ -118,6 +151,8 @@ Fold in the remaining v0.1 carryovers and the release mechanics.
 ---
 
 ## 4. Dependency Graph (milestone gating)
+
+**Revised 2026-09-02:** M17 is now the GUI redesign (Tasks 116-125). Old M17 (macOS CI) is now M18. Old M18 (release prep) is now M19. The ASCII graph below is from the original plan and uses old numbers; treat M17/M18/M19 per the REVISION section above.
 
 ```
 M12 (spike) ──▶ M13 (renderer) ──▶ M14 (live GUI edit) ──▶ M15 (GUI surface) ──▶ M18 (release)
