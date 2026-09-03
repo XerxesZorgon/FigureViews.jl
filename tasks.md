@@ -5107,3 +5107,9 @@ children, 9 toolbar children, and correct per-button sensitivity.
 - Manual smoke test confirmed: toolbar buttons no longer crash; property edit sets dirty
   flag and activates Undo; Undo reverts value; Redo re-applies.
 
+**Bug fix 2 (File > New crash on Windows) — commit 7506cd7:**
+- `_do_new(w)` and `Gtk4.destroy(w)` wrapped in `Gtk4.GLib.g_idle_add` in both
+  `file_new` and `file_open` action handlers to defer window creation/destruction
+  to the next GLib main loop iteration, preventing GTK main-thread re-entrancy
+  (Windows fatal exception exit code -805306369).
+
