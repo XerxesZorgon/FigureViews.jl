@@ -5158,3 +5158,21 @@ children, 9 toolbar children, and correct per-button sensitivity.
   (valid main, valid csv, bad prefix, empty var_id). Registered in `test/runtests.jl`.
 - Full suite green: `parse_var_drop_payload` 4/4. No plot creation — logging only.
 
+---
+
+## Task 121: Tier-1 deterministic plot-type recommender
+**Status:** [x] Done — 2026-09-03, commit 94715fe
+**Milestone:** M17 (Phase 2)
+**Depends on:** Task 120
+
+- `src/recommend/tier1.jl` (new): `recommend_plot_type(var_kind, ndims, axis_kind) -> Union{Symbol,Nothing}`
+  applies four deterministic rules (`:vector`/1/`:axis2d` → `:lines`;
+  `:matrix`/2/`:axis2d` → `:heatmap`; `:matrix`/2/`:axis3d` → `:surface`;
+  `:matrix`/3/`:axis3d` → `:volume`); everything else → `nothing`.
+  `recommend_from_var(var::DataVar, axis_kind) -> Union{Symbol,Nothing}` derives
+  `ndims` from `length(var.shape)` and delegates.
+- `src/FigureViews.jl`: `include("recommend/tier1.jl")` added; both names exported.
+- `test/unit/tier1_recommend.jl` (new): `@testset "recommend_plot_type"` — 7 individual
+  assertions (4 positive matches + 3 `nothing` cases). Registered in `test/runtests.jl`.
+- Full suite green: `recommend_plot_type` 7/7. No UI wiring yet.
+
