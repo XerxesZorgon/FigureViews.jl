@@ -113,6 +113,7 @@ function makieviews()
 end
 
 function makieviews(session::Session)
+    _current_session[] = session
     if !_has_interactive_thread()
         error("""
 FigureViews requires an interactive thread pool for live structural editing.
@@ -209,60 +210,48 @@ function _open_shell(session::Session)
         session.dirty[] = true
     end
 
-    tree_pane = build_tree_pane(session)
-    tree_pane.height_request = 250
-    property_pane = build_property_pane(session;
-        on_edit = (obs, before, after, label) -> begin
-            push_edit!(undo_stack, obs, before, after; label = label)
-            _mark_dirty()
-            btn_undo.sensitive = can_undo(undo_stack)
-            btn_redo.sensitive = can_redo(undo_stack)
-        end)
-    property_pane.height_request = 350
-    variable_pane = build_variable_pane(session)
-    variable_pane.height_request = 200
-    data_pane = build_data_pane(session)
-    data_pane.height_request = 200
-
-    # Task 104: Option A (tab strip) chosen to avoid cramping four vertically-stacked panes
-    data_notebook = GtkNotebook()
-    push!(data_notebook, variable_pane, "Variables")
-    push!(data_notebook, data_pane, "Snapshots")
-
-    # M17 tri-pane layout
-    derived_drawer_placeholder = GtkBox(:v)
-    recipe_drawer_placeholder  = GtkBox(:v)
-
-    left_column = GtkPaned(:v)
-    left_column.width_request = 280
-    left_column[1] = data_notebook
-    left_column[2] = derived_drawer_placeholder
-    left_column.position = 800
-
-    right_top_paned = GtkPaned(:v)
-    right_top_paned[1] = tree_pane
-    right_top_paned[2] = property_pane
-    right_top_paned.position = 250
-
-    right_column = GtkPaned(:v)
-    right_column.width_request = 280
-    right_column[1] = right_top_paned
-    right_column[2] = recipe_drawer_placeholder
-    right_column.position = 800
-
-    center_paned = GtkPaned(:h)
-    center_paned[1] = viewport_widget
-    center_paned[2] = right_column
-    center_paned.position = 840
-
-    main_paned = GtkPaned(:h)
-    main_paned[1] = left_column
-    main_paned[2] = center_paned
-    main_paned.position = 280
-
     # Action group for window
     group = Gtk4.GLib.GSimpleActionGroup()
     action_map = Gtk4.GLib.GActionMap(group)
+
+    # Document group toolbar buttons (defined before actions and property pane)
+    btn_new = GtkButton(; label="New", icon_name="document-new")
+    signal_connect(btn_new, "clicked") do _
+        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "file_new")
+    end
+    btn_open = GtkButton(; label="Open", icon_name="document-open")
+    signal_connect(btn_open, "clicked") do _
+        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "file_open")
+    end
+    btn_save = GtkButton(; label="Save", icon_name="document-save")
+    signal_connect(btn_save, "clicked") do _
+        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "file_save")
+    end
+
+    separator_1 = GtkSeparator(:v)
+
+    # Structure group toolbar buttons
+    btn_add_axis = GtkButton(; label="Add Axis", icon_name="list-add")
+    btn_add_axis.sensitive = false
+    btn_add_plot = GtkButton(; label="Add Plot", icon_name="draw-brush")
+    signal_connect(btn_add_plot, "clicked") do _
+        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "plot_add")
+    end
+
+    separator_2 = GtkSeparator(:v)
+
+    # History group toolbar buttons
+    btn_undo = GtkButton(; label="Undo", icon_name="edit-undo")
+    btn_undo.sensitive = false
+    signal_connect(btn_undo, "clicked") do _
+        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "edit_undo")
+    end
+
+    btn_redo = GtkButton(; label="Redo", icon_name="edit-redo")
+    btn_redo.sensitive = false
+    signal_connect(btn_redo, "clicked") do _
+        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "edit_redo")
+    end
 
     # File > New
     Gtk4.GLib.add_action(action_map, "file_new", (_, _) -> begin
@@ -298,9 +287,12 @@ function _open_shell(session::Session)
     end)
     # File > Save
     Gtk4.GLib.add_action(action_map, "file_save", (_, _) -> begin
-        if !_do_save_if_known(_current_session[])
-            # No known path — fall through to Save As
-            Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "file_save_as")
+        Gtk4.GLib.g_idle_add() do
+            if !_do_save_if_known(session)
+                # No known path — fall through to Save As
+                Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "file_save_as")
+            end
+            return false
         end
     end)
     # File > Save As…
@@ -309,10 +301,13 @@ function _open_shell(session::Session)
         all_filter = GtkFileFilter("*"; name = "All files (*)")
         save_dialog("Save session", w, [mvz_filter, all_filter]) do path
             isempty(path) && return
-            try
-                _do_save(_current_session[], path)
-            catch e
-                _show_error_dialog(w, "Could not save session", sprint(showerror, e))
+            Gtk4.GLib.g_idle_add() do
+                try
+                    _do_save(session, path)
+                catch e
+                    _show_error_dialog(w, "Could not save session", sprint(showerror, e))
+                end
+                return false
             end
         end
     end)
@@ -369,49 +364,9 @@ function _open_shell(session::Session)
 
     menubar = GtkPopoverMenuBar(menu_bar_model)
 
-    # Toolbar
+    # Toolbar assembly
     toolbar = GtkBox(:h)
     Gtk4.G_.add_css_class(toolbar, "toolbar")
-
-    # Document group
-    btn_new = GtkButton(; label="New", icon_name="document-new")
-    signal_connect(btn_new, "clicked") do _
-        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "file_new")
-    end
-    btn_open = GtkButton(; label="Open", icon_name="document-open")
-    signal_connect(btn_open, "clicked") do _
-        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "file_open")
-    end
-    btn_save = GtkButton(; label="Save", icon_name="document-save")
-    signal_connect(btn_save, "clicked") do _
-        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "file_save")
-    end
-
-    separator_1 = GtkSeparator(:v)
-
-    # Structure group
-    btn_add_axis = GtkButton(; label="Add Axis", icon_name="list-add")
-    btn_add_axis.sensitive = false
-    btn_add_plot = GtkButton(; label="Add Plot", icon_name="draw-brush")
-    signal_connect(btn_add_plot, "clicked") do _
-        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "plot_add")
-    end
-
-    separator_2 = GtkSeparator(:v)
-
-    # History group
-    btn_undo = GtkButton(; label="Undo", icon_name="edit-undo")
-    btn_undo.sensitive = false
-    signal_connect(btn_undo, "clicked") do _
-        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "edit_undo")
-    end
-
-    btn_redo = GtkButton(; label="Redo", icon_name="edit-redo")
-    btn_redo.sensitive = false
-    signal_connect(btn_redo, "clicked") do _
-        Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "edit_redo")
-    end
-
     push!(toolbar, btn_new)
     push!(toolbar, btn_open)
     push!(toolbar, btn_save)
@@ -421,6 +376,57 @@ function _open_shell(session::Session)
     push!(toolbar, separator_2)
     push!(toolbar, btn_undo)
     push!(toolbar, btn_redo)
+
+    tree_pane = build_tree_pane(session)
+    tree_pane.height_request = 250
+    property_pane = build_property_pane(session;
+        on_edit = (obs, before, after, label) -> begin
+            push_edit!(undo_stack, obs, before, after; label = label)
+            _mark_dirty()
+            btn_undo.sensitive = can_undo(undo_stack)
+            btn_redo.sensitive = can_redo(undo_stack)
+        end)
+    property_pane.height_request = 350
+    variable_pane = build_variable_pane(session)
+    variable_pane.height_request = 200
+    data_pane = build_data_pane(session)
+    data_pane.height_request = 200
+
+    # Task 104: Option A (tab strip) chosen to avoid cramping four vertically-stacked panes
+    data_notebook = GtkNotebook()
+    push!(data_notebook, variable_pane, "Variables")
+    push!(data_notebook, data_pane, "Snapshots")
+
+    # M17 tri-pane layout
+    derived_drawer_placeholder = GtkBox(:v)
+    recipe_drawer_placeholder  = GtkBox(:v)
+
+    left_column = GtkPaned(:v)
+    left_column.width_request = 280
+    left_column[1] = data_notebook
+    left_column[2] = derived_drawer_placeholder
+    left_column.position = 800
+
+    right_top_paned = GtkPaned(:v)
+    right_top_paned[1] = tree_pane
+    right_top_paned[2] = property_pane
+    right_top_paned.position = 250
+
+    right_column = GtkPaned(:v)
+    right_column.width_request = 280
+    right_column[1] = right_top_paned
+    right_column[2] = recipe_drawer_placeholder
+    right_column.position = 800
+
+    center_paned = GtkPaned(:h)
+    center_paned[1] = viewport_widget
+    center_paned[2] = right_column
+    center_paned.position = 840
+
+    main_paned = GtkPaned(:h)
+    main_paned[1] = left_column
+    main_paned[2] = center_paned
+    main_paned.position = 280
 
     root_box = GtkBox(:v)
     push!(root_box, menubar)
