@@ -24,3 +24,10 @@ test_out.txt
 # Untracked docs kept locally but not committed
 docs/CHANGE-tree-pane-viewport-fix.md
 docs/Makie_Functions.mdx
+docs/Makie_Functions.md
+
+# Local spike / exploration scripts
+spike/
+
+# Local image assets
+images/
