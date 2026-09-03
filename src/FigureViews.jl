@@ -268,10 +268,12 @@ function _open_shell(session::Session)
         msg = session.dirty[] ?
             "You have unsaved changes. Discard and start a new session?" :
             "Discard current session and start a new one?"
-        ask_dialog(msg, w;
-                   no_text = "Cancel", yes_text = "Discard") do response
-            if response   # true = user chose the affirmative button
-                _do_new(w)
+        ask_dialog(msg, w; no_text = "Cancel", yes_text = "Discard") do response
+            if response
+                Gtk4.GLib.g_idle_add() do
+                    _do_new(w)
+                    return false
+                end
             end
         end
     end)
@@ -282,7 +284,10 @@ function _open_shell(session::Session)
             try
                 new_session_obj = _do_load(path)
                 makieviews(new_session_obj)
-                Gtk4.destroy(w)
+                Gtk4.GLib.g_idle_add() do
+                    Gtk4.destroy(w)
+                    return false
+                end
             catch e
                 _show_error_dialog(w, "Could not open session", sprint(showerror, e))
             end
