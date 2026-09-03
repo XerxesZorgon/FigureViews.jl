@@ -29,6 +29,7 @@ include("preflight/downsample.jl")
 include("preflight/check.jl")
 include("ui/preflight_modal.jl")
 include("ui/add_plot_dialog.jl")
+include("recommend/tier1.jl")
 
 export makieviews, save_session, load_session,
        add_plot!, add_plot_checked!, ingest!, build_dataref, animate_plot!, render_animation, export_figure, render_session,
@@ -43,7 +44,8 @@ export makieviews, save_session, load_session,
        show_preflight_modal, _format_preflight_body,
        _apply_preflight_choice, _show_downsample_dialog,
        _DATA_INLINE_MAX_ELEMENTS,
-       _parse_var_drop_payload
+       _parse_var_drop_payload,
+       recommend_plot_type, recommend_from_var
 
 const _current_session = Ref{Union{Nothing, Session}}(nothing)
 const _current_renderer = Ref{Union{Nothing, Renderer}}(nothing)
