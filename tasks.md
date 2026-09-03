@@ -5122,3 +5122,21 @@ children, 9 toolbar children, and correct per-button sensitivity.
   `save_dialog` at top level then defers write.
 - `file_save_as`: `save_dialog` at top level, only `_do_save` deferred.
 
+---
+
+## Task 119: Variable pane drag source
+**Status:** [x] Done — 2026-09-03, commit 88730af
+**Milestone:** M17 (Phase 2)
+**Depends on:** Task 118
+
+- `_variable_drag_payload(source_kind::Symbol, var_id) -> String` added in
+  `src/ui/variable_pane.jl` returning `"figureviews-var:$(source_kind):$(var_id)"`.
+- Inside `rebuild_rows!`, every row whose `var.kind != :unsupported` gets a
+  `GtkDragSource` whose `"prepare"` callback returns a `GdkContentProvider` of MIME
+  type `"text/plain"` carrying UTF-8 bytes of `_variable_drag_payload(:main, var.id)`.
+  Unsupported rows have no controller attached.
+- `test/unit/variable_pane.jl`: `@testset "variable drag payload"` with three
+  assertions — `(:main, "x")`, `(:main, "long_name_123")`, `(:csv, "col_A")`.
+- Full suite green: `variable drag payload` 3 passed, 0 failed.
+- Drop target (canvas) and recommendation engine deferred to Tasks 120+.
+
