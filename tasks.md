@@ -4878,6 +4878,108 @@ On fail: `TASK 115 FAILED — [which step failed]` with the error or hash mismat
 
 ---
 
+## Task 117: Add toolbar with Document, Structure, and History button groups
+**Status:** [ ] Pending
+**Milestone:** M17
+**Depends on:** Task 116
+
+### What to do
+Insert an icon+label toolbar row between the menubar and `main_paned` in
+`_open_shell`. The toolbar is a `GtkBox(:h)` with CSS style class `toolbar`.
+It contains three visually separated button groups. Buttons in the Structure
+and History groups that have no backing action yet are added as insensitive
+(grayed out) stubs; later tasks replace the stubs with real handlers.
+
+#### Toolbar layout
+
+    toolbar (GtkBox :h, css class "toolbar")
+      [Document group]
+        btn_new     label="New"   icon=document-new       action=app.file_new
+        btn_open    label="Open"  icon=document-open      action=app.file_open
+        btn_save    label="Save"  icon=document-save      action=app.file_save
+      separator_1 (GtkSeparator :v)
+      [Structure group]
+        btn_add_axis  label="Add Axis"  icon=list-add   action=app.axis_add  (stub, insensitive)
+        btn_add_plot  label="Add Plot"  icon=draw-brush action=app.plot_add
+      separator_2 (GtkSeparator :v)
+      [History group]
+        btn_undo  label="Undo"  icon=edit-undo  action=app.edit_undo  (stub, insensitive)
+        btn_redo  label="Redo"  icon=edit-redo  action=app.edit_redo  (stub, insensitive)
+
+Each button is a `GtkButton` constructed with `GtkButton(; label="...",
+icon_name="...")`. Set `btn.sensitive = false` for the three stub buttons.
+Use `on_clicked` (or `signal_connect(btn, "clicked")`) to call
+`Gtk4.GLib.activate(Gtk4.GLib.GActionGroup(group), "action_name")` for the
+three live buttons (New, Open, Save, Add Plot); stub buttons get no click
+handler (they are insensitive).
+
+Add two stub actions to the action group so GTK does not warn about
+unresolved action names in the future (even though no button is sensitive):
+
+```julia
+Gtk4.GLib.add_action(action_map, "axis_add",
+    _ -> @info "axis_add: not yet implemented (Task 118+)")
+Gtk4.GLib.add_action(action_map, "edit_undo",
+    _ -> @info "edit_undo: not yet implemented (Task 118)")
+Gtk4.GLib.add_action(action_map, "edit_redo",
+    _ -> @info "edit_redo: not yet implemented (Task 118)")
+```
+
+Update `root_box` construction:
+
+```julia
+root_box = GtkBox(:v)
+push!(root_box, menubar)
+push!(root_box, toolbar)      # NEW — between menubar and main_paned
+push!(root_box, main_paned)
+```
+
+#### Preserve unchanged
+- All existing action wiring (file_new, file_open, file_save, file_save_as,
+  file_quit, plot_add)
+- `main_paned` hierarchy and splitter positions from Task 116
+- `renderer.viewport_widget` assignment and both destroy/unrealize handlers
+- `key_controller` (Ctrl+P)
+- `Gtk4.GLib.start_main_loop()`
+- `_current_session[]` / `_current_renderer[]`
+
+### Files touched
+- `src/FigureViews.jl` — two edits inside `_open_shell`:
+  1. Add three stub action registrations after the existing `file_quit` action.
+  2. Build the `toolbar` box and insert it into `root_box` between menubar and
+     `main_paned`.
+- `test/ui/test_shell_layout_m17.jl` — update to assert:
+  - `root_children` now has **3** children (menubar, toolbar, main_paned)
+  - `root_children[2]` is a `GtkBox` (the toolbar)
+  - `root_children[3]` is the existing `main_paned` (`GtkPaned`)
+  - All previous structural assertions shift one index (main_paned is now
+    `root_children[3]` instead of `[2]`), or re-derive from named references.
+
+### Acceptance Criterion
+1. `julia --project=. --threads 4,1 -e 'using Pkg; Pkg.test()'` exits 0
+   with the full existing test suite green.
+2. Updated `test_shell_layout_m17.jl` asserts:
+   - `root_box` has exactly 3 children
+   - child-2 is a `GtkBox` (toolbar)
+   - toolbar has exactly 8 children (3 buttons + separator + 2 buttons +
+     separator + 2 buttons)
+   - `btn_new.sensitive == true`, `btn_open.sensitive == true`,
+     `btn_save.sensitive == true`, `btn_add_plot.sensitive == true`
+   - `btn_add_axis.sensitive == false`, `btn_undo.sensitive == false`,
+     `btn_redo.sensitive == false`
+   - child-3 is still a `GtkPaned` (main_paned); all M17 structural
+     assertions from Task 116 still pass.
+3. Manual Windows launch: `julia --project=. --threads 4,1` →
+   `using FigureViews; makieviews()` → toolbar visible between menubar and
+   canvas; New/Open/Save/Add Plot buttons are clickable and trigger their
+   existing dialogs; Add Axis, Undo, Redo appear grayed out.
+
+### On Failure
+Report verbatim:
+`TASK 117 FAILED — [criterion number] — [observed toolbar shape or error] — [full stderr if crash]`
+
+---
+
 ## Task 116: Restructure _open_shell to tri-pane layout
 **Status:** [x] Done — 2026-09-02, commit 7bc5788
 **Milestone:** M17
