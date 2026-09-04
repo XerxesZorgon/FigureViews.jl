@@ -5196,3 +5196,14 @@ children, 9 toolbar children, and correct per-button sensitivity.
 - Full suite green: `find_selected_axis` 3/3; all prior testsets green.
 - Pre-seeding dialog with plot type / var_id (Tier-2 wiring) deferred.
 
+**Hotfix — commit 6c7fc4c (2026-09-03)**
+- `w` → `w[]` in both `g_idle_add` closures in the drop handler (the Ref was
+  being passed instead of the unwrapped `GtkWindow`, so `show_add_plot_dialog`
+  received a wrong type and the dialog never opened).
+- Tier-1 `:vector`/ndims=1/`:axis2d` rule changed `:lines` → `:hist` (`:lines`
+  needs 2 roles; `:hist` needs 1 — `:values` — so a lone vector can be created
+  immediately without a dialog).
+- Tier-1 `:matrix`/ndims=2/`:axis3d` rule changed `:surface` → `nothing`
+  (`:surface` needs 3 roles; single dragged matrix falls back to full browser).
+- Unit tests updated to match: `recommend_plot_type` 7/7 still green.
+
