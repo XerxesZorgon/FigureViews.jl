@@ -481,15 +481,20 @@ function _open_shell(session::Session)
             return false
         end
 
-        # Resolve the DataVar for this variable
+        # Resolve the variable directly from Main
         src = MainSource(Main)
-        vars = enumerate_variables(src)
-        var = findfirst(v -> v.id == var_id, vars)
-        if var === nothing
-            @warn "Canvas drop: variable not found in source" var_id=var_id
+        raw = try
+            getproperty(Main, Symbol(var_id))
+        catch
+            @warn "Canvas drop: variable not found in Main" var_id=var_id
             return false
         end
-        dv = vars[var]
+        var_kind, var_shape = _classify_main(raw)
+        if var_kind == :unsupported
+            @warn "Canvas drop: variable type not supported" var_id=var_id
+            return false
+        end
+        dv = DataVar(var_id, var_id, var_kind, var_shape)
 
         # Tier-1 recommendation
         plot_type = recommend_from_var(dv, ax.kind)
