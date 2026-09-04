@@ -5207,3 +5207,42 @@ children, 9 toolbar children, and correct per-button sensitivity.
   (`:surface` needs 3 roles; single dragged matrix falls back to full browser).
 - Unit tests updated to match: `recommend_plot_type` 7/7 still green.
 
+**Hotfix 2 — commit 2fd54a0 (2026-09-03)**
+- Drop handler variable lookup replaced: instead of `enumerate_variables` +
+  `findfirst`, now calls `getproperty(Main, Symbol(var_id))` directly and
+  classifies with `_classify_main`. Root cause: `enumerate_variables` only
+  sees variables currently in `Main`; when a session is loaded from `.mvz`
+  the plot data lives in `session.data_snapshots`, not `Main`, so `findfirst`
+  always returned `nothing` and the drop silently aborted.
+- Manual smoke test confirmed: `y = sin.(1:100)` drag → `:hist` appears on
+  canvas without dialog, tree pane updates. Tests still green.
+
+---
+
+## Task 123: Makie code emitter — plot level
+**Status:** [x] Done — 2026-09-03, commit PENDING
+**Milestone:** M17 (Phase 3 — generative code model)
+**Depends on:** ADR-026 node model
+
+First piece of the node-graph → Makie-code emitter (source-of-truth = node graph;
+code is emitted from it). Plot-level only; axis- and figure-level emission are
+later tasks.
+
+- `src/emit/emit_plot.jl` (new): `emit_plot_code(plot::Plot; axis_var="ax") -> String`
+  emits one Makie mutating call referencing data by variable name (`DataRef.label`).
+  Function name is `string(plot.func) * "!"`; positional args ordered by
+  `REGISTRY[plot.func].positional_shape` with role-alias fallback; keyword args
+  from `plot.attrs`, alphabetically sorted, skipping `nothing`/`:automatic`.
+  Helper `_emit_value` renders Julia literals (`:sym`, `"str"`, bools, ints,
+  reals, colorants as `"#RRGGBB"`).
+- Emits e.g. `lines!(ax, x, y; color=:blue, linewidth=1.5)`,
+  `heatmap!(ax, M)` (no-kwarg case, no semicolon).
+- `src/FigureViews.jl`: `include("emit/emit_plot.jl")`; `emit_plot_code` exported.
+- `test/unit/emit_plot.jl` (new): `@testset "emit_plot_code"` — 7 assertions
+  (lines/scatter/heatmap exact strings, `_emit_value` cases, custom `axis_var`).
+  Registered in `test/runtests.jl`.
+- Full suite green: `emit_plot_code` 7/7; `Testing FigureViews tests passed`.
+- Design context: node graph stays canonical (ADR-026); this emitter is the bridge
+  to the planned read-only grid window and code-export. Rendering still goes via
+  `renderer.jl` interpretation — the emitter is a second consumer, not a replacement.
+
