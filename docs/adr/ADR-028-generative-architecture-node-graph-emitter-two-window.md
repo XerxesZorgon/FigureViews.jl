@@ -71,8 +71,13 @@ recreating the node. The mechanism is:
 **Proven by spike** (`spike/type_mutability.jl`, 2026-09-03, headless CairoMakie):
 `Plot` is a `mutable struct`; teardown returns the observer table to exactly the new
 count with zero leaks; handle transitions from `Makie.Lines` to `Makie.Scatter`; node
-`id` and `data_refs` are unchanged; export reflects the new type. The live-window
-(GLMakie) path is not yet spiked and remains a pre-build verification gate.
+`id` and `data_refs` are unchanged; export reflects the new type.
+
+**Also proven by live-window spike** (`spike/live_type_swap.jl`, 2026-09-03,
+GLMakie + Gtk4Makie, running window): the GLMakie viewport updated in-place from a
+continuous line to scatter dots without closing, hanging, or blanking. Handle type
+transitioned to `Makie.Scatter`, observer count returned to exactly 6, node id
+unchanged, export 57 KB. No GL errors. The live-window gate is cleared.
 
 **Type mutability is only valid within a role-compatible family.** `:line` → `:scatter`
 is valid (both bind `:x`/`:y`). `:line` → `:hist` is not valid in-place (`:hist` binds
@@ -179,8 +184,7 @@ as an accelerator. No revert task is planned.
   type after a look" is a first-class, cheap operation.
 - **Positive:** matrix orientation ambiguity is resolved by a dialog ask rather than a
   new DataRef variant — simpler and consistent with the existing creation-dialog pattern.
-- **Negative / risk:** the live-window type-swap path (GLMakie, not CairoMakie export)
-  is unverified. Must be spiked before the type-change UI is built.
+- **Resolved:** the live-window type-swap path is verified clean (`spike/live_type_swap.jl`, 2026-09-03).
 - **Negative / risk:** two live Gtk4Makie GL contexts in one process is unverified.
   Must be spiked before any grid-window task is written.
 - **Neutral:** drag/drop code remains; it is inert if nothing initiates a drag. Future
@@ -192,5 +196,5 @@ as an accelerator. No revert task is planned.
 
 | Spike | Gates |
 |---|---|
-| Live GLMakie type-swap (window open, not headless) | Type-change UI task |
+| ~~Live GLMakie type-swap (window open, not headless)~~ | ~~Type-change UI task~~ — **cleared 2026-09-03** |
 | Two live Gtk4Makie embedded contexts in one process | Any grid-window task |
