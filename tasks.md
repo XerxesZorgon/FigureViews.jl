@@ -5176,3 +5176,23 @@ children, 9 toolbar children, and correct per-button sensitivity.
   assertions (4 positive matches + 3 `nothing` cases). Registered in `test/runtests.jl`.
 - Full suite green: `recommend_plot_type` 7/7. No UI wiring yet.
 
+---
+
+## Task 122: Wire drop target — Tier-1 recommend and create plot
+**Status:** [x] Done — 2026-09-03, commit 9cdc097
+**Milestone:** M17 (Phase 2)
+**Depends on:** Tasks 120, 121
+
+- `src/ui/drop_target.jl`: added `_find_selected_axis(session) -> Union{Axis,Nothing}`
+  — checks `session.selection[]` first, falls back to first axis of first figure, returns
+  `nothing` if session has no axes.
+- `src/FigureViews.jl`: `_find_selected_axis` exported; `"drop"` signal handler in
+  `_open_shell` fully wired: parse payload → find axis → resolve `DataVar` from
+  `MainSource(Main)` → Tier-1 `recommend_from_var` → single-role match calls
+  `_confirm_add_plot` immediately; multi-role or no-match opens
+  `show_add_plot_dialog` via `g_idle_add`.
+- `test/unit/drop_target.jl`: `@testset "find_selected_axis"` added — 3 assertions
+  (empty session, unselected fallback to first axis, active selection respected).
+- Full suite green: `find_selected_axis` 3/3; all prior testsets green.
+- Pre-seeding dialog with plot type / var_id (Tier-2 wiring) deferred.
+
