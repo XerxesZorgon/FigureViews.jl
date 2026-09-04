@@ -5220,7 +5220,7 @@ children, 9 toolbar children, and correct per-button sensitivity.
 ---
 
 ## Task 123: Makie code emitter — plot level
-**Status:** [x] Done — 2026-09-03, commit PENDING
+**Status:** [x] Done — 2026-09-03, commit ca03f68
 **Milestone:** M17 (Phase 3 — generative code model)
 **Depends on:** ADR-026 node model
 
