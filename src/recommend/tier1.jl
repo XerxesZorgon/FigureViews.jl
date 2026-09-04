@@ -8,11 +8,11 @@ on an axis of kind `axis_kind`. Returns a single plot type symbol if a rule matc
 """
 function recommend_plot_type(var_kind::Symbol, ndims::Int, axis_kind::Symbol)::Union{Symbol, Nothing}
     if axis_kind == :axis2d && var_kind == :vector && ndims == 1
-        return :lines
+        return :hist
     elseif axis_kind == :axis2d && var_kind == :matrix && ndims == 2
         return :heatmap
     elseif axis_kind == :axis3d && var_kind == :matrix && ndims == 2
-        return :surface
+        return nothing
     elseif axis_kind == :axis3d && var_kind == :matrix && ndims == 3
         return :volume
     else

@@ -508,14 +508,14 @@ function _open_shell(session::Session)
             else
                 # Multi-role — open dialog pre-seeded with plot_type selected
                 Gtk4.GLib.g_idle_add() do
-                    show_add_plot_dialog(session, ax, w)
+                    show_add_plot_dialog(session, ax, w[])
                     return false
                 end
             end
         else
             # Tier-1 no match — open full browser
             Gtk4.GLib.g_idle_add() do
-                show_add_plot_dialog(session, ax, w)
+                show_add_plot_dialog(session, ax, w[])
                 return false
             end
         end
